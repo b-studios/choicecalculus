@@ -1,0 +1,9 @@
+select Database.fast from
+select Logging.info from
+select Mode.production from
+
+dim Mode<production, development, testing> in
+dim Logging<info, debug, error> in
+dim Database<slow, fast> in
+
+(1 + (Logging<info: 11, debug: 12, error: 14>) + 2 + (Mode<production: 10, development: 2, testing: 0>) + (Database<slow: 100, fast: 200>))

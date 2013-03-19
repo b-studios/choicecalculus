@@ -1,0 +1,4 @@
+dim D<a,b,c,d,e,f> in choice D {
+  case a => 1
+  case _ => 2
+}
