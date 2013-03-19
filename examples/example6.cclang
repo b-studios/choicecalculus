@@ -1,6 +1,6 @@
 select Database.fast from
-select Logging.info from
 select Mode.production from
+select Logging.info from
 
 dim Mode<production, development, testing> in
 dim Logging<info, debug, error> in
