@@ -18,20 +18,20 @@ object Main extends Parser with ParsingREPL[ASTNode] with TypeSystem {
     
   def process(tree: ASTNode) {
     
-    val dims = typeOf(tree, Map())
+    val dims = dimensionCheck(tree)
     println("Dimensions: " + dims)
     
     //println(tree)
   }
 }
 // with DimensionChecker with ChoiceGraph
-object CommandLine extends App with Parser with TypeSystem {
+object CommandLine extends App with Parser with TypeSystem with DimensionChecker {
 
   val contents = io.Source.fromFile(args(0), "utf-8").getLines.mkString("\n")
   
   parseAll(parser, contents) match {
     case Success(tree, _) => {
-      val dims = typeOf(tree, Map())
+      val dims = dimensionCheck(tree)
       println("Parse Tree :" + tree)
       println("Dimensions: " + dims)
       
@@ -40,7 +40,7 @@ object CommandLine extends App with Parser with TypeSystem {
       // ones first. (Addressing Problem (4) )
       //println("Choicegraph: " + getChoiceGraph(tree))
       
-      //println("Reduced: " + eval(tree))
+      println("Reduced: " + eval(tree))
     }
     case fail: NoSuccess => sys error fail.msg
   }
