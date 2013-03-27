@@ -3,7 +3,8 @@ package ast
 
 import org.kiama.attribution.Attributable
 import org.kiama.util.Positioned
-  
+import utility.Rebuildable
+
 abstract class ASTNode extends Attributable with Positioned
 
 /**
@@ -15,7 +16,7 @@ abstract class Expression extends ASTNode
 /**
  * Host Language Expressions
  */
-abstract class HostLanguageExpression extends Expression
+abstract class HostLanguageExpression extends Expression with Rebuildable
 abstract class ConstantExpr extends HostLanguageExpression
 abstract class UnaryExpr extends HostLanguageExpression {
   def content: Expression
@@ -47,3 +48,13 @@ case class ChoiceExpr(dim: Symbol, choices: List[Choice]) extends CCExpression
 case class Choice(tag: Symbol, body: Expression) extends ASTNode
 
 case class SelectExpr(dim: Symbol, tag: Symbol, body: Expression) extends CCExpression
+
+case class ShareExpr(name: Symbol, exp: Expression, body: Expression) extends CCExpression
+
+case class IdExpr(name: Symbol) extends CCExpression
+
+case class IncludeExpr(filename: String) extends CCExpression
+
+
+/** Nodes needed for implementation purpose only */
+case class PartialConfig(body: Expression, selections: List[(Symbol, Symbol)]) extends CCExpression

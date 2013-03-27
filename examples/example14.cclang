@@ -1,0 +1,5 @@
+select A.b from
+(share v = 42 in
+  share w = dim A<a,b> in A<a:12,b:36> in
+    v + w + (select A.a from w))
+

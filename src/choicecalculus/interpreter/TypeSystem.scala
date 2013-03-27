@@ -1,6 +1,9 @@
 package choicecalculus
 package semantics
 
+/**
+ * TODO next things to do: reimplement the exhaustive and binding (dim) checks!
+ */
 trait TypeSystem {
 
   import ast._
@@ -16,6 +19,9 @@ trait TypeSystem {
   
   /**
    * Represents A<a: B<...>, b: ø>
+   * 
+   * I guess the inner dimensions can also be a set like A<a: {B, C, D}, b: ø> since multiple dimensions can
+   * depend on one particular choice
    */
   case class Dimension(name: Symbol, dims: Map[Symbol, DimensionType]) extends DimensionType {
     override def toString =
@@ -25,9 +31,9 @@ trait TypeSystem {
   /**
    * Represents A.a → B
    */
-  case class DependentDimension(dependsOn: DimensionExpr, choice: Symbol, dim: DimensionType) extends DimensionType {
+  case class DependentDimension(dim: Symbol, tag: Symbol, dependent: DimensionType) extends DimensionType {
     override def toString =
-      "%s.%s → %s".format(dependsOn.name.name, choice.name, dim)
+      "%s.%s → %s".format(dim.name, tag.name, dependent)
   }
   
   /**
@@ -65,12 +71,11 @@ trait TypeSystem {
    * The program is fully configured if this function returns Set(ø). Otherwise every element of the return set
    * gives one possible configuration (except ø)
    */
-  def dimensionOf(e: ASTNode, env: Map[Symbol, DimensionExpr]): Set[DimensionType] = e match {
+  def dimensionOf(e: ASTNode, env: Map[Symbol, Set[DimensionType]]): Set[DimensionType] = e match {
     
     case d@DimensionExpr(name, tags, body) => {
      
-      // top down we provide a lexical binding for this dimension to enable checking of `ChoiceExpr`s
-      val dimTypes = dimensionOf(body, env + (name -> d))
+      val dimTypes = dimensionOf(body, env)
       
       // bottom up we aggregate all `DependentDimension`s into one dimension
       // i.e. { A.a → B, A.b → C, ... } and current dimension is A<a,b,c> will be aggregated into 
@@ -78,9 +83,9 @@ trait TypeSystem {
       // 1. Initialize all tags with a plain dimension
       // 2. override those tags with found dimensions
       val dependentDims = for {
-        DependentDimension(dep, choice, dim) <- dimTypes
-        if dep == d
-      } yield (choice, dim)
+        DependentDimension(dim, tag, dependent) <- dimTypes
+        if dim == name
+      } yield (tag, dependent)
       
       // Here may be a good point to check whether any choice is using this dimension. If this is not the case
       // a warning should be printed.
@@ -90,7 +95,7 @@ trait TypeSystem {
       
       // 3. We now merge the rest of the dimensions with our singleton set
       merge(dimTypes.filter { 
-        case DependentDimension(dep, _, _) => dep != d
+        case DependentDimension(dim, _, _) => dim != name
         case _ => true
       }, Set(Dimension(name, Map((tags.map { (t) => (t, Plain) } ++ dependentDims).toList: _*))))
     }
@@ -99,6 +104,7 @@ trait TypeSystem {
      * Double check if this is right, because of dynamic scope!
      */
     case SelectExpr(dim, tag, body) => {
+      
       val dims = dimensionOf(body, env)
       
       val selected = dims.map {
@@ -122,6 +128,9 @@ trait TypeSystem {
     // For every choice recursively invoke `typeOf` and then make those inner dimensions dependent of the choice
     case ChoiceExpr(dim, choices) => {
       
+      /**
+       * This cannot be done anymore, because now we use the env for the share construct
+       *
       // 1. Check whether the choice is lexically bound by a dimension
       if (!(env contains dim))
         sys error "unbound choice %s".format(dim.name)
@@ -131,13 +140,22 @@ trait TypeSystem {
       // 2. Check whether the choices are exhaustive - currently not using wildcards
       if (bindingInstance.tags.toSet != choices.map(_.tag).toSet)
         sys error "Choices for %s are not exhaustive!".format(dim.name)
-      
+      */
       // 3. Create DimensionTypes for every branch and make them dependent.
       (for {
         Choice(tag, body) <- choices
         dimType <- dimensionOf(body, env)
-      } yield DependentDimension(env(dim), tag, dimType)).toSet
+      } yield DependentDimension(dim, tag, dimType)).toSet
     }
+    
+    // here caching should happen (especially with files / modules)
+    case ShareExpr(name, boundExpr, body) => dimensionOf(body, env + (name -> dimensionOf(boundExpr, env)))
+    
+    case IdExpr(name) => if (env contains name)
+        env(name)
+      else
+        sys error "Use of unbound choice calculus variable %s".format(name)
+        
     case BinaryExpr(lhs, rhs) => merge(dimensionOf(lhs, env), dimensionOf(rhs, env))
     case UnaryExpr(body) => dimensionOf(body, env)
     case c:ConstantExpr => Set(Plain)    

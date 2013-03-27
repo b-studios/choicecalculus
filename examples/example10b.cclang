@@ -1,0 +1,11 @@
+dim B<b> in
+dim A<a> in
+  (choice A {
+    case a => choice B {
+      case b => dim C<c> in C<c: 42>
+    }
+  }) + (choice B {
+    case b => choice A {
+      case a => dim D<d> in D<d: 84>
+    }
+  })

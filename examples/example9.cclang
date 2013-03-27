@@ -1,0 +1,2 @@
+share v = (dim A<a,b> in A<a: 1, b: 2>) in
+  (select A.a from v) + (select A.b from v)

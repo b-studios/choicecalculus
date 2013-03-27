@@ -52,35 +52,61 @@ object Messaging {
     /**
      * Buffer of messages.
      */
-    val messages = new ListBuffer[Record] ()
-
-    /**
-     * The messages sorted by increasing position.
-     */
+    val messages  = Map(
+        'info -> new ListBuffer[Record] (),
+        'warning -> new ListBuffer[Record] (),
+        'error -> new ListBuffer[Record] ()
+    )
+    
+    def allmessages = 
+      messages('info).toList ++ messages('warning).toList ++ messages('error).toList
+    
     def sortedmessages : Seq[Record] =
-        messages.toList.sortWith (_.pos < _.pos)
+      allmessages.sortWith (_.pos < _.pos)
 
     /**
      * Buffer a new message associated with the given `Positional` value.
      */
-    def message (value : Positional, message : String) {
-        messages += Info (value.pos, message)
+    def message(value : Positional, message : String) {
+        messages('info) += Info(value.pos, message)
+    }
+    
+    def error(value : Positional, message : String) {
+        messages('error) += Error(value.pos, message)
+    }
+    
+    def warning(value : Positional, message : String) {
+        messages('warning) += Warning(value.pos, message)
     }
 
     /**
      * Buffer a new message associated with the given `Positioned` value.
      * The `finish` position is ignored at present.
      */
-    def message (value : Positioned, message : String) {
-        messages += Info (value.start, message)
+    def message(value : Positioned, message : String) {
+        messages('info) += Info(value.start, message)
+    }
+    
+    def error(value : Positioned, message : String) {
+        messages('error) += Error(value.start, message)
+    }
+    
+    def warning(value : Positioned, message : String) {
+        messages('warning) += Warning(value.start, message)
     }
 
     /**
      * Return the number of messages that are buffered.
      */
     def messagecount : Int =
-        messages.size
+        messages('info).size
 
+    def warningcount : Int =
+        messages('warning).size
+        
+    def errorcount : Int =
+        messages('error).size
+        
     /**
      * Output the messages in order of position using the given emitter, which
      * defaults to standard output.
@@ -94,7 +120,9 @@ object Messaging {
      * Reset the message buffer to empty.
      */
     def resetmessages () {
-        messages.clear
+        messages.foreach {
+          case (level, buffer) => (level, buffer.clear)
+        }
     }
 
 }

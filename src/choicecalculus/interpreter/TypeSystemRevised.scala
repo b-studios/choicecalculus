@@ -1,134 +1,236 @@
 package choicecalculus
 package semantics
 
-trait TypeSystemRevised {
+trait TypeSystemRevised { self: DimensionGraph =>
 
+  /**
+   * TODO understand topdownS with stop criterion and use it to control traversal
+   * 
+   */
+  
+  
   import ast._
-  
-  abstract class DimensionNode
-  
-  type DimensionGraph = Set[DimensionNode]
-  
-  // searches all concrete dimensions of the graph
-  // since there is at most one level of unbound choices and we are only interested in the first
-  // layer this works fine
-  def allDims(graph: DimensionGraph): DimensionGraph =
-    (for (dim <- graph) yield dim match {
-      case UnboundDependency(_,_,dims) => dims
-      case d => Set(d)
-    }).flatten
-      
+  import org.kiama.util.Messaging.message
+  import org.kiama.attribution.Attribution.{attr, paramAttr, CachedParamAttribute}
+  import org.kiama.rewriting.Rewriter._  
+ 
   
   /**
-   * Represents ø
-   */
-  case object Plain extends DimensionNode {
-    override def toString = "ø"
+   * 1. Step: Perform all selections
+   * -------------------------------
+   * Maybe we should use oncetd here, since merging is currently not supported
+   * 
+   * TODO This has to be refactored to be used more flexible
+   */ 
+  
+  // Don't select dependent dimensions!
+  val selectFromChoice = rule {
+    case SelectExpr(_, _, c:ChoiceExpr) => c
+  }
+  val selectFromDim = rule {
+    case SelectExpr(dim, tag, DimensionExpr(name, tags, body)) if name == dim =>
+      rewrite (chooseRelation(dim, tag)) (body)
+  }  
+  val selectFromId = rule {
+    case SelectExpr(dim, tag, id:IdExpr) => PartialConfig(id, List((dim, tag)))
+  }  
+  val selectFromPartialConfig = rule {
+    case SelectExpr(dim, tag, PartialConfig(body, configs)) => PartialConfig(body, configs ++ List((dim, tag)))
+  }
+  
+  // Congruences
+  val selectFromAdd = rule {
+    case SelectExpr(dim, tag, Add(lhs, rhs)) => 
+      Add(SelectExpr(dim, tag, lhs), SelectExpr(dim, tag, rhs))
+  }
+  val selectFromNum = rule {
+    case SelectExpr(_, _, n:Num) => n
+  }
+  val selectFromShare = rule {
+    case SelectExpr(dim, tag, ShareExpr(name, expr, body)) => 
+      ShareExpr(name, expr, SelectExpr(dim, tag, body))
+  }
+  val selectFromOtherDim = rule {
+    case SelectExpr(dim, tag, DimensionExpr(name, tags, body)) if name != dim => 
+      DimensionExpr(name, tags, SelectExpr(dim, tag, body)) 
   }
   
   /**
-   * Represents A<a: B<...>, b: ø>
-   * Every dimension can contain a DimensionGraph as dependent 
+   * We do the traversal bottomup to perform inner selection first 
    */
-  case class Dimension(name: Symbol, dependentDims: Map[Symbol, Set[DimensionNode]]) extends DimensionNode {
-    override def toString =
-      "%s<%s>".format(name.name, dependentDims.map( (d) => "%s: %s".format(d._1.name, d._2)) mkString ", ")
-  }
+  val selectRelation = bottomup (reduce (
+    selectFromAdd + 
+    selectFromNum + 
+    selectFromChoice + 
+    selectFromShare + 
+    selectFromDim +
+    selectFromOtherDim +
+    selectFromId +
+    selectFromPartialConfig
+  ))
   
-  case class UnboundDependency(dim: Symbol, tag: Symbol, dependentDims: Set[DimensionNode]) extends DimensionNode {
-    override def toString =
-      "%s.%s → %s".format(dim.name, tag.name, dependentDims mkString ", ")
-  }
-  
+ 
   /**
-   * Depending on the choice of *merging* we have to merge here or throw an error, if a dimension occurs 
-   * multiple times
+   * In this relation we use function definition instead of syntactic representation to omit introduction of yet
+   * another syntactic element. Can easily be rewritten.
+   * 
+   * Since the congruence rules match completely kiama's default behavior we can use `sometd(rule {...})` instead
+   * of implementing all congruences by ourselves. `sometd` will try to continue on subtrees until it successfully 
+   * matches a rule. Then it will stop processing this subtree.
    */
-  def merge(lhs: DimensionGraph, rhs: DimensionGraph): DimensionGraph = {
-    for {
-      d1@Dimension(lname, _) <- lhs
-      d2@Dimension(rname, _) <- rhs
-      if lname == rname
-    } sys error "multiple dimension declarations at one level: \n  %s\n  %s".format(d1, d2)
+  def chooseRelation(dim: Symbol, tag: Symbol) = sometd ( rule {
     
-    lhs ++ rhs
-  }
+    // select expressions shadow other ones, with the same dimension
+    case e@SelectExpr(d, _, _) if d == dim => e
+    
+    // selection stops at dimensions with the same name
+    case e@DimensionExpr(d, _, _) if d == dim => e
+    
+    // actual choosing 
+    case ChoiceExpr(d, choices) if d == dim => choices.collect {
+      case Choice(t, body) if t == tag => body
+    }.head
+    
+  })
+  
   
   /**
-   * `env` is used to keep track of shared expressions 
-   */
-  def dimensionOf(e: ASTNode, env: Map[Symbol, DimensionGraph]): DimensionGraph = e match {
+   * 2. Step - Substitution and Removal of unnecessary Shares
+   * --------------------------------------------------------
+   * If bindings are substituted, then we have to reduce them again
+   */  
+  val performSubstitution = bottomup ( 
+    attempt( substituteBindings <* attempt(selectRelation) ) <* attempt(removeShares)
+  )
+  
+  
+  /**
+   * We only substitute variables, if they are fully configured
+   */  
+  val substituteBindings = test(isFullyConfigured) <* (substIdExpr + substPartialConfig) <* desugarPartialConfig
 
-    
-    case DimensionExpr(name, tags, body) => {
-      
-      val dims = dimensionOf(body, env)
-      
-      // find all dependecies, that are in the lexical scope of this dimension declaration
-      // i.e. { A.a → B, A.b → C, ... } and current dimension is A<a,b,c> will be aggregated into 
-      //      { A<a: B, b: C, c: ø>, ... }
-      val dependentDims = for {
-        UnboundDependency(dim, tag, dependent) <- dims
-        if dim == name
-        
-      // here it could also be checked whether `tag` is a declared one
-      } yield (tag, dependent)
-      
-      if (dependentDims.size == 0)
-        printf("Your declared dimension %s is never used. Maybe remove it?\n", name.name)
-      
-      // To include all possible selections (not just the ones with dependent dimensions, also add plain dimensions for
-      // all other tags
-      val plainAlternatives: Map[Symbol, DimensionGraph] = Map(tags.map { (t) => (t, Set[DimensionNode](Plain)) }: _*)
-      
-      // We now merge the rest of the dimensions with our singleton set.  
-      merge(dims.filter { 
-        // all but the ones, bound by the dimension declaration
-        case UnboundDependency(dim, _, _) => dim != name
-        case _ => true
-      }, Set(Dimension(name, plainAlternatives ++ Map((dependentDims.toList): _*))))
+  val isFullyConfigured = strategyf {
+    case exp: ASTNode if (exp->dimensioning).fullyConfigured => Some(exp)
+    case _ => None
+  }
+  
+  // (a) the bound expression itself is fully configured, then the id can be substituted by the expression
+  val substIdExpr = rule {
+    case id@IdExpr(name) => id->bindingShare(name) match {
+      case Some(ShareExpr(_, binding, _)) => binding
+      case _ => sys error "cannot substitute binding for %s".format(name)
     }
+  }
+  
+  // (b) the bound expression is fully configured by delayed selections
+  val substPartialConfig = rule {
+    case PartialConfig(id: IdExpr, configs) => PartialConfig( rewrite(substIdExpr) (id), configs)
+  }
+  
+  // The expression has been substituted by one of the previous steps - just desugar the partial configuration
+  val desugarPartialConfig = rule {
+    case PartialConfig(body, configs) => configs.foldLeft(body) {
+      case (old, (dim, tag)) => SelectExpr(dim, tag, old)
+    }
+  }
+  
+  /**
+   * This is a cleanup step. Unused shares can be removed.
+   */
+  val removeShares = rule {
+    case ShareExpr(n,_,body) if !(body->variableIsUsed(n)) => body
+  }
+  
+  
+  /**
+   * The type parameters are: [ParamType, NodeType, ResultType]
+   */
+  val dimensioning: ASTNode => DimensionGraph = attr { (e) => e match {
 
+    /**
+     * (A) --a--> B<> --b--> C<>
+     *    \--b--> D<>
+     * 
+     * becomes
+     * 
+     * A<> --a--> B<> --b--> C<>
+     *    \--b--> D<>
+     */
+    case DimensionExpr(name, tags, body) => (body->dimensioning).declareDimension(name, tags)(e)
     
     // only toplevel dimensions, which are not dependent can be selected
-    case SelectExpr(dim, tag, body) => {
-      val dims = dimensionOf(body, env)
-      
-      val selected = dims.flatMap[DimensionNode, DimensionGraph] {
-        case Dimension(name, dependendDims) if name == dim => dependendDims(tag)
-        case other => Set(other)
+    case SelectExpr(dim, tag, body) => (body->dimensioning).select(dim, tag)(e)    
+    
+    case ChoiceExpr(dim, choices) => choices.foldLeft(DimensionGraph.empty) {
+      case (old, c@Choice(tag, body)) => old.merge((body->dimensioning).fromChoice(dim, tag)(e))(e) 
+    }
+    
+    // gracefully fall back to empty dimension graph
+    case IdExpr(name) => e->bindingShare(name) match {
+      case Some(ShareExpr(_, boundExpr, _)) => boundExpr->dimensioning
+      case _ => {
+        message(e, "ERROR: Use of unbound choice calculus variable '%s'".format(name.name))
+        DimensionGraph.empty
       }
-      
-      // here we also should search for dependent dimensions and add this information to the warning
-      if (selected == dims)
-        printf("Warning: your selection %s.%s is vacuous - maybe there is something bad going on\n", dim.name, tag.name)
-      
-      selected
     }
     
-    // For every choice recursively invoke `typeOf` and then make those inner dimensions dependent of the choice
-    // I HAVE TO USE REFERENCES (not value types) TO MAKE THIS WORK EFFICIENTLY
-    case ChoiceExpr(dim, choices) => {
+    case PartialConfig(body, configs) => (configs.foldLeft(body->dimensioning) {
+      case (old, (dim, tag)) => old.select(dim, tag)(e)
+    })
+    
+    // Just some congruence rules
+    case ShareExpr(name, boundExpr, body) => body->dimensioning
+    case BinaryExpr(lhs, rhs) => (lhs->dimensioning).merge(rhs->dimensioning)(e)
+    case UnaryExpr(body) => body->dimensioning
+    case _ => DimensionGraph.empty
+  }}
+  
+  /**
+   * searches the share expr which provides the binding for the given symbol
+   * works lexical & bottom up
+   * 
+   * ATTENTION: There might be a problem with free variables in shared expressions like
+   * 
+   * 		share v = 2 in 
+   *      share v = v in
+   *        v
+   * 
+   * Here the second binding of v appears to be circular, which is wrong!
+   */
+  val bindingShare: Symbol => ASTNode => Option[ShareExpr] = paramAttr {
+    name => {
+      case s@ShareExpr(n, _, _) if n == name => Some(s)
+      case other if other.isRoot => None
       
-      (for (Choice(tag, body) <- choices) yield {
-        val dims = dimensionOf(body, env)
-        
-        // all previously unbound dependency stay that way. we just don't want the other dimensions anymore, since
-        // now they are dependent on the newly created choice
-        dims.filter { _.isInstanceOf[UnboundDependency] } + UnboundDependency(dim, tag, allDims(dims))
-      }).flatten.toSet
+      // If the parent is a share expression we have to check whether we are in the binding branch
+      // then skip ahead to next parent
+      // TODO check whether parent is root and a grand parent can exist!
+      case other => other.parent match {
+        case s@ShareExpr(_, e, _) if e == other => s.parent[ASTNode]->bindingShare(name)
+        case otherParent:ASTNode => otherParent->bindingShare(name)
+      }
     }
-    
-    // here caching should happen (especially with files / modules)
-    case ShareExpr(name, boundExpr, body) => dimensionOf(body, env + (name -> dimensionOf(boundExpr, env)))
-    
-    case IdExpr(name) => if (env contains name)
-        env(name)
-      else
-        sys error "Use of unbound choice calculus variable %s".format(name)
-        
-    case BinaryExpr(lhs, rhs) => merge(dimensionOf(lhs, env), dimensionOf(rhs, env))
-    case UnaryExpr(body) => dimensionOf(body, env)
-    case c:ConstantExpr => Set(Plain)    
   }
+  
+  val variableIsUsed: Symbol => ASTNode => Boolean = paramAttr {
+    name => {
+      case IdExpr(n) => n == name
+      // shadowed
+      case ShareExpr(n,_,_) if n == name => false
+      case other => other.children.foldLeft(false) {
+        case (old, node:ASTNode) => old || node->variableIsUsed(name)
+      }
+    }
+  }
+  
+  // this one is easier then bindingShare
+  val bindingDimension: Symbol => ASTNode => DimensionExpr = paramAttr {
+    name => {
+      case d@DimensionExpr(n, _ ,_) if n == name => d
+      case other if other.isRoot => sys error "Cannot find a binding for %s".format(name)
+      case other => other.parent[ASTNode]->bindingDimension(name)
+    }
+  }
+  
+ 
 }

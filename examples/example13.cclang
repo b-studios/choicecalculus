@@ -1,0 +1,14 @@
+dim loglevel<normal, verbose> in
+  share otherModule = (
+    dim logging<info, warning, error, off> in
+    dim performance<optimized, slow, average> in
+    dim mode<production, test, development> in 42) in
+  share partiallyConf = (dim deploy<on, off> in choice deploy {
+    case on => select loggin.off from select mode.production from otherModule
+    case off => choice loglevel {
+      case normal =>  select logging.warning from select mode.development from otherModule
+      case verbose => select logging.info from select mode.development from otherModule
+    }
+  }) in
+  (select performance.optimized from partiallyConf)
+

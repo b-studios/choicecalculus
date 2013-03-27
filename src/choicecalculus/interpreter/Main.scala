@@ -2,14 +2,16 @@ package choicecalculus
 package interpreter
 
 import org.kiama.output.PrettyPrinter
-import org.kiama.util.{ParsingREPL, Emitter}
+import org.kiama.util.{ParsingREPL, Emitter, Compiler, Console}
 import org.kiama.attribution.Attribution.initTree
-import org.kiama.util.Messaging._
-import ast.ASTNode
+import ast.{ ASTNode, ChoiceCalcPP, HostlanguagePP }
 import parser.Parser
 import semantics.{ DimensionChecker, ChoiceGraph }
 import choicecalculus.semantics.ChoiceGraph
 import choicecalculus.semantics.TypeSystem
+import choicecalculus.semantics.DimensionGraph
+import choicecalculus.semantics.TypeSystemRevised
+
 
 object Main extends Parser with ParsingREPL[ASTNode] with TypeSystem {
   
@@ -25,13 +27,65 @@ object Main extends Parser with ParsingREPL[ASTNode] with TypeSystem {
   }
 }
 // with DimensionChecker with ChoiceGraph
-object CommandLine extends App with Parser with TypeSystem with DimensionChecker {
-
+object CommandLine extends Compiler[ASTNode] 
+    with Parser 
+    with TypeSystemRevised
+    with DimensionGraph
+    with ChoiceCalcPP
+    with HostlanguagePP {  
+  
+  import org.kiama.util.Messaging.{messagecount, report}
+  import org.kiama.rewriting.Rewriter.{reduce, topdown, innermost }
+  
+  override def process(ast: ASTNode, console: Console, emitter: Emitter) : Boolean = {
+    super.process(ast, console, emitter)
+    
+    val dims = ast->dimensioning
+    
+    report(emitter)
+    
+    // no error messages while semantic analysis
+    //if (messagecount == 0) {
+      emitter.emitln("Dimensions: " + dims)
+      
+      
+      val selected = selectRelation(ast) match {
+        case Some(result: ASTNode) => result
+        case _ => ast
+      }
+      emitter.emitln("After performing selection:")
+      emitter.emitln( pretty(toDoc(selected)) )
+      
+      initTree(selected)
+      
+      val substituted = performSubstitution(selected) match {
+        case Some(result: ASTNode) => result
+        case _ => selected
+      }
+      
+      emitter.emitln("After substituting shares:")
+      emitter.emitln( pretty(toDoc(substituted)) )
+      /*
+      val reduced = reduce ( removeShares )(substituted) match {
+        case Some(result: ASTNode) => result
+        case _ => selected
+      }
+      emitter.emitln("After removing non used shares:")
+      emitter.emitln( pretty(toDoc(reduced)) )
+      */
+      true
+    /*} else {
+      report(emitter)
+      false
+    }*/
+  }
+  
+  /*
   val contents = io.Source.fromFile(args(0), "utf-8").getLines.mkString("\n")
   
   parseAll(parser, contents) match {
     case Success(tree, _) => {
-      val dims = dimensionCheck(tree)
+      val dims = dimensionOf(tree, Map.empty)
       println("Parse Tree :" + tree)
       println("Dimensions: " + dims)
       
@@ -40,11 +94,11 @@ object CommandLine extends App with Parser with TypeSystem with DimensionChecker
       // ones first. (Addressing Problem (4) )
       //println("Choicegraph: " + getChoiceGraph(tree))
       
-      println("Reduced: " + eval(tree))
+      //println("Reduced: " + myEval(tree, Map()))
     }
     case fail: NoSuccess => sys error fail.msg
   }
-  
+  */
   
   
 }

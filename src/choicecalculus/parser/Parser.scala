@@ -8,18 +8,15 @@ trait Parser extends PositionedParserUtilities {
     import ast._
     
     // Lexer Stuff
-    lazy val INT: Parser[Int]          = """[0-9]+""".r ^^ (_.toInt)
-    lazy val ID: Parser[Symbol]        = """[a-zA-Z$_][a-zA-Z0-9$_]*""".r ^^ (Symbol(_))
+    lazy val INT: PackratParser[Int]          = """[0-9]+""".r ^^ (_.toInt)
+    lazy val ID: PackratParser[Symbol]        = """[a-zA-Z$_][a-zA-Z0-9$_]*""".r ^^ (Symbol(_))
     
     lazy val parser: PackratParser[ASTNode] =
       phrase (expression)
     
     
     lazy val expression: PackratParser[Expression] =
-      ( choiceCalculusExpr
-      | hostLanguageExpression
-      )
-    
+      hostLanguageExpression    
       
     
     // Host Language Expressions
@@ -36,6 +33,7 @@ trait Parser extends PositionedParserUtilities {
     lazy val primaryExpr: PackratParser[Expression] =
       ( INT ^^ Num
       | "(" ~> expression <~ ")"
+      | choiceCalculusExpr
       )
       
       
@@ -45,6 +43,8 @@ trait Parser extends PositionedParserUtilities {
       ( dimensionExpr
       | choiceExpr
       | selectExpr
+      | shareExpr
+      | idExpr
       )
       
     
@@ -64,5 +64,11 @@ trait Parser extends PositionedParserUtilities {
       
     lazy val selectExpr: PackratParser[CCExpression] =
       ("select" ~> (ID ~ ("." ~> ID)) <~ "from") ~ expression ^^ SelectExpr
+      
+    lazy val shareExpr: PackratParser[CCExpression] =
+      ("share" ~> (ID ~ ("=" ~> expression <~ "in"))) ~ expression ^^ ShareExpr
     
+    // Here disambiguation has to take place, if the host language uses ids
+    lazy val idExpr: PackratParser[CCExpression] =
+      ID ^^ IdExpr
 }
