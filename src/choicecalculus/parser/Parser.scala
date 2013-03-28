@@ -24,19 +24,30 @@ trait Parser extends PositionedParserUtilities {
       addExpr
       
     lazy val addExpr: PackratParser[Expression] =
-      ( (addExpr <~ "+") ~ primaryExpr ^^ { 
+      ( (addExpr <~ "+") ~ mulExpr ^^ { 
           case lhs ~ rhs => Add(lhs, rhs)
+        }
+      | mulExpr
+      )
+      
+    lazy val mulExpr: PackratParser[Expression] =
+      ( (mulExpr <~ "*") ~ primaryExpr ^^ { 
+          case lhs ~ rhs => Mul(lhs, rhs)
         }
       | primaryExpr
       )
-      
+    
+    // choice calculusexpr have higher precedence than addExpr
     lazy val primaryExpr: PackratParser[Expression] =
       ( INT ^^ Num
-      | "(" ~> expression <~ ")"
+      | "(" ~> expression <~ ")" ^^ GroupExpr
+      | functionExpr
       | choiceCalculusExpr
-      )
+      )      
       
-      
+    
+    lazy val functionExpr: PackratParser[Expression] = 
+      ("function" ~ "(" ~ ")" ~ "{") ~>  expression <~ "}" ^^ FunctionExpr
       
     // Choice calculus expression
     lazy val choiceCalculusExpr: PackratParser[CCExpression] =
@@ -46,7 +57,6 @@ trait Parser extends PositionedParserUtilities {
       | shareExpr
       | idExpr
       )
-      
     
     lazy val dimensionExpr: PackratParser[CCExpression] =
       ("dim" ~> ID) ~ ("<" ~> rep1sep(ID, ",") <~ ">") ~ ("in" ~> expression) ^^ DimensionExpr

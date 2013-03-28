@@ -34,6 +34,10 @@ object BinaryExpr {
 
 case class Num(value: Int) extends ConstantExpr
 case class Add(lhs: Expression, rhs: Expression) extends BinaryExpr
+case class Mul(lhs: Expression, rhs: Expression) extends BinaryExpr
+case class FunctionExpr(content: Expression) extends UnaryExpr
+case class GroupExpr(content: Expression) extends UnaryExpr
+
 
 /**
  * Expressions of the Choice Calculus (CC)

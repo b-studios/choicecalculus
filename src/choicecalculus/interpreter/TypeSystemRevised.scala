@@ -18,10 +18,7 @@ trait TypeSystemRevised { self: DimensionGraph =>
   /**
    * 1. Step: Perform all selections
    * -------------------------------
-   * Maybe we should use oncetd here, since merging is currently not supported
-   * 
-   * TODO This has to be refactored to be used more flexible
-   */ 
+   */
   
   // Don't select dependent dimensions!
   val selectFromChoice = rule {
@@ -30,7 +27,7 @@ trait TypeSystemRevised { self: DimensionGraph =>
   val selectFromDim = rule {
     case SelectExpr(dim, tag, DimensionExpr(name, tags, body)) if name == dim =>
       rewrite (chooseRelation(dim, tag)) (body)
-  }  
+  }
   val selectFromId = rule {
     case SelectExpr(dim, tag, id:IdExpr) => PartialConfig(id, List((dim, tag)))
   }  
@@ -38,14 +35,7 @@ trait TypeSystemRevised { self: DimensionGraph =>
     case SelectExpr(dim, tag, PartialConfig(body, configs)) => PartialConfig(body, configs ++ List((dim, tag)))
   }
   
-  // Congruences
-  val selectFromAdd = rule {
-    case SelectExpr(dim, tag, Add(lhs, rhs)) => 
-      Add(SelectExpr(dim, tag, lhs), SelectExpr(dim, tag, rhs))
-  }
-  val selectFromNum = rule {
-    case SelectExpr(_, _, n:Num) => n
-  }
+  // Congruences  
   val selectFromShare = rule {
     case SelectExpr(dim, tag, ShareExpr(name, expr, body)) => 
       ShareExpr(name, expr, SelectExpr(dim, tag, body))
@@ -53,20 +43,33 @@ trait TypeSystemRevised { self: DimensionGraph =>
   val selectFromOtherDim = rule {
     case SelectExpr(dim, tag, DimensionExpr(name, tags, body)) if name != dim => 
       DimensionExpr(name, tags, SelectExpr(dim, tag, body)) 
+  }  
+  val selectFromBinary = rule {
+    case SelectExpr(dim, tag, b@BinaryExpr(lhs, rhs)) =>
+      b.rebuild(SelectExpr(dim, tag, lhs), SelectExpr(dim, tag, rhs))
+  }  
+  val selectFromUnary = rule {
+    case SelectExpr(dim, tag, u@UnaryExpr(content)) =>
+      u.rebuild(SelectExpr(dim, tag, content))
+  }  
+  val selectFromConstant = rule {
+    case SelectExpr(dim, tag, c:ConstantExpr) => c
   }
-  
+
   /**
    * We do the traversal bottomup to perform inner selection first 
    */
-  val selectRelation = bottomup (reduce (
-    selectFromAdd + 
-    selectFromNum + 
+  val selectRelation = bottomup (reduce (    
     selectFromChoice + 
-    selectFromShare + 
     selectFromDim +
+    selectFromId +    
+    selectFromPartialConfig +
+    
+    selectFromShare + 
     selectFromOtherDim +
-    selectFromId +
-    selectFromPartialConfig
+    selectFromBinary +
+    selectFromUnary + 
+    selectFromConstant
   ))
   
  

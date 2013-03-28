@@ -35,10 +35,12 @@ object CommandLine extends Compiler[ASTNode]
     with HostlanguagePP {  
   
   import org.kiama.util.Messaging.{messagecount, report}
-  import org.kiama.rewriting.Rewriter.{reduce, topdown, innermost }
+  import org.kiama.rewriting.Rewriter.{rewrite}
   
   override def process(ast: ASTNode, console: Console, emitter: Emitter) : Boolean = {
     super.process(ast, console, emitter)
+    
+    emitter.emitln("Parsed: " + ast)
     
     val dims = ast->dimensioning
     
@@ -48,31 +50,18 @@ object CommandLine extends Compiler[ASTNode]
     //if (messagecount == 0) {
       emitter.emitln("Dimensions: " + dims)
       
+      val selected = rewrite (selectRelation) (ast)
       
-      val selected = selectRelation(ast) match {
-        case Some(result: ASTNode) => result
-        case _ => ast
-      }
       emitter.emitln("After performing selection:")
       emitter.emitln( pretty(toDoc(selected)) )
       
       initTree(selected)
       
-      val substituted = performSubstitution(selected) match {
-        case Some(result: ASTNode) => result
-        case _ => selected
-      }
+      val substituted = rewrite (performSubstitution) (selected)
       
       emitter.emitln("After substituting shares:")
       emitter.emitln( pretty(toDoc(substituted)) )
-      /*
-      val reduced = reduce ( removeShares )(substituted) match {
-        case Some(result: ASTNode) => result
-        case _ => selected
-      }
-      emitter.emitln("After removing non used shares:")
-      emitter.emitln( pretty(toDoc(reduced)) )
-      */
+
       true
     /*} else {
       report(emitter)
