@@ -3,82 +3,57 @@ package parser
 
 import org.kiama.util.PositionedParserUtilities
 
-trait Parser extends PositionedParserUtilities {
+/*
+trait ChoiceCalculusParser extends PositionedParserUtilities {
   
-    import ast._
-    
-    // Lexer Stuff
-    lazy val INT: PackratParser[Int]          = """[0-9]+""".r ^^ (_.toInt)
-    lazy val ID: PackratParser[Symbol]        = """[a-zA-Z$_][a-zA-Z0-9$_]*""".r ^^ (Symbol(_))
-    
-    lazy val parser: PackratParser[ASTNode] =
-      phrase (expression)
-    
-    
-    lazy val expression: PackratParser[Expression] =
-      hostLanguageExpression    
-      
-    
-    // Host Language Expressions
-    lazy val hostLanguageExpression: PackratParser[Expression] =      
-      addExpr
-      
-    lazy val addExpr: PackratParser[Expression] =
-      ( (addExpr <~ "+") ~ mulExpr ^^ { 
-          case lhs ~ rhs => Add(lhs, rhs)
-        }
-      | mulExpr
-      )
-      
-    lazy val mulExpr: PackratParser[Expression] =
-      ( (mulExpr <~ "*") ~ primaryExpr ^^ { 
-          case lhs ~ rhs => Mul(lhs, rhs)
-        }
-      | primaryExpr
-      )
-    
-    // choice calculusexpr have higher precedence than addExpr
-    lazy val primaryExpr: PackratParser[Expression] =
-      ( INT ^^ Num
-      | "(" ~> expression <~ ")" ^^ GroupExpr
-      | functionExpr
-      | choiceCalculusExpr
+  import ast.{ASTNode, CCExpression, DimensionExpr, ChoiceExpr, Choice, SelectExpr, IdExpr}
+  
+  lazy val ID: PackratParser[Symbol]        = """[a-zA-Z$_][a-zA-Z0-9$_]*""".r ^^ (Symbol(_))
+  
+  
+  
+   def choiceCalculusExpr(body: Parser[ASTNode]): PackratParser[CCExpression] = 
+      ( dimensionExpr(body)
+      | choiceExpr(body)
+      | selectExpr(body)
+      | shareExpr(body)
+      | idExpr
       )      
       
     
-    lazy val functionExpr: PackratParser[Expression] = 
-      ("function" ~ "(" ~ ")" ~ "{") ~>  expression <~ "}" ^^ FunctionExpr
-      
-    // Choice calculus expression
-    lazy val choiceCalculusExpr: PackratParser[CCExpression] =
-      ( dimensionExpr
-      | choiceExpr
-      | selectExpr
-      | shareExpr
-      | idExpr
+    def dimensionExpr(body: Parser[ASTNode]): PackratParser[CCExpression] =
+      ("dim" ~> ID) ~ ("<" ~> rep1sep(ID, ",") <~ ">") ~ ("in" ~> body) ^^ DimensionExpr
+    
+    def choiceExpr(body: Parser[ASTNode]): PackratParser[CCExpression] =
+      ( ("choice" ~> ID) ~ ("{" ~> rep1(choice(body)) <~ "}") ^^ ChoiceExpr
+      | ID ~ ("<" ~> rep1sep(inlinechoice(body), ",") <~ ">") ^^ ChoiceExpr
       )
     
-    lazy val dimensionExpr: PackratParser[CCExpression] =
-      ("dim" ~> ID) ~ ("<" ~> rep1sep(ID, ",") <~ ">") ~ ("in" ~> expression) ^^ DimensionExpr
+    def choice(body: Parser[ASTNode]): PackratParser[Choice] =
+      ("case" ~> ID <~ "=>") ~ body ^^ Choice
     
-    lazy val choiceExpr: PackratParser[CCExpression] =
-      ( ("choice" ~> ID) ~ ("{" ~> rep1(choice) <~ "}") ^^ ChoiceExpr
-      | ID ~ ("<" ~> rep1sep(inlinechoice, ",") <~ ">") ^^ ChoiceExpr
-      )
-    
-    lazy val choice: PackratParser[Choice] =
-      ("case" ~> ID <~ "=>") ~ expression ^^ Choice
-    
-    lazy val inlinechoice: PackratParser[Choice] =
-      (ID <~ ":") ~ expression ^^ Choice
+    def inlinechoice(body: Parser[ASTNode]): PackratParser[Choice] =
+      (ID <~ ":") ~ body ^^ Choice
       
-    lazy val selectExpr: PackratParser[CCExpression] =
-      ("select" ~> (ID ~ ("." ~> ID)) <~ "from") ~ expression ^^ SelectExpr
+    def selectExpr(body: Parser[ASTNode]): PackratParser[CCExpression] =
+      ("select" ~> (ID ~ ("." ~> ID)) <~ "from") ~ body ^^ SelectExpr
       
-    lazy val shareExpr: PackratParser[CCExpression] =
-      ("share" ~> (ID ~ ("=" ~> expression <~ "in"))) ~ expression ^^ ShareExpr
+    def shareExpr(body: Parser[ASTNode]): PackratParser[CCExpression] =
+      ("share" ~> (ID ~ ("=" ~> body <~ "in"))) ~ body ^^ ShareExpr
     
+    // TODO Problem, how to handle the static type of an ID???
     // Here disambiguation has to take place, if the host language uses ids
     lazy val idExpr: PackratParser[CCExpression] =
       ID ^^ IdExpr
+      
+}
+*/
+
+trait Parser extends JavaScriptParser {
+  
+    import ast._
+    
+    lazy val parser: PackratParser[ASTNode] =
+      phrase (topLevel)
+          
 }

@@ -4,35 +4,27 @@ package interpreter
 import org.kiama.output.PrettyPrinter
 import org.kiama.util.{ParsingREPL, Emitter, Compiler, Console}
 import org.kiama.attribution.Attribution.initTree
-import ast.{ ASTNode, ChoiceCalcPP, HostlanguagePP }
+import ast.{ ASTNode, ChoiceCalcPP }
 import parser.Parser
-import semantics.{ DimensionChecker, ChoiceGraph }
-import choicecalculus.semantics.ChoiceGraph
-import choicecalculus.semantics.TypeSystem
-import choicecalculus.semantics.DimensionGraph
-import choicecalculus.semantics.TypeSystemRevised
 
+import semantics.{ TypeSystemRevised, DimensionGraph }
 
-object Main extends Parser with ParsingREPL[ASTNode] with TypeSystem {
+object Main extends Parser with ParsingREPL[ASTNode] with TypeSystemRevised with DimensionGraph {
   
   def start: Parser[ASTNode] = parser
   override def prompt = "> "
     
   def process(tree: ASTNode) {
     
-    val dims = dimensionCheck(tree)
-    println("Dimensions: " + dims)
+    println("Parsed: " + tree)
     
-    //println(tree)
   }
 }
 // with DimensionChecker with ChoiceGraph
 object CommandLine extends Compiler[ASTNode] 
-    with Parser 
+    with Parser
     with TypeSystemRevised
-    with DimensionGraph
-    with ChoiceCalcPP
-    with HostlanguagePP {  
+    with DimensionGraph {  
   
   import org.kiama.util.Messaging.{messagecount, report}
   import org.kiama.rewriting.Rewriter.{rewrite}
@@ -41,32 +33,30 @@ object CommandLine extends Compiler[ASTNode]
     super.process(ast, console, emitter)
     
     emitter.emitln("Parsed: " + ast)
-    
+
+    // currently just parse!
+    /*
     val dims = ast->dimensioning
     
     report(emitter)
     
     // no error messages while semantic analysis
-    //if (messagecount == 0) {
-      emitter.emitln("Dimensions: " + dims)
-      
-      val selected = rewrite (selectRelation) (ast)
-      
-      emitter.emitln("After performing selection:")
-      emitter.emitln( pretty(toDoc(selected)) )
-      
-      initTree(selected)
-      
-      val substituted = rewrite (performSubstitution) (selected)
-      
-      emitter.emitln("After substituting shares:")
-      emitter.emitln( pretty(toDoc(substituted)) )
-
-      true
-    /*} else {
-      report(emitter)
-      false
-    }*/
+    emitter.emitln("Dimensions: " + dims)
+    
+    val selected = rewrite (selectRelation) (ast)
+    
+    emitter.emitln("After performing selection:")
+    emitter.emitln( pretty(toDoc(selected)) )
+    
+    initTree(selected)
+    
+    val substituted = rewrite (performSubstitution) (selected)
+    
+    emitter.emitln("After substituting shares:")
+    emitter.emitln( pretty(toDoc(substituted)) )
+    */
+    true
+    
   }
   
   /*

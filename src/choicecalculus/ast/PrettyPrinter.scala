@@ -45,19 +45,12 @@ trait ChoiceCalcPP extends PrettyPrinter {
 /**
  * Some Hostlanguage Prettyprinter ready to be mixed in with the Choice Calculus PP
  */
-trait HostlanguagePP extends ChoiceCalcPP {
+trait JavaScriptPP extends ChoiceCalcPP {
   
   override def toDoc(e: ASTNode): Doc = e match {
     
     case GroupExpr(body) => parens(toDoc(body))
-    
-    case FunctionExpr(body) => "function" <> "(" <> ")" <+> braces(nest( line <> toDoc(body)) <> line)
-    
-    case Add(lhs, rhs) => toDoc(lhs) <+> plus <+> toDoc(rhs)
-    
-    case Mul(lhs, rhs) => toDoc(lhs) <+> asterisk <+> toDoc(rhs)
-    
-    case Num(n) => text(n.toString)
+
     
     case other => super.toDoc(other)
   }

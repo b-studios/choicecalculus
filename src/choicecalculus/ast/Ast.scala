@@ -7,11 +7,6 @@ import utility.Rebuildable
 
 abstract class ASTNode extends Attributable with Positioned
 
-/**
- * Expressions
- * -----------
- */
-abstract class Expression extends ASTNode
 
 /**
  * Host Language Expressions
@@ -32,28 +27,22 @@ object BinaryExpr {
   def unapply(e: BinaryExpr): Option[(Expression, Expression)] = Some( (e.lhs, e.rhs) )
 }
 
-case class Num(value: Int) extends ConstantExpr
-case class Add(lhs: Expression, rhs: Expression) extends BinaryExpr
-case class Mul(lhs: Expression, rhs: Expression) extends BinaryExpr
-case class FunctionExpr(content: Expression) extends UnaryExpr
-case class GroupExpr(content: Expression) extends UnaryExpr
-
 
 /**
  * Expressions of the Choice Calculus (CC)
  */
-abstract class CCExpression extends Expression
-case class DimensionExpr(name: Symbol, tags: List[Symbol], body: Expression) extends CCExpression
+abstract class CCExpression extends Expression with Statement
+case class DimensionExpr(name: Symbol, tags: List[Symbol], body: ASTNode) extends CCExpression
 
 case class ChoiceExpr(dim: Symbol, choices: List[Choice]) extends CCExpression
 
 // a single choice is a mapping from tag to host language expression - can only occur as immediate
 // child of choice-expressions
-case class Choice(tag: Symbol, body: Expression) extends ASTNode
+case class Choice(tag: Symbol, body: ASTNode) extends ASTNode
 
-case class SelectExpr(dim: Symbol, tag: Symbol, body: Expression) extends CCExpression
+case class SelectExpr(dim: Symbol, tag: Symbol, body: ASTNode) extends CCExpression
 
-case class ShareExpr(name: Symbol, exp: Expression, body: Expression) extends CCExpression
+case class ShareExpr(name: Symbol, exp: ASTNode, body: ASTNode) extends CCExpression
 
 case class IdExpr(name: Symbol) extends CCExpression
 
