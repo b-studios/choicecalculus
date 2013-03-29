@@ -219,8 +219,8 @@ trait JavaScriptParser extends PositionedParserUtilities with ParserUtils with J
   lazy val memberExpr: PackratParser[Expression] =
     "[" ␣> expression <␣ "]"
   
-  lazy val nameAccessExpr: PackratParser[String] =
-    "." ␣> name
+  lazy val nameAccessExpr: PackratParser[Literal] =
+    "." ␣> idLiteral
 
 
   // 11.1 Primary Expressions
@@ -253,15 +253,15 @@ trait JavaScriptParser extends PositionedParserUtilities with ParserUtils with J
   
   // Functions
   lazy val funcDecl: PackratParser[Expression] = 
-    ('function ␣> name) ␣ ("(" ␣> funcArgs <␣ ")") ␣ block ^^ FunctionDecl
+    ('function ␣> idLiteral) ␣ ("(" ␣> funcArgs <␣ ")") ␣ block ^^ FunctionDecl
     
   lazy val funcExpr: PackratParser[Expression] =
     ( 'function ␣> ("(" ␣> funcArgs <␣ ")") ␣ block ^^ FunctionExpr
     | funcDecl
     )
   
-  lazy val funcArgs: PackratParser[List[String]] =
-    listOf(name, ",")
+  lazy val funcArgs: PackratParser[List[Literal]] =
+    listOf(idLiteral, ",")
 
     
   // Variable Declarations
@@ -308,15 +308,15 @@ trait JavaScriptParser extends PositionedParserUtilities with ParserUtils with J
                    ) <␣
       "}") ^^ SwitchStmt
                      
-    | 'break ~> (spacesNoNl ~> name.? <~ sc) ^^ BreakStmt
+    | 'break ~> (spacesNoNl ~> idLiteral.? <~ sc) ^^ BreakStmt
     
-    | 'continue ~> (spacesNoNl ~> name.? <~ sc) ^^ ContinueStmt
+    | 'continue ~> (spacesNoNl ~> idLiteral.? <~ sc) ^^ ContinueStmt
                    
     | 'throw ~> (spacesNoNl ~> expression <~ sc) ^^ ThrowStmt
     
     
     // catch is optional, if finally is provided
-    | 'try ␣> block ␣ ( 'catch ␣> "(" ␣> name <␣ ")") ␣ block ␣
+    | 'try ␣> block ␣ ( 'catch ␣> "(" ␣> idLiteral <␣ ")") ␣ block ␣
                       ( 'finally ␣> block ).? ^^ {
         case body ~ cn ~ cb ~ Some(fb) => TryStmt(body, Some(CatchBlock(cn, cb)), Some(FinallyBlock(fb)))
         case body ~ cn ~ cb ~ None => TryStmt(body, Some(CatchBlock(cn, cb)), None)

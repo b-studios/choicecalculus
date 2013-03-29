@@ -4,7 +4,7 @@ package interpreter
 import org.kiama.output.PrettyPrinter
 import org.kiama.util.{ParsingREPL, Emitter, Compiler, Console}
 import org.kiama.attribution.Attribution.initTree
-import ast.{ ASTNode, ChoiceCalcPP }
+import ast.{ ASTNode, ChoiceCalcPP, JavaScriptPP }
 import parser.Parser
 
 import semantics.{ TypeSystemRevised, DimensionGraph }
@@ -34,6 +34,11 @@ object CommandLine extends Compiler[ASTNode]
     
     emitter.emitln("Parsed: " + ast)
 
+    
+    object prettyPrinter extends JavaScriptPP
+    
+    emitter.emitln("\n\nPrettyprinted: \n" + prettyPrinter.pretty(prettyPrinter.toDoc(ast)) )
+    
     // currently just parse!
     /*
     val dims = ast->dimensioning

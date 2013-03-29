@@ -18,12 +18,12 @@ abstract class SwitchCase extends ASTNode {
 }
 case class MatchingCase(matcher: Expression, body: List[Statement]) extends SwitchCase
 case class DefaultCase(body: List[Statement]) extends SwitchCase
-case class BreakStmt(label: Option[String]) extends Statement
-case class ContinueStmt(label: Option[String]) extends Statement
+case class BreakStmt(label: Option[Literal]) extends Statement
+case class ContinueStmt(label: Option[Literal]) extends Statement
 case class ThrowStmt(body: Expression) extends Statement
 
 case class TryStmt(body: BlockStmt, catchBlock: Option[CatchBlock], finallyBlock: Option[FinallyBlock]) extends Statement
-case class CatchBlock(name: String, body: Statement) extends ASTNode
+case class CatchBlock(name: Literal, body: Statement) extends ASTNode
 case class FinallyBlock(body: Statement) extends ASTNode
 
 case class ReturnStmt(body: Expression) extends Statement
@@ -42,7 +42,7 @@ case class PostfixExpr(body: Expression, op: String) extends Expression
 case class NewExpr(body: Expression) extends Expression
 case class CallExpr(body: Expression, args: List[Expression]) extends Expression
 case class MemberExpr(body: Expression, access: Expression) extends Expression
-case class NameAccessExpr(body: Expression, name: String) extends Expression
+case class NameAccessExpr(body: Expression, name: Literal) extends Expression
 case class ArrayExpr(contents: List[Expression]) extends Expression
 case class GroupExpr(content: Expression) extends Expression
 
@@ -54,6 +54,5 @@ abstract class Binding extends ASTNode {
 case class PropertyBinding(name: Literal, value: Expression) extends Binding
 //case class AccessMethodBinding(accessType: String, name: String, )
 
-case class FunctionDecl(name: String, args: List[String], body: BlockStmt) extends Expression
-case class FunctionExpr(args: List[String], body: BlockStmt) extends Expression
-
+case class FunctionDecl(name: Literal, args: List[Literal], body: BlockStmt) extends Expression
+case class FunctionExpr(args: List[Literal], body: BlockStmt) extends Expression
