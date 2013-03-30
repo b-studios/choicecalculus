@@ -11,6 +11,7 @@ import utility.{ ParserUtils, WhitespaceAwareParser }
  * return typeof this === 'function'
  * var foo = "abcd"
  * this.bar
+ * core_pnum = /[+-]?(?:\d*\.|)\d+(?:[eE][+-]?\d+|)/.source
  * 
  * 
  * Next thing to do:
@@ -87,10 +88,39 @@ trait JavaScriptLexer extends PositionedParserUtilities with ParserUtils with Wh
                                 
   lazy val number: PackratParser[String] = consumed (hex | decimal) 
   
+  lazy val escapeSeq: PackratParser[Any] =
+    "\\" ~ ( "u" ~ hexDigit ~ hexDigit ~ hexDigit ~ hexDigit
+           | "x" ~ hexDigit ~ hexDigit
+           | any
+           )
   
+  /**
+   * Strings
+   */
   lazy val string: PackratParser[String] = ( consumed ("""["][^"]*["]""".r)
                                            | consumed ("""['][^']*[']""".r)
-                                           )  
+                                           )
+  
+  /**
+   * 15.10 Regular expressions
+   */
+  lazy val regexp: PackratParser[String]= 
+    consumed("/" ~ reBody ~ "/" ~ "[a-zA-Z]*".r)
+  
+  lazy val reBody: PackratParser[Any] = reFirst ~ reChar.*
+  lazy val reChar: PackratParser[Any] = reFirst | "*"
+  
+  lazy val reFirst: PackratParser[Any] = 
+    ( not ("*" | "/" | "[") ~ reClassChar
+    | reClass
+    | "]"
+    )
+  lazy val reClass: PackratParser[Any] = "[" ~ reClassChar.* ~ "]"
+  
+  
+  lazy val reClassChar: PackratParser[Any] = 
+    escapeSeq | not ("]" | """\""" | "\n" | "\r") ~ any
+  
 }
 
 /**
@@ -109,6 +139,9 @@ trait JavaScriptParser extends PositionedParserUtilities with ParserUtils with J
     
   lazy val idLiteral: PackratParser[Literal] =
     name ^^ Literal
+    
+  lazy val reLiteral: PackratParser[Literal] =
+    regexp ^^ Literal
     
   lazy val literal: PackratParser[Literal] =
     idLiteral | stringLiteral | numberLiteral
@@ -230,6 +263,7 @@ trait JavaScriptParser extends PositionedParserUtilities with ParserUtils with J
     | "(" ␣> expression <␣ ")" ^^ GroupExpr    
     | 'this ^^^ Literal("this")
     | literal
+    | reLiteral
     )
   
   // 11.1.4 Array Literals
