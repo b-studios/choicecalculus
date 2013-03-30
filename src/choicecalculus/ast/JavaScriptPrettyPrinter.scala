@@ -4,9 +4,26 @@ import org.kiama.output.ParenPrettyPrinter
 
 trait JavaScriptPP extends ParenPrettyPrinter with org.kiama.output.PrettyPrinter  {
   
+  override val defaultIndent = 2
+  override val defaultWidth = 80
+  
   def toDocOrEmpty(e: Option[ASTNode]) = e match {
     case Some(e) => toDoc(e)
     case None => empty
+  }
+  
+  def stmtsep(stmts: List[Statement]) = stmts match {
+    case Nil => empty
+    case stmt :: Nil => toDoc(stmt)
+    case many => many.init.foldRight( toDoc(many.last) ) {
+      case (e:Expression, rest) => toDoc(e) <> semi <> linebreak <> rest
+      case (s, rest) => toDoc(s) <> linebreak <> rest
+    }
+  }
+  
+  def nestIfNoBlock(e: ASTNode) = e match {
+    case b:BlockStmt => toDoc(b)
+    case other => nest( line <> toDoc(other) ) <> linebreak
   }
   
   def toDoc(e: ASTNode): Doc = e match {
@@ -15,7 +32,7 @@ trait JavaScriptPP extends ParenPrettyPrinter with org.kiama.output.PrettyPrinte
       text(contents) 
     
     case Program(contents) => 
-      lsep (contents.map(toDoc), semi)
+      stmtsep(contents)
 
     case VarDeclStmt(bindings) => 
       "var" <+> nest ( fillsep (bindings.map(toDoc), comma))
@@ -24,27 +41,27 @@ trait JavaScriptPP extends ParenPrettyPrinter with org.kiama.output.PrettyPrinte
       toDoc(name) <+> equal <+> toDoc(binding)
       
     case BlockStmt(stmts) => 
-      braces( nest( line <> ssep(stmts.map( toDoc(_) ), semi <> line)) <> line)
+      braces( nest( line <> stmtsep(stmts)) <> line)
     
     case IfStmt(cond, thenBlock, elseBlock) => 
-      "if" <> parens(toDoc(cond)) <+> (thenBlock match {
-        case b:BlockStmt => toDoc(b)
-        case other => nest( line <> toDoc(other) ) <> line
+      "if" <> parens(toDoc(cond)) <+> nestIfNoBlock(thenBlock) <> (elseBlock match {
         
-      }) <> (elseBlock match {
-        case Some(e:BlockStmt) => space <> "else" <+> toDoc(e)
-        case Some(e) =>  "else" <> nest(line <> toDoc(e) ) <> line
+        // this space should be a "collapsing space"
+        case Some(e) => space <> "else" <+> nestIfNoBlock(e)
         case _ => empty
       })
       
     case WhileStmt(cond, body) => 
-      "while" <> parens(toDoc(cond)) <+> toDoc(body)
+      "while" <> parens(toDoc(cond)) <+> 
+        nestIfNoBlock(body)
     
     case DoWhileStmt(body, cond) => 
-      "do" <+> toDoc(body) <+> "while" <> parens(toDoc(cond))
+      "do" <+> nestIfNoBlock(body) <+> 
+      "while" <> parens(toDoc(cond))
     
     case ForStmt(init, cond, incr, body) => 
-      "for" <> parens(toDocOrEmpty(init) <+> semi <+> toDocOrEmpty(cond) <+> semi <+> toDocOrEmpty(incr)) <+> toDoc(body)
+      "for" <> parens(toDocOrEmpty(init) <+> semi <+> toDocOrEmpty(cond) <+> semi <+> toDocOrEmpty(incr)) <+> 
+        nestIfNoBlock(body)
       
     case ForInStmt(init, collection, body) => 
       "for" <> parens(toDoc(init) <+> "in" <+> toDoc(collection)) <+> toDoc(body)
@@ -80,7 +97,7 @@ trait JavaScriptPP extends ParenPrettyPrinter with org.kiama.output.PrettyPrinte
       "return" <+> toDocOrEmpty(body)
     
     case WithStmt(binding, body) => 
-      "with" <> parens(toDoc(binding)) <+> toDoc(body)
+      "with" <> parens(toDoc(binding)) <+> nestIfNoBlock(body)
       
     case LabeledStmt(label, body) => 
       toDoc(label) <> ":" <+> toDoc(body)
@@ -93,8 +110,11 @@ trait JavaScriptPP extends ParenPrettyPrinter with org.kiama.output.PrettyPrinte
     case TernaryExpr(cond, trueBlock, falseBlock) => 
       toDoc(cond) <+> question <+> toDoc(trueBlock) <+> colon <+> toDoc(falseBlock)
       
-    case PrefixExpr(op, body) => 
+    case PrefixExpr(op, body) if op == "void" | op == "delete" | op == "typeof" =>      
       text(op) <+> toDoc(body)
+    
+    case PrefixExpr(op, body) =>
+      text(op) <> toDoc(body)
       
     case PostfixExpr(body, op) => 
       toDoc(body) <> text(op)
@@ -112,7 +132,7 @@ trait JavaScriptPP extends ParenPrettyPrinter with org.kiama.output.PrettyPrinte
       toDoc(body) <> dot <> toDoc(name)
       
     case ArrayExpr(contents) =>
-      "[" <> ssep(contents.map(toDoc), comma) <> "]"      
+      brackets ( ssep(contents.map(toDoc), comma) )      
       
     case GroupExpr(content) => 
       parens( toDoc(content) )

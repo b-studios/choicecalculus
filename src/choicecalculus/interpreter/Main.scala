@@ -31,7 +31,8 @@ object CommandLine extends Compiler[ASTNode]
   import org.kiama.util.Messaging.{messagecount, report}
   import org.kiama.rewriting.Rewriter.{rewrite}
   
-  override def process(ast: ASTNode, console: Console, emitter: Emitter) : Boolean = {
+  override def process(ast: ASTNode, console: Console, emitter: Emitter) : Boolean = {   
+    
     super.process(ast, console, emitter)
 
     object prettyPrinter extends JavaScriptPP
