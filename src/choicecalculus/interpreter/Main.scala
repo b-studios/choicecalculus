@@ -17,7 +17,9 @@ object Main extends Parser with ParsingREPL[ASTNode] with TypeSystemRevised with
   def process(tree: ASTNode) {
     
     println("Parsed: " + tree)
+    object prettyPrinter extends JavaScriptPP
     
+    emitter.emitln("\n\nPrettyprinted: \n" + prettyPrinter.pretty(prettyPrinter.toDoc(tree)) )
   }
 }
 // with DimensionChecker with ChoiceGraph
@@ -31,10 +33,7 @@ object CommandLine extends Compiler[ASTNode]
   
   override def process(ast: ASTNode, console: Console, emitter: Emitter) : Boolean = {
     super.process(ast, console, emitter)
-    
-    emitter.emitln("Parsed: " + ast)
 
-    
     object prettyPrinter extends JavaScriptPP
     
     emitter.emitln("\n\nPrettyprinted: \n" + prettyPrinter.pretty(prettyPrinter.toDoc(ast)) )

@@ -10,7 +10,7 @@ case class BlockStmt(stmts: List[Statement]) extends Statement
 case class IfStmt(cond: Expression, thenBlock: Statement, elseBlock: Option[Statement]) extends Statement
 case class WhileStmt(cond: Expression, body: Statement) extends Statement
 case class DoWhileStmt(body: Statement, cond: Expression) extends Statement
-case class ForStmt(init: Statement, cond: Option[Expression], incr: Option[Expression], body: Statement) extends Statement
+case class ForStmt(init: Option[Statement], cond: Option[Expression], incr: Option[Expression], body: Statement) extends Statement
 case class ForInStmt(init: Statement, collection: Expression, body: Statement) extends Statement
 case class SwitchStmt(head: Expression, cases: List[SwitchCase]) extends Statement
 abstract class SwitchCase extends ASTNode {
@@ -26,7 +26,7 @@ case class TryStmt(body: BlockStmt, catchBlock: Option[CatchBlock], finallyBlock
 case class CatchBlock(name: Literal, body: Statement) extends ASTNode
 case class FinallyBlock(body: Statement) extends ASTNode
 
-case class ReturnStmt(body: Expression) extends Statement
+case class ReturnStmt(body: Option[Expression]) extends Statement
 case class WithStmt(binding: Expression, body: Statement) extends Statement
 case class LabeledStmt(label: Literal, body: Statement) extends Statement
 case object EmptyStmt extends Statement
@@ -45,6 +45,7 @@ case class MemberExpr(body: Expression, access: Expression) extends Expression
 case class NameAccessExpr(body: Expression, name: Literal) extends Expression
 case class ArrayExpr(contents: List[Expression]) extends Expression
 case class GroupExpr(content: Expression) extends Expression
+case class SequenceExpr(contents: List[Expression]) extends Expression
 
 case class ObjectExpr(bindings: List[PropertyBinding]) extends Expression
 

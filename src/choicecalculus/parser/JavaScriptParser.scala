@@ -12,6 +12,10 @@ import utility.{ ParserUtils, WhitespaceAwareParser }
  * var foo = "abcd"
  * this.bar
  * core_pnum = /[+-]?(?:\d*\.|)\d+(?:[eE][+-]?\d+|)/.source
+ * for(;;) do_it();
+ * return;
+ * foo, bar, baz
+ * var foo = "bar\"baz"
  * 
  * 
  * Next thing to do:
@@ -97,8 +101,8 @@ trait JavaScriptLexer extends PositionedParserUtilities with ParserUtils with Wh
   /**
    * Strings
    */
-  lazy val string: PackratParser[String] = ( consumed ("""["][^"]*["]""".r)
-                                           | consumed ("""['][^']*[']""".r)
+  lazy val string: PackratParser[String] = ( consumed ( '"' ~ (escapeSeq | not('"') ~  any).* ~ '"' )
+                                           | consumed ( "'" ~ (escapeSeq | not("'") ~  any).* ~ "'" )
                                            )
   
   /**
@@ -146,9 +150,15 @@ trait JavaScriptParser extends PositionedParserUtilities with ParserUtils with J
   lazy val literal: PackratParser[Literal] =
     idLiteral | stringLiteral | numberLiteral
   
-  // TODO don't forget comma operator here!
-  lazy val expression: PackratParser[Expression] = assignExpr
+    
   
+  lazy val expression: PackratParser[Expression] = 
+    listOf(assignExpr, ",") ^^ {
+      case expr :: Nil => expr
+      case many => SequenceExpr(many)
+    }
+    
+    
   lazy val assignExpr: PackratParser[Expression] = 
     ( leftExpr ␣ ( ">>>=" | ">>=" | "+="  | "-=" | "*="  | "/=" | "%="   | "<<=" 
                  | "^=" | "&&=" | "&=" | "||=" | "|=" | "=" 
@@ -324,7 +334,7 @@ trait JavaScriptParser extends PositionedParserUtilities with ParserUtils with J
     | 'do ␣> (statement <␣ 'while) ␣ ("(" ␣> expression <␣ ")") <␣ sc ^^ DoWhileStmt
     
     | 'for ␣> ("(" ␣>
-                 ( bindings | expression ) ␣ 
+                 ( bindings | expression ).? ␣ 
                  (";" ␣> expression.?) ␣ 
                  (";" ␣> expression.?) <␣
              ")") ␣ statement ^^ ForStmt
@@ -360,7 +370,7 @@ trait JavaScriptParser extends PositionedParserUtilities with ParserUtils with J
       }
       
     // TODO Check whether the whitespace handling here is correct!
-    | 'return ␣> expression <~ sc ^^ ReturnStmt
+    | 'return ~> (spacesNoNl ~> expression.? <~ sc) ^^ ReturnStmt
     
     | 'with ␣> ("(" ␣> expression <␣ ")") ␣ statement ^^ WithStmt
     

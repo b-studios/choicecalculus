@@ -18,19 +18,24 @@ trait JavaScriptPP extends ParenPrettyPrinter with org.kiama.output.PrettyPrinte
       lsep (contents.map(toDoc), semi)
 
     case VarDeclStmt(bindings) => 
-      "var" <+> ssep (bindings.map(toDoc), comma)
+      "var" <+> nest ( fillsep (bindings.map(toDoc), comma))
     
     case VarBinding(name, binding) => 
       toDoc(name) <+> equal <+> toDoc(binding)
       
     case BlockStmt(stmts) => 
-      braces( nest( line <> lsep(stmts.map( toDoc(_) ), semi) <> line ))
+      braces( nest( line <> ssep(stmts.map( toDoc(_) ), semi <> line)) <> line)
     
-    case IfStmt(cond, thenBlock, None) => 
-      "if" <> parens(toDoc(cond)) <+> toDoc(thenBlock) 
-      
-    case IfStmt(cond, thenBlock, Some(elseBlock)) => 
-      "if" <> parens(toDoc(cond)) <+> toDoc(thenBlock) <+> "else" <+> toDoc(elseBlock)
+    case IfStmt(cond, thenBlock, elseBlock) => 
+      "if" <> parens(toDoc(cond)) <+> (thenBlock match {
+        case b:BlockStmt => toDoc(b)
+        case other => nest( line <> toDoc(other) ) <> line
+        
+      }) <> (elseBlock match {
+        case Some(e:BlockStmt) => space <> "else" <+> toDoc(e)
+        case Some(e) =>  "else" <> nest(line <> toDoc(e) ) <> line
+        case _ => empty
+      })
       
     case WhileStmt(cond, body) => 
       "while" <> parens(toDoc(cond)) <+> toDoc(body)
@@ -39,7 +44,7 @@ trait JavaScriptPP extends ParenPrettyPrinter with org.kiama.output.PrettyPrinte
       "do" <+> toDoc(body) <+> "while" <> parens(toDoc(cond))
     
     case ForStmt(init, cond, incr, body) => 
-      "for" <> parens(toDoc(init) <+> semi <+> toDocOrEmpty(cond) <+> semi <+> toDocOrEmpty(incr)) <+> toDoc(body)
+      "for" <> parens(toDocOrEmpty(init) <+> semi <+> toDocOrEmpty(cond) <+> semi <+> toDocOrEmpty(incr)) <+> toDoc(body)
       
     case ForInStmt(init, collection, body) => 
       "for" <> parens(toDoc(init) <+> "in" <+> toDoc(collection)) <+> toDoc(body)
@@ -62,8 +67,8 @@ trait JavaScriptPP extends ParenPrettyPrinter with org.kiama.output.PrettyPrinte
     case ThrowStmt(body) => 
       "throw" <+> toDoc(body)
 
-    case TryStmt(body, Some(catchBlock), Some(finallyBlock)) => 
-      "try" <+> toDoc(body) <+> toDoc(catchBlock) <+> toDoc(finallyBlock)
+    case TryStmt(body, catchBlock, finallyBlock) => 
+      "try" <+> toDoc(body) <+> toDocOrEmpty(catchBlock) <+> toDocOrEmpty(finallyBlock)
       
     case CatchBlock(name, body) => 
       "catch" <> parens( toDoc(name) ) <+> toDoc(body)
@@ -72,14 +77,14 @@ trait JavaScriptPP extends ParenPrettyPrinter with org.kiama.output.PrettyPrinte
       "finally" <+> toDoc(body)
 
     case ReturnStmt(body) => 
-      "return" <+> toDoc(body)
+      "return" <+> toDocOrEmpty(body)
     
     case WithStmt(binding, body) => 
       "with" <> parens(toDoc(binding)) <+> toDoc(body)
       
     case LabeledStmt(label, body) => 
       toDoc(label) <> ":" <+> toDoc(body)
-      
+     
     case EmptyStmt => semi
 
     case BinaryOpExpr(lhs, op, rhs) => 
@@ -107,15 +112,19 @@ trait JavaScriptPP extends ParenPrettyPrinter with org.kiama.output.PrettyPrinte
       toDoc(body) <> dot <> toDoc(name)
       
     case ArrayExpr(contents) =>
-      "[" <> ssep(contents.map(toDoc), comma) <> "]"
-      
+      "[" <> ssep(contents.map(toDoc), comma) <> "]"      
       
     case GroupExpr(content) => 
       parens( toDoc(content) )
+    
+    case SequenceExpr(contents) =>
+      ssep ( contents.map(toDoc), comma )
       
-    // TODO use softbreaks here
+    case ObjectExpr(Nil) => braces(empty)
+      
     case ObjectExpr(bindings) => 
-      braces( nest( softline <> lsep(bindings.map(toDoc), comma) <> softline ) )
+      braces( nest( line <> ssep(bindings.map(toDoc), comma <> line))  <> line )
+    
       
     case PropertyBinding(name, value) =>
       toDoc(name) <> colon <+> toDoc(value)
