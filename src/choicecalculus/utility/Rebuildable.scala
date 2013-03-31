@@ -3,9 +3,14 @@ package utility
 
 import scala.collection.mutable.WeakHashMap
 
-
-trait Rebuildable {
-  def rebuild[T](children: Object*):T = Rebuilder.rebuild[T](this, children:_*) 
+trait Rebuildable { self: Product =>
+  def rebuild[T](children: Object*): T = Rebuilder.rebuild[T](this, children:_*)
+  
+  // map over the children of this object and rebuild it from the mapped ones
+  def map[T](f: Any => Object): T = {
+    val cs = for (i <- 0 until productArity) yield f.apply( productElement(i) )
+    this.rebuild(cs: _*)
+  }
 }
 object Rebuilder {
   
@@ -16,5 +21,5 @@ object Rebuilder {
     val klass = obj.getClass
     val constructor = consCache.getOrElseUpdate (klass, (klass.getConstructors())(0))
     constructor.newInstance(children:_*).asInstanceOf[T]
-  } 
+  }
 }

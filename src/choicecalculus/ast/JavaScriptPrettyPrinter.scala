@@ -2,7 +2,7 @@ package choicecalculus.ast
 
 import org.kiama.output.ParenPrettyPrinter
 
-trait JavaScriptPP extends ParenPrettyPrinter with org.kiama.output.PrettyPrinter  {
+trait JavaScriptPP extends PrettyPrinter  {
   
   override val defaultIndent = 2
   override val defaultWidth = 80
@@ -26,7 +26,7 @@ trait JavaScriptPP extends ParenPrettyPrinter with org.kiama.output.PrettyPrinte
     case other => nest( line <> toDoc(other) ) <> linebreak
   }
   
-  def toDoc(e: ASTNode): Doc = e match {
+  override def toDoc(e: ASTNode): Doc = e match {
 
     case Literal(contents) => 
       text(contents) 
@@ -154,6 +154,7 @@ trait JavaScriptPP extends ParenPrettyPrinter with org.kiama.output.PrettyPrinte
       
     case FunctionExpr(args, body) => 
       "function" <> parens( ssep(args.map(toDoc), comma) ) <+> toDoc(body)
+    
   }
   
 }

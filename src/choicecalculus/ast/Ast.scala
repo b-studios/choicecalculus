@@ -11,21 +11,8 @@ abstract class ASTNode extends Attributable with Positioned
 /**
  * Host Language Expressions
  */
-abstract class HostLanguageExpression extends Expression with Rebuildable
-abstract class ConstantExpr extends HostLanguageExpression
-abstract class UnaryExpr extends HostLanguageExpression {
-  def content: Expression
-}
-object UnaryExpr {
-  def unapply(e: UnaryExpr): Option[Expression] = Some( e.content )
-}
-abstract class BinaryExpr extends HostLanguageExpression {
-  def lhs: Expression
-  def rhs: Expression
-}
-object BinaryExpr {
-  def unapply(e: BinaryExpr): Option[(Expression, Expression)] = Some( (e.lhs, e.rhs) )
-}
+abstract class HostLanguageNode extends ASTNode
+
 
 
 /**

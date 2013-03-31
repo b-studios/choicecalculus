@@ -2,7 +2,7 @@ package choicecalculus
 package parser
 
 import org.kiama.util.PositionedParserUtilities
-import utility.{ ParserUtils, WhitespaceAwareParser }
+import utility.ParserUtils
 
 
 /**
@@ -27,7 +27,7 @@ import utility.{ ParserUtils, WhitespaceAwareParser }
 
 
 // This Lexer is just approximate! Does not follow the spec, yet!
-trait JavaScriptLexer extends PositionedParserUtilities with ParserUtils with WhitespaceAwareParser {
+trait JavaScriptLexer extends PositionedParserUtilities with ParserUtils {
   
   def keywords = Set(
     'break,'case,'catch,'class,'const,'continue,'debugger,
@@ -45,6 +45,7 @@ trait JavaScriptLexer extends PositionedParserUtilities with ParserUtils with Wh
   lazy val linebreak                     = """(\r\n|\n)""".r
   lazy val singleline                    = """//[^\n]*\n""".r
   lazy val multiline: PackratParser[Any] = "/*" ~ (not ("*/") ~ any).* ~ "*/"  
+  lazy val eos                           = """\z""".r | failure ("Expected end of stream")
   
   lazy val comment: PackratParser[Any] = 
     singleline | multiline
@@ -57,7 +58,7 @@ trait JavaScriptLexer extends PositionedParserUtilities with ParserUtils with Wh
   
   // "automatic semicolon insertion"
   lazy val sc: PackratParser[Any] = 
-    (spacesNoNl ~ (linebreak | lookahead("}") | EOS)
+    (spacesNoNl ~ (linebreak | guard("}") | eos ) //| EOS)
     | ";"
     )
   
@@ -70,20 +71,27 @@ trait JavaScriptLexer extends PositionedParserUtilities with ParserUtils with Wh
   lazy val identifier = "%s(%s)*".format(nameFirst, nameRest).r
   
   lazy val name: PackratParser[String] = 
-    matches(identifier, "This is a protected keyword!") unless { keywords contains Symbol(_) }
+    consumed(identifier) into { 
+      case name if keywords contains Symbol(name) => failure ("This is a protected keyword!")
+      case name => success(name)
+    }
+    
+    //matches(identifier, "This is a protected keyword!") unless { keywords contains Symbol(_) }
   
-  lazy val keyword: PackratParser[String] =
-    matches(identifier, "Expected keyword") when { keywords contains Symbol(_) }
-  
+  def keyword(name: Symbol): PackratParser[String] =
+    consumed(identifier) >> {
+      case s if Symbol(s) == name => success(s)
+      case s => failure ("Not the expected keyword '%s' got '%s'".format(name.name, s))
+    }
   
   /**
    * Numbers
    */
-  lazy val digit    = """[0-9]""".r
-  lazy val hexDigit = """[0-9a-fA-F]""".r
+  lazy val digit    = "[0-9]".r
+  lazy val hexDigit = "[0-9a-fA-F]".r
   lazy val hex      = "0x" ~ hexDigit.+
   
-  lazy val decimalInt = """(0|[1-9][0-9]*)""".r
+  lazy val decimalInt = "(0|[1-9][0-9]*)".r
   lazy val expPart    = """[eE][+\-]?[0-9]+""".r
   
   lazy val decimal    = "-".? ~ (decimalInt ~ ("." ~ digit.+).? ~ expPart.?
@@ -101,9 +109,7 @@ trait JavaScriptLexer extends PositionedParserUtilities with ParserUtils with Wh
   /**
    * Strings
    */
-  lazy val string: PackratParser[String] = ( consumed ( '"' ~ (escapeSeq | not('"') ~  any).* ~ '"' )
-                                           | consumed ( "'" ~ (escapeSeq | not("'") ~  any).* ~ "'" )
-                                           )
+  lazy val string: PackratParser[String] = consumed ("""['"]""".r into { s => (escapeSeq | not(s) ~ any).* ~ s })
   
   /**
    * 15.10 Regular expressions
@@ -130,34 +136,104 @@ trait JavaScriptLexer extends PositionedParserUtilities with ParserUtils with Wh
 /**
  * `parser1 ␣ parser2` combines Parsers while consuming any whitespaces between the two 
  */
-trait JavaScriptParser extends PositionedParserUtilities with ParserUtils with JavaScriptLexer {
+trait JavaScriptParser extends HostLanguageParser with JavaScriptLexer {
 
   import ast._
   
-  // Literals
-  lazy val stringLiteral: PackratParser[Literal] =
-    string ^^ Literal
+  // Program
+  // -------
+  lazy val topLevel: PackratParser[ASTNode] = multiple (declaration) <~ spaces <~ eos ^^ Program
+  
+  def declaration: PackratParser[Statement] = funcDecl | statement
+  
+  
+  
+  // Statements
+  // ----------
+  lazy val block: PackratParser[BlockStmt] = 
+    "{" ␣> multiple (declaration) <␣ "}" ^^ BlockStmt
+
+
+  def statement: PackratParser[Statement] = 
+    ( bindings <~ sc
+        
+    | 'if ␣> ("(" ␣> expression <␣ ")") ␣ statement ␣ ('else ␣> statement).? ^^ IfStmt
     
-  lazy val numberLiteral: PackratParser[Literal] =
-    number ^^ Literal
+    | 'while ␣> ("(" ␣> expression <␣ ")") ␣ statement ^^ WhileStmt
     
-  lazy val idLiteral: PackratParser[Literal] =
-    name ^^ Literal
+    | 'do ␣> (statement <␣ 'while) ␣ ("(" ␣> expression <␣ ")") <␣ sc ^^ DoWhileStmt
     
-  lazy val reLiteral: PackratParser[Literal] =
-    regexp ^^ Literal
+    | 'for ␣> ("(" ␣>
+                 ( bindings | expression ).? ␣ 
+                 (";" ␣> expression.?) ␣ 
+                 (";" ␣> expression.?) <␣
+             ")") ␣ statement ^^ ForStmt
+             
+    | 'for ␣> ("(" ␣> 
+                 ( bindings | leftExpr ) ␣
+                 ('in ␣> expression) <␣
+               ")") ␣ statement ^^ ForInStmt
+               
+    | 'switch ␣> ("(" ␣> expression <␣ ")") ␣ ("{" ␣> 
+                   multiple (
+                     ( ('case ␣> expression <␣ ":") ␣ multiple (declaration) ^^ MatchingCase
+                     | ('default ␣ ":") ␣> multiple (declaration) ^^ DefaultCase
+                     )
+                   ) <␣
+      "}") ^^ SwitchStmt
+                     
+    | 'break ~> (spacesNoNl ~> idLiteral.? <~ sc) ^^ BreakStmt
     
-  lazy val literal: PackratParser[Literal] =
-    idLiteral | stringLiteral | numberLiteral
+    | 'continue ~> (spacesNoNl ~> idLiteral.? <~ sc) ^^ ContinueStmt
+                   
+    | 'throw ~> (spacesNoNl ~> expression <~ sc) ^^ ThrowStmt
+    
+    
+    // catch is optional, if finally is provided
+    | 'try ␣> block ␣ ( 'catch ␣> "(" ␣> idLiteral <␣ ")") ␣ block ␣
+                      ( 'finally ␣> block ).? ^^ {
+        case body ~ cn ~ cb ~ Some(fb) => TryStmt(body, Some(CatchBlock(cn, cb)), Some(FinallyBlock(fb)))
+        case body ~ cn ~ cb ~ None => TryStmt(body, Some(CatchBlock(cn, cb)), None)
+      }
+    | 'try ␣> block ␣ ('finally ␣> block) ^^ {
+        case body ~ fb => TryStmt(body, None, Some(FinallyBlock(fb)))
+      }
+      
+    // TODO Check whether the whitespace handling here is correct!
+    | 'return ~> (spacesNoNl ~> expression.? <~ sc) ^^ ReturnStmt
+    
+    | 'with ␣> ("(" ␣> expression <␣ ")") ␣ statement ^^ WithStmt
+    
+    | idLiteral ␣ (":" ␣> statement) ^^ LabeledStmt
+    
+    | ";" ^^^ EmptyStmt
+    
+    // 12.4 Comma Operator
+    // This allows the use of the comma-operator
+    // (Or to be more precise, `expr` does this)
+    //
+    //     result += source, source = '';
+    //
+    // I had big trouble to prevent an endless
+    // loop at this point. The solution was
+    // to firstly consume all whitespaces and
+    // then match `not sc`
+    
+    | spaces ~> ( not ("{" | 'function | sc) ~> expression) <~ sc
+    
+    | block
+    | failure ("statement expected")
+    )
   
     
-  
-  lazy val expression: PackratParser[Expression] = 
+    
+  // Expressions
+  // -----------
+  def expression: PackratParser[Expression] = 
     listOf(assignExpr, ",") ^^ {
       case expr :: Nil => expr
       case many => SequenceExpr(many)
-    }
-    
+    }    
     
   lazy val assignExpr: PackratParser[Expression] = 
     ( leftExpr ␣ ( ">>>=" | ">>=" | "+="  | "-=" | "*="  | "/=" | "%="   | "<<=" 
@@ -223,7 +299,6 @@ trait JavaScriptParser extends PositionedParserUtilities with ParserUtils with J
     | prefixExpr
     )
     
-    
   // unary operators
   lazy val prefixExpr: PackratParser[Expression] =
     ( ("++" | "--" ) ~ (spacesNoNl ~> unaryExpr) ^^ PrefixExpr
@@ -253,7 +328,6 @@ trait JavaScriptParser extends PositionedParserUtilities with ParserUtils with J
     | funcExpr
     | primExpr
     )
-    
   
   lazy val callExpr: PackratParser[List[Expression]] =
     "(" ␣> listOf(assignExpr, ",") <␣ ")"
@@ -274,7 +348,28 @@ trait JavaScriptParser extends PositionedParserUtilities with ParserUtils with J
     | 'this ^^^ Literal("this")
     | literal
     | reLiteral
+    | failure ("Expression or Literal expected")
     )
+    
+  
+    
+  // Literals
+  // --------
+  lazy val stringLiteral: PackratParser[Literal] =
+    string ^^ Literal
+    
+  lazy val numberLiteral: PackratParser[Literal] =
+    number ^^ Literal
+    
+  lazy val idLiteral: PackratParser[Literal] =
+    name ^^ Literal
+    
+  lazy val reLiteral: PackratParser[Literal] =
+    regexp ^^ Literal
+    
+  lazy val literal: PackratParser[Literal] =
+    idLiteral | stringLiteral | numberLiteral
+    
   
   // 11.1.4 Array Literals
   // TODO run tests, to check whether this encoding of elision works
@@ -282,9 +377,7 @@ trait JavaScriptParser extends PositionedParserUtilities with ParserUtils with J
     "[" ␣> listOf(arrayEl, ",") <␣ "]" ^^ ArrayExpr
   
   lazy val arrayEl: PackratParser[Expression] =
-    ( assignExpr | result (Literal("undefined")) )
-    
-  
+    ( assignExpr | result (Literal("undefined")) )  
   
   
   // 11.1.5 Object Literals
@@ -316,89 +409,5 @@ trait JavaScriptParser extends PositionedParserUtilities with ParserUtils with J
     idLiteral ␣ ( "=" ␣> assignExpr
                 | result (Literal("undefined"))
                 ) ^^ VarBinding
-   
-
-  // Block Statement
-  lazy val block: PackratParser[BlockStmt] = 
-    "{" ␣> multiple (srcElem) <␣ "}" ^^ BlockStmt
-
-
-  // 12. Statements
-  lazy val statement: PackratParser[Statement] = 
-    ( bindings <~ sc
-        
-    | 'if ␣> ("(" ␣> expression <␣ ")") ␣ statement ␣ ('else ␣> statement).? ^^ IfStmt
-    
-    | 'while ␣> ("(" ␣> expression <␣ ")") ␣ statement ^^ WhileStmt
-    
-    | 'do ␣> (statement <␣ 'while) ␣ ("(" ␣> expression <␣ ")") <␣ sc ^^ DoWhileStmt
-    
-    | 'for ␣> ("(" ␣>
-                 ( bindings | expression ).? ␣ 
-                 (";" ␣> expression.?) ␣ 
-                 (";" ␣> expression.?) <␣
-             ")") ␣ statement ^^ ForStmt
-             
-    | 'for ␣> ("(" ␣> 
-                 ( bindings | leftExpr ) ␣
-                 ('in ␣> expression) <␣
-               ")") ␣ statement ^^ ForInStmt
-               
-    | 'switch ␣> ("(" ␣> expression <␣ ")") ␣ ("{" ␣> 
-                   multiple (
-                     ( ('case ␣> expression <␣ ":") ␣ multiple (srcElem) ^^ MatchingCase
-                     | ('default ␣ ":") ␣> multiple (srcElem) ^^ DefaultCase
-                     )
-                   ) <␣
-      "}") ^^ SwitchStmt
-                     
-    | 'break ~> (spacesNoNl ~> idLiteral.? <~ sc) ^^ BreakStmt
-    
-    | 'continue ~> (spacesNoNl ~> idLiteral.? <~ sc) ^^ ContinueStmt
-                   
-    | 'throw ~> (spacesNoNl ~> expression <~ sc) ^^ ThrowStmt
-    
-    
-    // catch is optional, if finally is provided
-    | 'try ␣> block ␣ ( 'catch ␣> "(" ␣> idLiteral <␣ ")") ␣ block ␣
-                      ( 'finally ␣> block ).? ^^ {
-        case body ~ cn ~ cb ~ Some(fb) => TryStmt(body, Some(CatchBlock(cn, cb)), Some(FinallyBlock(fb)))
-        case body ~ cn ~ cb ~ None => TryStmt(body, Some(CatchBlock(cn, cb)), None)
-      }
-    | 'try ␣> block ␣ ("finally" ␣> block) ^^ {
-        case body ~ fb => TryStmt(body, None, Some(FinallyBlock(fb)))
-      }
-      
-    // TODO Check whether the whitespace handling here is correct!
-    | 'return ~> (spacesNoNl ~> expression.? <~ sc) ^^ ReturnStmt
-    
-    | 'with ␣> ("(" ␣> expression <␣ ")") ␣ statement ^^ WithStmt
-    
-    | idLiteral ␣ (":" ␣> statement) ^^ LabeledStmt
-    
-    | ";" ^^^ EmptyStmt
-    
-    // 12.4 Comma Operator
-    // This allows the use of the comma-operator
-    // (Or to be more precise, `expr` does this)
-    //
-    //     result += source, source = '';
-    //
-    // I had big trouble to prevent an endless
-    // loop at this point. The solution was
-    // to firstly consume all whitespaces and
-    // then match `not sc`
-    
-    | spaces ~> ( not ("{" | 'function | sc) ~> expression) <~ sc
-    
-    | block
-    )
-  
-  // Source Elements
-  lazy val srcElem: PackratParser[Statement] = funcDecl | statement
-
-  // Program
-  //
-  lazy val topLevel: PackratParser[ASTNode] = multiple (srcElem) <~ spaces <~ EOS ^^ Program
   
 }

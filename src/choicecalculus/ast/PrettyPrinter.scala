@@ -5,11 +5,11 @@ import org.kiama.output.ParenPrettyPrinter
 
 trait PrettyPrinter extends ParenPrettyPrinter with org.kiama.output.PrettyPrinter  {
   
-  def toDoc(e: ASTNode): Doc
+  def toDoc(e: ASTNode): Doc = sys error "Implement toDoc"
   
 }
 
-trait ChoiceCalcPP extends PrettyPrinter {
+trait ChoiceCalculusPP extends PrettyPrinter {
 
   override def toDoc(e: ASTNode): Doc = e match {
     
@@ -38,6 +38,6 @@ trait ChoiceCalcPP extends PrettyPrinter {
         (old, config) => "select" <+> text(config._1.name) <> dot <> text(config._2.name) <+> "from" <+> old 
       }
     
-    case other => text(other.toString)       
+    case other => super.toDoc(other)     
   } 
 }

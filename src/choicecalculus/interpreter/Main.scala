@@ -4,7 +4,7 @@ package interpreter
 import org.kiama.output.PrettyPrinter
 import org.kiama.util.{ParsingREPL, Emitter, Compiler, Console}
 import org.kiama.attribution.Attribution.initTree
-import ast.{ ASTNode, ChoiceCalcPP, JavaScriptPP }
+import ast.{ ASTNode, ChoiceCalculusPP, JavaScriptPP }
 import parser.Parser
 
 import semantics.{ TypeSystemRevised, DimensionGraph }
@@ -35,12 +35,12 @@ object CommandLine extends Compiler[ASTNode]
     
     super.process(ast, console, emitter)
 
-    object prettyPrinter extends JavaScriptPP
+    object prettyPrinter extends JavaScriptPP with ChoiceCalculusPP
     
     emitter.emitln("\n\nPrettyprinted: \n" + prettyPrinter.pretty(prettyPrinter.toDoc(ast)) )
     
     // currently just parse!
-    /*
+    
     val dims = ast->dimensioning
     
     report(emitter)
@@ -48,8 +48,12 @@ object CommandLine extends Compiler[ASTNode]
     // no error messages while semantic analysis
     emitter.emitln("Dimensions: " + dims)
     
+    
     val selected = rewrite (selectRelation) (ast)
     
+    emitter.emitln("\n\nSelected: \n" + prettyPrinter.pretty(prettyPrinter.toDoc(selected)))
+    
+    /*
     emitter.emitln("After performing selection:")
     emitter.emitln( pretty(toDoc(selected)) )
     
@@ -84,5 +88,61 @@ object CommandLine extends Compiler[ASTNode]
   }
   */
   
+  
+}
+object A extends App {
+ 
+  import org.kiama.attribution.Attribution.{attr, paramAttr, CachedParamAttribute}
+  import org.kiama.rewriting.Rewriter._  
+  
+  
+  abstract class Hostlang extends ASTNode
+  case class BinaryOp(lhs: ASTNode, op: String, rhs: List[ASTNode]) extends ASTNode
+  case class RewriteMe(content: String) extends ASTNode
+  case object Literal extends ASTNode
+  
+  val tree = BinaryOp(
+      BinaryOp(
+        Literal,
+        "*",
+        List(RewriteMe("Hello1"), RewriteMe("Hello1"), RewriteMe("Hello1"))
+      ),
+      "+",
+      List(BinaryOp(
+        Literal,
+        "*",
+        List(RewriteMe("Hello2"))
+      ))
+  ) 
+  
+  val rewriteRule = rule {
+    case RewriteMe("Hello1") => RewriteMe("Hello World")
+  }
+  
+  val results = reduce (rewriteRule) (tree)
+  
+  println(results)
+  
+}
+object B extends App with TypeSystemRevised with DimensionGraph {
+  
+  import ast._
+  import org.kiama.util.Messaging.{messagecount, report}
+  import org.kiama.rewriting.Rewriter.{rewrite}
+  
+  val tree = Program(List(
+    SelectExpr('foo, 'b, BinaryOpExpr(
+      Literal("1234"),
+      "+",
+      DimensionExpr('foo, List('b, 'a), ChoiceExpr('foo, List(
+        Choice('a, Literal("foo")),
+        Choice('b, Literal("bar"))
+      )))
+    ))
+  ))
+  
+  val selected = rewrite (selectRelation) (tree)
+  
+  println(selected)
   
 }

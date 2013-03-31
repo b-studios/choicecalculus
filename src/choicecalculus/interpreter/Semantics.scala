@@ -43,7 +43,20 @@ trait TypeSystemRevised { self: DimensionGraph =>
   val selectFromOtherDim = rule {
     case SelectExpr(dim, tag, DimensionExpr(name, tags, body)) if name != dim => 
       DimensionExpr(name, tags, SelectExpr(dim, tag, body)) 
-  }  
+  }
+  
+  // Hostlanguage constructs
+  // wrap every child into selectexpressions and reconstruct node
+  val selectFromProduct = rule {
+    case SelectExpr(dim, tag, t) => rewrite ( all ( rule {
+      case n:ASTNode => SelectExpr(dim, tag, n)
+      case lit => lit
+    })) (t)
+  }
+  
+  
+  
+  /*
   val selectFromBinary = rule {
     case SelectExpr(dim, tag, b@BinaryExpr(lhs, rhs)) =>
       b.rebuild(SelectExpr(dim, tag, lhs), SelectExpr(dim, tag, rhs))
@@ -54,7 +67,7 @@ trait TypeSystemRevised { self: DimensionGraph =>
   }  
   val selectFromConstant = rule {
     case SelectExpr(dim, tag, c:ConstantExpr) => c
-  }
+  }*/
 
   /**
    * We do the traversal bottomup to perform inner selection first 
@@ -67,9 +80,10 @@ trait TypeSystemRevised { self: DimensionGraph =>
     
     selectFromShare + 
     selectFromOtherDim +
-    selectFromBinary +
-    selectFromUnary + 
-    selectFromConstant
+    selectFromProduct
+    //selectFromBinary +
+    //selectFromUnary + 
+    //selectFromConstant
   ))
   
  
@@ -183,8 +197,13 @@ trait TypeSystemRevised { self: DimensionGraph =>
     
     // Just some congruence rules
     case ShareExpr(name, boundExpr, body) => body->dimensioning
-    case BinaryExpr(lhs, rhs) => (lhs->dimensioning).merge(rhs->dimensioning)(e)
-    case UnaryExpr(body) => body->dimensioning
+    
+    case Term(p, children) => children.collect {
+      case n: ASTNode => n->dimensioning
+    }.foldLeft(DimensionGraph.empty) {
+      case (old, dim) => old.merge(dim) (e)
+    }
+    
     case _ => DimensionGraph.empty
   }}
   
