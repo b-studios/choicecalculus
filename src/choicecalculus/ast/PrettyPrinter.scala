@@ -37,6 +37,9 @@ trait ChoiceCalculusPP extends PrettyPrinter {
       configs.foldLeft(toDoc(body)) {
         (old, config) => "select" <+> text(config._1.name) <> dot <> text(config._2.name) <+> "from" <+> old 
       }
+      
+    case IncludeExpr(filename) =>
+      "include" <+> surround(filename, '"')
     
     case other => super.toDoc(other)     
   } 

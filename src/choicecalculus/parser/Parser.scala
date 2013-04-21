@@ -4,6 +4,7 @@ package parser
 import org.kiama.util.PositionedParserUtilities
 import utility.ParserUtils
 import ast.ASTNode
+import choicecalculus.ast.IncludeExpr
 
 trait HostLanguageParser extends PositionedParserUtilities with ParserUtils {
   
@@ -20,23 +21,27 @@ trait ChoiceCalculusParser { self: HostLanguageParser =>
   
   lazy val cc_id: PackratParser[Symbol]        = """[a-zA-Z$_][a-zA-Z0-9$_]*""".r ^^ (Symbol(_))
   
+  lazy val cc_string: PackratParser[String]    = '"' ~> consumed ((not('"') ~ any).*) <~ '"'
   
-   def cc_expression[T <: ASTNode](body: PackratParser[T]): PackratParser[T] = 
-      ( cc_dimensionExpr(body)
-      | cc_choiceExpr(body)
-      | cc_selectExpr(body)
-      | cc_shareExpr(body)
-      | cc_idExpr[T]
-      | body
-      | failure ("Expected choice calculus expression")
-      )      
+  
+  
+  def cc_expression[T <: ASTNode](body: PackratParser[T]): PackratParser[T] = 
+    ( cc_dimensionExpr(body)
+    | cc_choiceExpr(body)
+    | cc_selectExpr(body)
+    | cc_shareExpr(body)
+    | cc_includeExpr[T]
+    | cc_idExpr[T]
+    | body
+    | failure ("Expected choice calculus expression")
+    )      
     
-    def cc_dimensionExpr[T <: ASTNode](body: PackratParser[T]): PackratParser[T] =
+  def cc_dimensionExpr[T <: ASTNode](body: PackratParser[T]): PackratParser[T] =
       
-      // This cast can only succeed, if CCExpression is subtype of T
-      ("dim" ␣> cc_id) ␣ ("<" ␣> listOf(cc_id, ",") <␣ ">") ␣ body ^^ {
-        case dim ~ tags ~ body => DimensionExpr(dim, tags, body).asInstanceOf[T]
-      }
+    // This cast can only succeed, if CCExpression is subtype of T
+    ("dim" ␣> cc_id) ␣ ("<" ␣> listOf(cc_id, ",") <␣ ">" ␣ "in".?) ␣ body ^^ {
+      case dim ~ tags ~ body => DimensionExpr(dim, tags, body).asInstanceOf[T]
+    }
       
       
       
@@ -44,6 +49,8 @@ trait ChoiceCalculusParser { self: HostLanguageParser =>
       ( ("choice" ␣> cc_id) ␣ ("{" ␣> multiple(cc_choice(body)) <␣ "}") ^^ {
           case dim ~ choices => ChoiceExpr(dim, choices).asInstanceOf[T] 
         }
+      
+      // JavaScript's comma operator causes some trouble here, since the comma in A<a:1,b:2> is parsed as comma operator
       | cc_id ␣ ("<" ␣> listOf(cc_inlineChoice(body), ",") <␣ ">") ^^ {
           case dim ~ choices => ChoiceExpr(dim, choices).asInstanceOf[T] 
         }
@@ -64,6 +71,11 @@ trait ChoiceCalculusParser { self: HostLanguageParser =>
       "share" ␣> "§" ~> cc_id ␣ ("=" ␣> body) ␣ body ^^ {
          case id ~ binding ~ body => ShareExpr(id, binding, body).asInstanceOf[T]
         }
+    
+    def cc_includeExpr[T <: ASTNode]: PackratParser[T] =
+      "include" ␣> cc_string ^^ {
+        case filename => IncludeExpr(filename).asInstanceOf[T]
+      }
       
     // TODO Problem, how to handle the static type of an ID???
     // Here disambiguation has to take place, if the host language uses ids

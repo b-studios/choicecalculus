@@ -3,18 +3,93 @@ package semantics
 
 import ast._
 import org.kiama.rewriting.Rewriter._
-import org.kiama.util.Messaging.message
+import org.kiama.util.Messaging.{message, report}
+import scala.collection.mutable
+
+import org.kiama.util.IO.{filereader, FileNotFoundException }
+import org.kiama.util.{ Console, Emitter, StringEmitter, Compiler, JLineConsole }
+import org.kiama.output.ParenPrettyPrinter
+import org.kiama.attribution.Attribution.initTree
 
 trait Semantics extends Dimensioning with DimensionGraph 
     with Selecting     
     with Choosing 
-    with Substituting {
-
-}
+    with Substituting
+    with FileHandling { self: Compiler[ASTNode] =>
   
- 
+  def processTree(tree: ASTNode): ASTNode = {
+    initTree(tree)
+    dimensioning(tree)
+    rewrite (select <* substitute) (tree)  
+  }
+      
+}
 
-trait Dimensioning { self: DimensionGraph =>
+trait FileHandling {
+  self: Compiler[ASTNode] with Semantics =>
+  
+  case class SourceFile(path: String, ast: ASTNode, dimensions: Option[DimensionGraph]) {
+    override def toString = "SourceFile(%s, ..., %s)".format(path, dimensions)
+  }
+      
+  val files: mutable.HashMap[String, SourceFile] = mutable.HashMap()
+  
+  def processFile(filename: String, console: Console, emitter: Emitter) = files.getOrElse(filename, None) match {
+      case SourceFile(path, ast, None) => sys error "Cycle in file dependencies!"
+      case s@SourceFile(path, ast, Some(dims)) => s
+      case None =>
+        try {
+          val reader = filereader (filename, encoding)          
+          makeast (reader, filename, emitter) match {
+            case Left (ast) => {
+              val file = SourceFile(filename, ast, None)
+              files.update(filename, file)
+              processSourceFile(file, console, emitter)
+            }
+            case Right (msg) => emitter.emitln (msg)
+          }
+        } catch {
+          case e: FileNotFoundException => emitter.emitln(e.message)      
+        }
+      }
+    
+  
+  def processSourceFile(file: SourceFile, console: Console, emitter: Emitter) {
+    val SourceFile(filename, tree, _) = file
+    val reduced = processTree(tree)
+    
+    // store modified ast and dimensioning
+    files.update( filename, SourceFile(filename, reduced, Some(dimensioning(reduced))) )
+  }
+  
+  def fileDimensions(filename: String): DimensionGraph = {    
+    val emitter = new StringEmitter
+    // make sure file is already parsed and dimensions are calculated
+    processFile(filename, JLineConsole, emitter)
+    report(emitter)
+    files(filename).dimensions.get
+  }
+  
+  /**
+   * Attention: This method is pretty much dependent of the current base language!!!
+   */
+  def fileContents(filename: String): ASTNode = {    
+    val emitter = new StringEmitter
+    processFile(filename, JLineConsole, emitter)    
+    report(emitter)
+    
+    // Problem is, that Program cannot be casted to Expression or Statement
+    files(filename).ast match {
+      case Program(Nil) => EmptyStmt
+      case Program(one :: Nil) => one
+      case Program(some) => BlockStmt(some)
+    }
+  }
+    
+}
+
+
+trait Dimensioning { self: DimensionGraph with FileHandling =>
   
   import org.kiama.attribution.Attribution.{attr, paramAttr, CachedParamAttribute}
 
@@ -57,8 +132,12 @@ trait Dimensioning { self: DimensionGraph =>
     // Just some congruence rules
     case ShareExpr(name, boundExpr, body) => body->dimensioning
     
-    case Term(p, children) => children.collect {
-      case n: ASTNode => n->dimensioning
+    case IncludeExpr(filename) => fileDimensions(filename) 
+    
+    case Term(p, children) => children.flatMap {
+      case n: ASTNode => List(n->dimensioning)
+      case l:Seq[ASTNode] => l.map(dimensioning)
+      case _ => List.empty
     }.foldLeft(DimensionGraph.empty) {
       case (old, dim) => old.merge(dim) (e)
     }
@@ -135,6 +214,8 @@ trait Selecting { self: Choosing =>
       rewrite (choose(dim, tag)) (body)
   
     case SelectExpr(dim, tag, id:IdExpr) => PartialConfig(id, List((dim, tag)))
+    
+    case SelectExpr(dim, tag, inc:IncludeExpr) => PartialConfig(inc, List((dim, tag)))
   
     case SelectExpr(dim, tag, PartialConfig(body, configs)) => PartialConfig(body, configs ++ List((dim, tag)))
   
@@ -157,7 +238,7 @@ trait Selecting { self: Choosing =>
 /**
  * 2. Step - Substitution and Removal of unnecessary Shares
  */
-trait Substituting { self: Selecting with Dimensioning =>
+trait Substituting { self: Selecting with Dimensioning with FileHandling =>
   
   import ast._
   import org.kiama.rewriting.Rewriter._
@@ -169,7 +250,7 @@ trait Substituting { self: Selecting with Dimensioning =>
   
   // We only substitute variables, if they are fully configured
   private val substituteBindings = 
-    test(isFullyConfigured) <* (substIdExpr + substPartialConfig) <* desugarPartialConfig
+    test(isFullyConfigured) <* (substIdExpr + substIncludeExpr + substPartialConfig) <* desugarPartialConfig
 
   private val isFullyConfigured = strategyf {
     case exp: ASTNode if (exp->dimensioning).fullyConfigured => Some(exp)
@@ -177,16 +258,21 @@ trait Substituting { self: Selecting with Dimensioning =>
   }
   
   // (a) the bound expression itself is fully configured, then the id can be substituted by the expression
+  // i. It's an id
   private val substIdExpr = rule {
     case id@IdExpr(name) => id->bindingShare(name) match {
       case Some(ShareExpr(_, binding, _)) => binding
       case _ => sys error "cannot substitute binding for %s".format(name)
     }
   }
+  // ii. It's an include
+  private val substIncludeExpr = rule {
+    case id@IncludeExpr(filename) => fileContents(filename)
+  }
   
   // (b) the bound expression is fully configured by delayed selections
   private val substPartialConfig = rule {
-    case PartialConfig(id: IdExpr, configs) => PartialConfig( rewrite(substIdExpr) (id), configs)
+    case PartialConfig(body, configs) => PartialConfig( rewrite(substIdExpr + substIncludeExpr) (body), configs)
   }
   
   // The expression has been substituted by one of the previous steps - just desugar the partial configuration
