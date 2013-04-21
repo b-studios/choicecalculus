@@ -7,9 +7,12 @@ import org.kiama.attribution.Attribution.initTree
 import ast.{ ASTNode, ChoiceCalculusPP, JavaScriptPP }
 import parser.Parser
 
-import semantics.{ TypeSystemRevised, DimensionGraph }
+import semantics.Semantics
 
-object Main extends Parser with ParsingREPL[ASTNode] with TypeSystemRevised with DimensionGraph {
+import org.kiama.util.Messaging.{messagecount, report}
+import org.kiama.rewriting.Rewriter.{rewrite}
+
+object Main extends Parser with ParsingREPL[ASTNode] with Semantics {
   
   def start: Parser[ASTNode] = parser
   override def prompt = "> "
@@ -17,31 +20,34 @@ object Main extends Parser with ParsingREPL[ASTNode] with TypeSystemRevised with
   def process(tree: ASTNode) {
     
     println("Parsed: " + tree)
-    object prettyPrinter extends JavaScriptPP
+    object prettyPrinter extends JavaScriptPP with ChoiceCalculusPP
     
-    emitter.emitln("\n\nPrettyprinted: \n" + prettyPrinter.pretty(prettyPrinter.toDoc(tree)) )
+    val dims = tree->dimensioning
+    
+    report(emitter)
+    val selected = rewrite (select) (tree)
+    
+    emitter.emitln("\n\nSelected: \n" + prettyPrinter.pretty(prettyPrinter.toDoc(selected)))
+    
+    //emitter.emitln("\n\nPrettyprinted: \n" + prettyPrinter.pretty(prettyPrinter.toDoc(tree)) )
   }
 }
 // with DimensionChecker with ChoiceGraph
 object CommandLine extends Compiler[ASTNode] 
     with Parser
-    with TypeSystemRevised
-    with DimensionGraph {  
-  
-  import org.kiama.util.Messaging.{messagecount, report}
-  import org.kiama.rewriting.Rewriter.{rewrite}
-  
-  override def process(ast: ASTNode, console: Console, emitter: Emitter) : Boolean = {   
+    with Semantics {  
+   
+  override def process(tree: ASTNode, console: Console, emitter: Emitter) : Boolean = {   
     
-    super.process(ast, console, emitter)
+    super.process(tree, console, emitter)
 
     object prettyPrinter extends JavaScriptPP with ChoiceCalculusPP
     
-    emitter.emitln("\n\nPrettyprinted: \n" + prettyPrinter.pretty(prettyPrinter.toDoc(ast)) )
+    emitter.emitln("\n\nPrettyprinted: \n" + prettyPrinter.pretty(prettyPrinter.toDoc(tree)) )
     
     // currently just parse!
     
-    val dims = ast->dimensioning
+    val dims = tree->dimensioning
     
     report(emitter)
     
@@ -49,7 +55,7 @@ object CommandLine extends Compiler[ASTNode]
     emitter.emitln("Dimensions: " + dims)
     
     
-    val selected = rewrite (selectRelation) (ast)
+    val selected = rewrite (selectRelation) (tree)
     
     emitter.emitln("\n\nSelected: \n" + prettyPrinter.pretty(prettyPrinter.toDoc(selected)))
     
@@ -124,7 +130,7 @@ object A extends App {
   println(results)
   
 }
-object B extends App with TypeSystemRevised with DimensionGraph {
+object B extends App with Semantics {
   
   import ast._
   import org.kiama.util.Messaging.{messagecount, report}

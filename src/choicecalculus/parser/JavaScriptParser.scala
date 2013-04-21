@@ -16,13 +16,6 @@ import utility.ParserUtils
  * return;
  * foo, bar, baz
  * var foo = "bar\"baz"
- * 
- * 
- * Next thing to do:
- * 1. Implement pretty printer
- * 2. implement regexp
- * 3. implement real identifiers
- * 
  */
 
 

@@ -1,164 +1,23 @@
 package choicecalculus
 package semantics
 
-trait TypeSystemRevised { self: DimensionGraph =>
+import ast._
+import org.kiama.rewriting.Rewriter._
+import org.kiama.util.Messaging.message
 
-  /**
-   * TODO understand topdownS with stop criterion and use it to control traversal
-   * 
-   */
+trait Semantics extends Dimensioning with DimensionGraph 
+    with Selecting     
+    with Choosing 
+    with Substituting {
+
+}
   
+ 
+
+trait Dimensioning { self: DimensionGraph =>
   
-  import ast._
-  import org.kiama.util.Messaging.message
   import org.kiama.attribution.Attribution.{attr, paramAttr, CachedParamAttribute}
-  import org.kiama.rewriting.Rewriter._  
- 
-  
-  /**
-   * 1. Step: Perform all selections
-   * -------------------------------
-   */
-  
-  // Don't select dependent dimensions!
-  val selectFromChoice = rule {
-    case SelectExpr(_, _, c:ChoiceExpr) => c
-  }
-  val selectFromDim = rule {
-    case SelectExpr(dim, tag, DimensionExpr(name, tags, body)) if name == dim =>
-      rewrite (chooseRelation(dim, tag)) (body)
-  }
-  val selectFromId = rule {
-    case SelectExpr(dim, tag, id:IdExpr) => PartialConfig(id, List((dim, tag)))
-  }  
-  val selectFromPartialConfig = rule {
-    case SelectExpr(dim, tag, PartialConfig(body, configs)) => PartialConfig(body, configs ++ List((dim, tag)))
-  }
-  
-  // Congruences  
-  val selectFromShare = rule {
-    case SelectExpr(dim, tag, ShareExpr(name, expr, body)) => 
-      ShareExpr(name, expr, SelectExpr(dim, tag, body))
-  }
-  val selectFromOtherDim = rule {
-    case SelectExpr(dim, tag, DimensionExpr(name, tags, body)) if name != dim => 
-      DimensionExpr(name, tags, SelectExpr(dim, tag, body)) 
-  }
-  
-  // Hostlanguage constructs
-  // wrap every child into selectexpressions and reconstruct node
-  val selectFromProduct = rule {
-    case SelectExpr(dim, tag, t) => rewrite ( all ( rule {
-      case n:ASTNode => SelectExpr(dim, tag, n)
-      case lit => lit
-    })) (t)
-  }
-  
-  
-  
-  /*
-  val selectFromBinary = rule {
-    case SelectExpr(dim, tag, b@BinaryExpr(lhs, rhs)) =>
-      b.rebuild(SelectExpr(dim, tag, lhs), SelectExpr(dim, tag, rhs))
-  }  
-  val selectFromUnary = rule {
-    case SelectExpr(dim, tag, u@UnaryExpr(content)) =>
-      u.rebuild(SelectExpr(dim, tag, content))
-  }  
-  val selectFromConstant = rule {
-    case SelectExpr(dim, tag, c:ConstantExpr) => c
-  }*/
 
-  /**
-   * We do the traversal bottomup to perform inner selection first 
-   */
-  val selectRelation = bottomup (reduce (    
-    selectFromChoice + 
-    selectFromDim +
-    selectFromId +    
-    selectFromPartialConfig +
-    
-    selectFromShare + 
-    selectFromOtherDim +
-    selectFromProduct
-    //selectFromBinary +
-    //selectFromUnary + 
-    //selectFromConstant
-  ))
-  
- 
-  /**
-   * In this relation we use function definition instead of syntactic representation to omit introduction of yet
-   * another syntactic element. Can easily be rewritten.
-   * 
-   * Since the congruence rules match completely kiama's default behavior we can use `sometd(rule {...})` instead
-   * of implementing all congruences by ourselves. `sometd` will try to continue on subtrees until it successfully 
-   * matches a rule. Then it will stop processing this subtree.
-   */
-  def chooseRelation(dim: Symbol, tag: Symbol) = sometd ( rule {
-    
-    // select expressions shadow other ones, with the same dimension
-    case e@SelectExpr(d, _, _) if d == dim => e
-    
-    // selection stops at dimensions with the same name
-    case e@DimensionExpr(d, _, _) if d == dim => e
-    
-    // actual choosing 
-    case ChoiceExpr(d, choices) if d == dim => choices.collect {
-      case Choice(t, body) if t == tag => body
-    }.head
-    
-  })
-  
-  
-  /**
-   * 2. Step - Substitution and Removal of unnecessary Shares
-   * --------------------------------------------------------
-   * If bindings are substituted, then we have to reduce them again
-   */  
-  val performSubstitution = bottomup ( 
-    attempt( substituteBindings <* attempt(selectRelation) ) <* attempt(removeShares)
-  )
-  
-  
-  /**
-   * We only substitute variables, if they are fully configured
-   */  
-  val substituteBindings = test(isFullyConfigured) <* (substIdExpr + substPartialConfig) <* desugarPartialConfig
-
-  val isFullyConfigured = strategyf {
-    case exp: ASTNode if (exp->dimensioning).fullyConfigured => Some(exp)
-    case _ => None
-  }
-  
-  // (a) the bound expression itself is fully configured, then the id can be substituted by the expression
-  val substIdExpr = rule {
-    case id@IdExpr(name) => id->bindingShare(name) match {
-      case Some(ShareExpr(_, binding, _)) => binding
-      case _ => sys error "cannot substitute binding for %s".format(name)
-    }
-  }
-  
-  // (b) the bound expression is fully configured by delayed selections
-  val substPartialConfig = rule {
-    case PartialConfig(id: IdExpr, configs) => PartialConfig( rewrite(substIdExpr) (id), configs)
-  }
-  
-  // The expression has been substituted by one of the previous steps - just desugar the partial configuration
-  val desugarPartialConfig = rule {
-    case PartialConfig(body, configs) => configs.foldLeft(body) {
-      case (old, (dim, tag)) => SelectExpr(dim, tag, old)
-    }
-  }
-  
-  /**
-   * This is a cleanup step. Unused shares can be removed.
-   */
-  val removeShares = rule {
-    case ShareExpr(n,_,body) if !(body->variableIsUsed(n)) => body
-  }
-  
-  
   /**
    * The type parameters are: [ParamType, NodeType, ResultType]
    */
@@ -253,6 +112,170 @@ trait TypeSystemRevised { self: DimensionGraph =>
       case other => other.parent[ASTNode]->bindingDimension(name)
     }
   }
+}
+
+trait Selecting { self: Choosing => 
   
+  import ast._
+  import org.kiama.util.Messaging.message
+  
+  import org.kiama.rewriting.Rewriter._  
+ 
+  
+  /**
+   * 1. Step: Perform all selections
+   * -------------------------------
+   */
+  /*
+  // Don't select dependent dimensions!
+  val selectFromChoice = rule {
+    case SelectExpr(_, _, c:ChoiceExpr) => c
+  }
+  val selectFromDim = rule {
+    case SelectExpr(dim, tag, DimensionExpr(name, tags, body)) if name == dim =>
+      rewrite (choose(dim, tag)) (body)
+  }
+  val selectFromId = rule {
+    case SelectExpr(dim, tag, id:IdExpr) => PartialConfig(id, List((dim, tag)))
+  }  
+  val selectFromPartialConfig = rule {
+    case SelectExpr(dim, tag, PartialConfig(body, configs)) => PartialConfig(body, configs ++ List((dim, tag)))
+  }
+  
+  // Congruences  
+  val selectFromShare = rule {
+    case SelectExpr(dim, tag, ShareExpr(name, expr, body)) => 
+      ShareExpr(name, expr, SelectExpr(dim, tag, body))
+  }
+  val selectFromOtherDim = rule {
+    case SelectExpr(dim, tag, DimensionExpr(name, tags, body)) if name != dim => 
+      DimensionExpr(name, tags, SelectExpr(dim, tag, body)) 
+  }
+  
+  // Hostlanguage constructs - wrap every child into selectexpressions and reconstruct node
+  val selectFromProduct = rule {
+    case SelectExpr(dim, tag, t) => rewrite ( all ( rule {
+      case n:ASTNode => SelectExpr(dim, tag, n)
+      case lit => lit
+    })) (t)
+  }
+  
+  */
+  /**
+   * We do the traversal bottomup to perform inner selection first 
+   */
+  val select = bottomup (reduce (
+      selectRelation
+    /*selectFromChoice + 
+    selectFromDim +
+    selectFromId +    
+    selectFromPartialConfig +
+    
+    selectFromShare + 
+    selectFromOtherDim +
+    selectFromProduct*/
+  ))
+  
+  val selectRelation = rule {
+    
+    // Don't select dependent dimensions!
+    case SelectExpr(_, _, c:ChoiceExpr) => c
+    
+    case SelectExpr(dim, tag, DimensionExpr(name, tags, body)) if name == dim =>
+      rewrite (choose(dim, tag)) (body)
+  
+    case SelectExpr(dim, tag, id:IdExpr) => PartialConfig(id, List((dim, tag)))
+  
+    case SelectExpr(dim, tag, PartialConfig(body, configs)) => PartialConfig(body, configs ++ List((dim, tag)))
+  
+    // Congruences  
+    case SelectExpr(dim, tag, ShareExpr(name, expr, body)) => 
+      ShareExpr(name, expr, SelectExpr(dim, tag, body))
+  
+    case SelectExpr(dim, tag, DimensionExpr(name, tags, body)) if name != dim => 
+      DimensionExpr(name, tags, SelectExpr(dim, tag, body)) 
+  
+    // Hostlanguage constructs - wrap every child into selectexpressions and reconstruct node
+    case SelectExpr(dim, tag, t) => rewrite ( all ( rule {
+      case n:ASTNode => SelectExpr(dim, tag, n)
+      case lit => lit
+    })) (t)
+  }
+}
+
+
+/**
+ * 2. Step - Substitution and Removal of unnecessary Shares
+ */
+trait Substituting { self: Selecting with Dimensioning =>
+  
+  import ast._
+  import org.kiama.rewriting.Rewriter._
+  
+  // If bindings are substituted, then we have to reduce them again
+  // afterwards a cleanup step is performed
+  val substitute = bottomup ( attempt( substituteBindings <* attempt(select) ) <* attempt(removeShares) )
+  
+  
+  // We only substitute variables, if they are fully configured
+  private val substituteBindings = 
+    test(isFullyConfigured) <* (substIdExpr + substPartialConfig) <* desugarPartialConfig
+
+  private val isFullyConfigured = strategyf {
+    case exp: ASTNode if (exp->dimensioning).fullyConfigured => Some(exp)
+    case _ => None
+  }
+  
+  // (a) the bound expression itself is fully configured, then the id can be substituted by the expression
+  private val substIdExpr = rule {
+    case id@IdExpr(name) => id->bindingShare(name) match {
+      case Some(ShareExpr(_, binding, _)) => binding
+      case _ => sys error "cannot substitute binding for %s".format(name)
+    }
+  }
+  
+  // (b) the bound expression is fully configured by delayed selections
+  private val substPartialConfig = rule {
+    case PartialConfig(id: IdExpr, configs) => PartialConfig( rewrite(substIdExpr) (id), configs)
+  }
+  
+  // The expression has been substituted by one of the previous steps - just desugar the partial configuration
+  private val desugarPartialConfig = rule {
+    case PartialConfig(body, configs) => configs.foldLeft(body) {
+      case (old, (dim, tag)) => SelectExpr(dim, tag, old)
+    }
+  }  
+
+  // Unused shares can be removed.
+  private val removeShares = rule {
+    case ShareExpr(n,_,body) if !(body->variableIsUsed(n)) => body
+  }
+}
+
+
+/**
+ * In this relation we use function definition instead of syntactic representation to omit introduction of yet
+ * another syntactic element. Can easily be rewritten.
+ * 
+ * Since the congruence rules match completely kiama's default behavior we can use `sometd(rule {...})` instead
+ * of implementing all congruences by ourselves. `sometd` will try to continue on subtrees until it successfully 
+ * matches a rule. Then it will stop processing this subtree.
+ */
+trait Choosing {
+ 
+  def choose(dim: Symbol, tag: Symbol) = sometd ( rule {
+    
+    // select expressions shadow other ones, with the same dimension
+    case e@SelectExpr(d, _, _) if d == dim => e
+    
+    // selection stops at dimensions with the same name
+    case e@DimensionExpr(d, _, _) if d == dim => e
+    
+    // actual choosing 
+    case ChoiceExpr(d, choices) if d == dim => choices.collect {
+      case Choice(t, body) if t == tag => body
+    }.head
+    
+  })  
  
 }
