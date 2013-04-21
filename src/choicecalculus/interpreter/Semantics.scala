@@ -121,60 +121,10 @@ trait Selecting { self: Choosing =>
   
   import org.kiama.rewriting.Rewriter._  
  
-  
-  /**
-   * 1. Step: Perform all selections
-   * -------------------------------
-   */
-  /*
-  // Don't select dependent dimensions!
-  val selectFromChoice = rule {
-    case SelectExpr(_, _, c:ChoiceExpr) => c
-  }
-  val selectFromDim = rule {
-    case SelectExpr(dim, tag, DimensionExpr(name, tags, body)) if name == dim =>
-      rewrite (choose(dim, tag)) (body)
-  }
-  val selectFromId = rule {
-    case SelectExpr(dim, tag, id:IdExpr) => PartialConfig(id, List((dim, tag)))
-  }  
-  val selectFromPartialConfig = rule {
-    case SelectExpr(dim, tag, PartialConfig(body, configs)) => PartialConfig(body, configs ++ List((dim, tag)))
-  }
-  
-  // Congruences  
-  val selectFromShare = rule {
-    case SelectExpr(dim, tag, ShareExpr(name, expr, body)) => 
-      ShareExpr(name, expr, SelectExpr(dim, tag, body))
-  }
-  val selectFromOtherDim = rule {
-    case SelectExpr(dim, tag, DimensionExpr(name, tags, body)) if name != dim => 
-      DimensionExpr(name, tags, SelectExpr(dim, tag, body)) 
-  }
-  
-  // Hostlanguage constructs - wrap every child into selectexpressions and reconstruct node
-  val selectFromProduct = rule {
-    case SelectExpr(dim, tag, t) => rewrite ( all ( rule {
-      case n:ASTNode => SelectExpr(dim, tag, n)
-      case lit => lit
-    })) (t)
-  }
-  
-  */
   /**
    * We do the traversal bottomup to perform inner selection first 
    */
-  val select = bottomup (reduce (
-      selectRelation
-    /*selectFromChoice + 
-    selectFromDim +
-    selectFromId +    
-    selectFromPartialConfig +
-    
-    selectFromShare + 
-    selectFromOtherDim +
-    selectFromProduct*/
-  ))
+  val select = bottomup (reduce (selectRelation))
   
   val selectRelation = rule {
     
