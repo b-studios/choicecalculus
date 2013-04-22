@@ -1,9 +1,0 @@
-select B.c from
-  dim A<a,b> in
-    choice A {
-      case a => dim B<c,d> in choice B { 
-        case c => 1 
-        case d => 2
-      }
-      case b => 3
-    }

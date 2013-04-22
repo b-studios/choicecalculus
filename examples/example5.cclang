@@ -1,9 +1,0 @@
-select D.a from
-  (dim D<a, b> in choice D {
-    case a => 1
-    case b => 2
-  }) +
-  (dim D<a, c> in choice D {
-    case a => 3
-    case c => 4
-  })

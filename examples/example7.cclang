@@ -1,3 +1,0 @@
-select A.a from
-  dim A<a,b> in
-    A<a: dim A<b,c> in A<b: 3, c: 4>, b:0>

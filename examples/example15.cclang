@@ -1,9 +1,0 @@
-select Implementation.b from
-
-  dim Implementation<a,b> in
-  function() {
-    choice Implementation {
-      case a => 2 + 2 + 2 + 2
-      case b => 4 * 2
-    }
-  }

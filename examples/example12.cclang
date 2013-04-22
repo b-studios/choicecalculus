@@ -1,3 +1,0 @@
-share v = 2 in
-  share v = v in
-    v
