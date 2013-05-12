@@ -12,7 +12,7 @@ resolvers in ThisBuild ++= Seq (
 )
 
 libraryDependencies in ThisBuild ++= Seq (
-    "com.googlecode.kiama" %% "kiama_2.10" % "1.4.0"
+    "com.googlecode.kiama" %% "kiama" % "1.4.0"
 )
 
 logLevel in ThisBuild := Level.Info
