@@ -25,13 +25,18 @@ trait ChoiceCalculusParser { self: HostLanguageParser =>
   
   
   
+  /**
+   * cc_expression is a parser for all kinds of choice calculus expressions, parametrized over
+   * their body parser. This body parser is dependend on the context in which the cc-expression
+   * occurs.
+   */
   def cc_expression[T <: ASTNode](body: PackratParser[T]): PackratParser[T] = 
     ( cc_dimensionExpr(body)
     | cc_choiceExpr(body)
     | cc_selectExpr(body)
     | cc_shareExpr(body)
-    | cc_includeExpr[T]
-    | cc_idExpr[T]
+    | cc_includeExpr[T](body)
+    | cc_idExpr[T](body)
     | body
     | failure ("Expected choice calculus expression")
     )      
@@ -56,32 +61,32 @@ trait ChoiceCalculusParser { self: HostLanguageParser =>
         }
       )
     
-    def cc_choice[T <: ASTNode](body: PackratParser[T]): PackratParser[Choice] =
-      ("case" ␣> cc_id <␣ "=>") ␣ body ^^ Choice
+    def cc_choice[T <: ASTNode](body: PackratParser[T]): PackratParser[Choice[T]] =
+      ("case" ␣> cc_id <␣ "=>") ␣ body ^^ Choice[T]
     
-    def cc_inlineChoice[T <: ASTNode](body: PackratParser[T]): PackratParser[Choice] =
-      (cc_id <␣ ":") ␣ body ^^ Choice
+    def cc_inlineChoice[T <: ASTNode](body: PackratParser[T]): PackratParser[Choice[T]] =
+      (cc_id <␣ ":") ␣ body ^^ Choice[T]
       
     def cc_selectExpr[T <: ASTNode](body: PackratParser[T]): PackratParser[T] =
       "select" ␣> (cc_id ~ ("." ~> cc_id)) ␣ ("from" ␣> body) ^^ {
          case dim ~ tag ~ body => SelectExpr(dim, tag, body).asInstanceOf[T]
         }
       
-    def cc_shareExpr[T <: ASTNode](body: Parser[T]): PackratParser[T] =
+    def cc_shareExpr[T <: ASTNode](body: PackratParser[T]): PackratParser[T] =
       "share" ␣> "§" ~> cc_id ␣ ("=" ␣> body) ␣ body ^^ {
          case id ~ binding ~ body => ShareExpr(id, binding, body).asInstanceOf[T]
         }
     
-    def cc_includeExpr[T <: ASTNode]: PackratParser[T] =
+    def cc_includeExpr[T <: ASTNode](body: PackratParser[T]): PackratParser[T] =
       "include" ␣> cc_string ^^ {
-        case filename => IncludeExpr(filename).asInstanceOf[T]
+        case filename => IncludeExpr(filename, body).asInstanceOf[T]
       }
       
     // TODO Problem, how to handle the static type of an ID???
     // Here disambiguation has to take place, if the host language uses ids
-    def cc_idExpr[T <: ASTNode]: PackratParser[T] =
+    def cc_idExpr[T <: ASTNode](body: PackratParser[T]): PackratParser[T] =
       "§" ~> cc_id ^^ { 
-        case name => IdExpr(name).asInstanceOf[T]
+        case name => IdExpr(name, body).asInstanceOf[T]
       }
       
 }
@@ -105,5 +110,8 @@ trait Parser extends JavaScriptParser with ChoiceCalculusParser {
       
     override def expression = 
       cc_expression[Expression](super.expression)
+
+    override def assignExpr = 
+      cc_expression[Expression](super.assignExpr)
             
 }

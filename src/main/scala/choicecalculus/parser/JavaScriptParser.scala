@@ -228,7 +228,7 @@ trait JavaScriptParser extends HostLanguageParser with JavaScriptLexer {
       case many => SequenceExpr(many)
     }    
     
-  lazy val assignExpr: PackratParser[Expression] = 
+  def assignExpr: PackratParser[Expression] = 
     ( leftExpr ␣ ( ">>>=" | ">>=" | "+="  | "-=" | "*="  | "/=" | "%="   | "<<=" 
                  | "^=" | "&&=" | "&=" | "||=" | "|=" | "=" 
                  ) ␣ assignExpr ^^ BinaryOpExpr

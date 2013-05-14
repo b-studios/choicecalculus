@@ -34,6 +34,7 @@ trait FileHandling {
       
   val files: mutable.HashMap[String, SourceFile] = mutable.HashMap()
   
+  // here also the parser has to be set.
   def processFile(filename: String, console: Console, emitter: Emitter) = files.getOrElse(filename, None) match {
       case SourceFile(path, ast, None) => sys error "Cycle in file dependencies!"
       case s@SourceFile(path, ast, Some(dims)) => s
@@ -117,7 +118,7 @@ trait Dimensioning { self: DimensionGraph with FileHandling =>
     }
     
     // gracefully fall back to empty dimension graph
-    case IdExpr(name) => e->bindingShare(name) match {
+    case IdExpr(name, _) => e->bindingShare(name) match {
       case Some(ShareExpr(_, boundExpr, _)) => boundExpr->dimensioning
       case _ => {
         message(e, "ERROR: Use of unbound choice calculus variable '%s'".format(name.name))
@@ -129,10 +130,9 @@ trait Dimensioning { self: DimensionGraph with FileHandling =>
       case (old, (dim, tag)) => old.select(dim, tag)(e)
     })
     
-    // Just some congruence rules
     case ShareExpr(name, boundExpr, body) => body->dimensioning
     
-    case IncludeExpr(filename) => fileDimensions(filename) 
+    case IncludeExpr(filename, _) => fileDimensions(filename) 
     
     case Term(p, children) => children.flatMap {
       case n: ASTNode => List(n->dimensioning)
@@ -157,7 +157,7 @@ trait Dimensioning { self: DimensionGraph with FileHandling =>
    * 
    * Here the second binding of v appears to be circular, which is wrong!
    */
-  val bindingShare: Symbol => ASTNode => Option[ShareExpr] = paramAttr {
+  val bindingShare: Symbol => ASTNode => Option[ShareExpr[_,_]] = paramAttr {
     name => {
       case s@ShareExpr(n, _, _) if n == name => Some(s)
       case other if other.isRoot => None
@@ -174,7 +174,7 @@ trait Dimensioning { self: DimensionGraph with FileHandling =>
   
   val variableIsUsed: Symbol => ASTNode => Boolean = paramAttr {
     name => {
-      case IdExpr(n) => n == name
+      case IdExpr(n, _) => n == name
       // shadowed
       case ShareExpr(n,_,_) if n == name => false
       case other => other.children.foldLeft(false) {
@@ -184,7 +184,7 @@ trait Dimensioning { self: DimensionGraph with FileHandling =>
   }
   
   // this one is easier then bindingShare
-  val bindingDimension: Symbol => ASTNode => DimensionExpr = paramAttr {
+  val bindingDimension: Symbol => ASTNode => DimensionExpr[_] = paramAttr {
     name => {
       case d@DimensionExpr(n, _ ,_) if n == name => d
       case other if other.isRoot => sys error "Cannot find a binding for %s".format(name)
@@ -208,18 +208,17 @@ trait Selecting { self: Choosing =>
   val selectRelation = rule {
     
     // Don't select dependent dimensions!
-    case SelectExpr(_, _, c:ChoiceExpr) => c
+    case SelectExpr(_, _, c:ChoiceExpr[_]) => c
     
     case SelectExpr(dim, tag, DimensionExpr(name, tags, body)) if name == dim =>
       rewrite (choose(dim, tag)) (body)
   
-    case SelectExpr(dim, tag, id:IdExpr) => PartialConfig(id, List((dim, tag)))
+    case SelectExpr(dim, tag, id:IdExpr[_,_]) => PartialConfig(id, List((dim, tag)))
     
-    case SelectExpr(dim, tag, inc:IncludeExpr) => PartialConfig(inc, List((dim, tag)))
+    case SelectExpr(dim, tag, inc:IncludeExpr[_,_]) => PartialConfig(inc, List((dim, tag)))
   
     case SelectExpr(dim, tag, PartialConfig(body, configs)) => PartialConfig(body, configs ++ List((dim, tag)))
-  
-    // Congruences  
+    
     case SelectExpr(dim, tag, ShareExpr(name, expr, body)) => 
       ShareExpr(name, expr, SelectExpr(dim, tag, body))
   
@@ -229,6 +228,7 @@ trait Selecting { self: Choosing =>
     // Hostlanguage constructs - wrap every child into selectexpressions and reconstruct node
     case SelectExpr(dim, tag, t) => rewrite ( all ( rule {
       case n:ASTNode => SelectExpr(dim, tag, n)
+      case t:Traversable[ASTNode] => t.map(SelectExpr(dim, tag, _))
       case lit => lit
     })) (t)
   }
@@ -260,14 +260,14 @@ trait Substituting { self: Selecting with Dimensioning with FileHandling =>
   // (a) the bound expression itself is fully configured, then the id can be substituted by the expression
   // i. It's an id
   private val substIdExpr = rule {
-    case id@IdExpr(name) => id->bindingShare(name) match {
+    case id@IdExpr(name, _) => id->bindingShare(name) match {
       case Some(ShareExpr(_, binding, _)) => binding
       case _ => sys error "cannot substitute binding for %s".format(name)
     }
   }
   // ii. It's an include
   private val substIncludeExpr = rule {
-    case id@IncludeExpr(filename) => fileContents(filename)
+    case id@IncludeExpr(filename, _) => fileContents(filename)
   }
   
   // (b) the bound expression is fully configured by delayed selections
