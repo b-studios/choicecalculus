@@ -39,7 +39,7 @@ trait ChoiceCalculusParser { self: HostLanguageParser =>
     | cc_idExpr[T](body)
     | body
     | failure ("Expected choice calculus expression")
-    )      
+    )
     
   def cc_dimensionExpr[T <: ASTNode](body: PackratParser[T]): PackratParser[T] =
       
@@ -79,7 +79,10 @@ trait ChoiceCalculusParser { self: HostLanguageParser =>
     
     def cc_includeExpr[T <: ASTNode](body: PackratParser[T]): PackratParser[T] =
       "include" ␣> cc_string ^^ {
-        case filename => IncludeExpr(filename, body).asInstanceOf[T]
+        case filename =>{
+          println(body)
+          IncludeExpr(filename, body).asInstanceOf[T]
+        } 
       }
       
     // TODO Problem, how to handle the static type of an ID???
@@ -99,19 +102,19 @@ trait Parser extends JavaScriptParser with ChoiceCalculusParser {
     override def keywords = super.keywords //++ Set('share, 'select, 'case, 'in, 'choice)
     
     lazy val parser: PackratParser[ASTNode] =
-      phrase (topLevel)
+      phrase (topLevel).named("toplevelphrase")      
       
     // Do some wiring
     override def declaration = 
-      cc_expression[Statement](super.declaration)          
+      cc_expression[Statement](super.declaration.named("hostlanguageDeclaration"))       
       
     override def statement = 
-      cc_expression[Statement](super.statement)
+      cc_expression[Statement](super.statement.named("hostlanguageStatement"))
       
     override def expression = 
-      cc_expression[Expression](super.expression)
+      cc_expression[Expression](super.expression.named("hostlanguageExpression"))
 
     override def assignExpr = 
-      cc_expression[Expression](super.assignExpr)
+      cc_expression[Expression](super.assignExpr.named("hostlanguageAssignExpr"))
             
 }
