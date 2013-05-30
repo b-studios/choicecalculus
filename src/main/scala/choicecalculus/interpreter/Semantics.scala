@@ -129,6 +129,7 @@ trait Dimensioning { self: DimensionGraph with FileHandling =>
       case (old, (dim, tag)) => old.select(dim, tag)(e)
     })
     
+    // Just some congruence rules
     case ShareExpr(name, boundExpr, body) => body->dimensioning
     
     case IncludeExpr(filename) => fileDimensions(filename) 
@@ -156,7 +157,7 @@ trait Dimensioning { self: DimensionGraph with FileHandling =>
    * 
    * Here the second binding of v appears to be circular, which is wrong!
    */
-  val bindingShare: Symbol => ASTNode => Option[ShareExpr[_,_]] = paramAttr {
+  val bindingShare: Symbol => ASTNode => Option[ShareExpr] = paramAttr {
     name => {
       case s@ShareExpr(n, _, _) if n == name => Some(s)
       case other if other.isRoot => None
@@ -183,7 +184,7 @@ trait Dimensioning { self: DimensionGraph with FileHandling =>
   }
   
   // this one is easier then bindingShare
-  val bindingDimension: Symbol => ASTNode => DimensionExpr[ASTNode] = paramAttr {
+  val bindingDimension: Symbol => ASTNode => DimensionExpr = paramAttr {
     name => {
       case d@DimensionExpr(n, _ ,_) if n == name => d
       case other if other.isRoot => sys error "Cannot find a binding for %s".format(name)
@@ -207,17 +208,18 @@ trait Selecting { self: Choosing =>
   val selectRelation = rule {
     
     // Don't select dependent dimensions!
-    case SelectExpr(_, _, c@ChoiceExpr(_,_)) => c
+    case SelectExpr(_, _, c:ChoiceExpr) => c
     
     case SelectExpr(dim, tag, DimensionExpr(name, tags, body)) if name == dim =>
       rewrite (choose(dim, tag)) (body)
   
-    case SelectExpr(dim, tag, id@IdExpr(_)) => PartialConfig(id, List((dim, tag)))
+    case SelectExpr(dim, tag, id:IdExpr) => PartialConfig(id, List((dim, tag)))
     
-    case SelectExpr(dim, tag, inc@IncludeExpr(_)) => PartialConfig(inc, List((dim, tag)))
+    case SelectExpr(dim, tag, inc:IncludeExpr) => PartialConfig(inc, List((dim, tag)))
   
     case SelectExpr(dim, tag, PartialConfig(body, configs)) => PartialConfig(body, configs ++ List((dim, tag)))
   
+    // Congruences  
     case SelectExpr(dim, tag, ShareExpr(name, expr, body)) => 
       ShareExpr(name, expr, SelectExpr(dim, tag, body))
   
@@ -300,7 +302,6 @@ trait Choosing {
   def choose(dim: Symbol, tag: Symbol) = sometd ( rule {
     
     // select expressions shadow other ones, with the same dimension
-    // TODO why is this needed?
     case e@SelectExpr(d, _, _) if d == dim => e
     
     // selection stops at dimensions with the same name
