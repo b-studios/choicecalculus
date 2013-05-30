@@ -3,7 +3,6 @@ package ast
 
 import org.kiama.attribution.Attributable
 import org.kiama.util.Positioned
-import utility.Rebuildable
 
 abstract class ASTNode extends Attributable with Positioned
 
@@ -29,8 +28,7 @@ case class SelectExpr[T <: ASTNode](dim: Symbol, tag: Symbol, body: T) extends C
 
 case class ShareExpr[S <: ASTNode, T <: ASTNode](name: Symbol, exp: S, body: T) extends CCExpression
 
-// TODO In both cases the body-parser needs to be stored
-case class IdExpr[T <: ASTNode, P](name: Symbol, context: P) extends CCExpression
+case class IdExpr[T <: ASTNode](name: Symbol) extends CCExpression
 case class IncludeExpr[T <: ASTNode, P](filename: String, context: P) extends CCExpression
 
 /** Nodes needed for implementation purpose only */

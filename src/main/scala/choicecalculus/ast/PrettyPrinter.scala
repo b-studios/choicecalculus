@@ -27,7 +27,7 @@ trait ChoiceCalculusPP extends PrettyPrinter {
     case SelectExpr(dim, tag, body) =>
       "select" <+> text(dim.name) <> dot <> text(tag.name) <+> "from" <+> toDoc(body)
       
-    case IdExpr(id, _) =>
+    case IdExpr(id) =>
       text(id.name)
       
     case ShareExpr(x, binding, body) =>

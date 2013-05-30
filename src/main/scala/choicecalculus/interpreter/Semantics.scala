@@ -22,7 +22,7 @@ trait Semantics extends Dimensioning
   def processTree(tree: ASTNode): ASTNode = {
     initTree(tree)
     dimensioning(tree)
-    rewrite (select <* substitute) (tree)  
+    rewrite (attempt(select) <* substitute) (tree)  
   }
       
 }
@@ -114,7 +114,7 @@ trait Dimensioning { self: DimensionGraph with Includes =>
     }
     
     // gracefully fall back to empty dimension graph
-    case IdExpr(name, _) => e->bindingShare(name) match {
+    case IdExpr(name) => e->bindingShare(name) match {
       case Some(ShareExpr(_, boundExpr, _)) => boundExpr->dimensioning
       case _ => {
         message(e, "ERROR: Use of unbound choice calculus variable '%s'".format(name.name))
@@ -170,7 +170,7 @@ trait Dimensioning { self: DimensionGraph with Includes =>
   
   val variableIsUsed: Symbol => ASTNode => Boolean = paramAttr {
     name => {
-      case IdExpr(n, _) => n == name
+      case IdExpr(n) => n == name
       // shadowed
       case ShareExpr(n,_,_) if n == name => false
       case other => other.children.foldLeft(false) {
@@ -209,7 +209,7 @@ trait Selecting { self: Choosing =>
     case SelectExpr(dim, tag, DimensionExpr(name, tags, body)) if name == dim =>
       rewrite (choose(dim, tag)) (body)
   
-    case SelectExpr(dim, tag, id:IdExpr[_,_]) => PartialConfig(id, List((dim, tag)))
+    case SelectExpr(dim, tag, id:IdExpr[_]) => PartialConfig(id, List((dim, tag)))
     
     case SelectExpr(dim, tag, inc:IncludeExpr[_,_]) => PartialConfig(inc, List((dim, tag)))
   
@@ -224,7 +224,7 @@ trait Selecting { self: Choosing =>
     // Hostlanguage constructs - wrap every child into selectexpressions and reconstruct node
     case SelectExpr(dim, tag, t) => rewrite ( all ( rule {
       case n:ASTNode => SelectExpr(dim, tag, n)
-      case t:Traversable[ASTNode] => t.map(SelectExpr(dim, tag, _))
+      case l:Seq[ASTNode] => l.map(SelectExpr(dim, tag, _))
       case lit => lit
     })) (t)
   }
@@ -245,34 +245,34 @@ trait Substituting { self: Selecting with Dimensioning with Includes =>
   
   
   // We only substitute variables, if they are fully configured
-  private val substituteBindings = 
-    test(isFullyConfigured) <* (substIdExpr + substIncludeExpr + substPartialConfig) <* desugarPartialConfig
+  val substituteBindings = 
+    test(isFullyConfigured) <* (substIdExpr + substIncludeExpr + substPartialConfig) <* attempt(desugarPartialConfig)
 
-  private val isFullyConfigured = strategyf {
+  val isFullyConfigured = strategyf {
     case exp: ASTNode if (exp->dimensioning).fullyConfigured => Some(exp)
     case _ => None
   }
   
   // (a) the bound expression itself is fully configured, then the id can be substituted by the expression
   // i. It's an id
-  private val substIdExpr = rule {
-    case id@IdExpr(name, _) => id->bindingShare(name) match {
+  val substIdExpr = rule {
+    case id@IdExpr(name) => id->bindingShare(name) match {
       case Some(ShareExpr(_, binding, _)) => binding
-      case _ => sys error "cannot substitute binding for %s".format(name)
+      case other => sys error "cannot substitute binding for %s, got %s".format(name, other)
     }
   }
   // ii. It's an include
-  private val substIncludeExpr = rule {
+  val substIncludeExpr = rule {
     case inc:IncludeExpr[_,_] => fileContents(inc)
   }
   
   // (b) the bound expression is fully configured by delayed selections
-  private val substPartialConfig = rule {
+  val substPartialConfig = rule {
     case PartialConfig(body, configs) => PartialConfig( rewrite(substIdExpr + substIncludeExpr) (body), configs)
   }
   
   // The expression has been substituted by one of the previous steps - just desugar the partial configuration
-  private val desugarPartialConfig = rule {
+  val desugarPartialConfig = rule {
     case PartialConfig(body, configs) => configs.foldLeft(body) {
       case (old, (dim, tag)) => SelectExpr(dim, tag, old)
     }
