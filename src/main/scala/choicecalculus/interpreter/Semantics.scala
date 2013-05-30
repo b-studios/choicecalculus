@@ -5,91 +5,88 @@ import ast._
 import org.kiama.rewriting.Rewriter._
 import org.kiama.util.Messaging.{message, report}
 import scala.collection.mutable
+import org.kiama.util.PositionedParserUtilities
 
 import org.kiama.util.IO.{filereader, FileNotFoundException }
 import org.kiama.util.{ Console, Emitter, StringEmitter, Compiler, JLineConsole }
 import org.kiama.output.ParenPrettyPrinter
 import org.kiama.attribution.Attribution.initTree
 
-trait Semantics extends Dimensioning with DimensionGraph 
+trait Semantics extends Dimensioning 
+    with DimensionGraph 
     with Selecting     
     with Choosing 
     with Substituting
-    with FileHandling { self: Compiler[ASTNode] =>
+    with Includes { self: Compiler[ASTNode] with PositionedParserUtilities =>
   
   def processTree(tree: ASTNode): ASTNode = {
     initTree(tree)
     dimensioning(tree)
-    rewrite (select <* substitute) (tree)  
+    rewrite (attempt(select) <* substitute) (tree)  
   }
       
 }
 
-trait FileHandling {
-  self: Compiler[ASTNode] with Semantics =>
+
+trait Includes {
+  self: PositionedParserUtilities with Compiler[ASTNode] with Semantics =>
   
   case class SourceFile(path: String, ast: ASTNode, dimensions: Option[DimensionGraph]) {
     override def toString = "SourceFile(%s, ..., %s)".format(path, dimensions)
   }
-      
+  case object Dummy extends SourceFile("", Program(List()), None)
+  
   val files: mutable.HashMap[String, SourceFile] = mutable.HashMap()
+    
   
-  def processFile(filename: String, console: Console, emitter: Emitter) = files.getOrElse(filename, None) match {
-      case SourceFile(path, ast, None) => sys error "Cycle in file dependencies!"
-      case s@SourceFile(path, ast, Some(dims)) => s
-      case None =>
-        try {
-          val reader = filereader (filename, encoding)          
-          makeast (reader, filename, emitter) match {
-            case Left (ast) => {
-              val file = SourceFile(filename, ast, None)
-              files.update(filename, file)
-              processSourceFile(file, console, emitter)
-            }
-            case Right (msg) => emitter.emitln (msg)
-          }
-        } catch {
-          case e: FileNotFoundException => emitter.emitln(e.message)      
-        }
+  def cached(filename: String)(action: => Either[String, SourceFile]): Unit = files.getOrElse(filename, None) match {
+    case Dummy => sys error "Cycle in file dependencies!"
+    case s@SourceFile(path, ast, Some(dims)) => s
+    case None => {
+      files.update(filename, Dummy)
+      action match {
+        case Left(msg) => println(msg)
+        case Right(file) => files.update(filename, file)
       }
-    
-  
-  def processSourceFile(file: SourceFile, console: Console, emitter: Emitter) {
-    val SourceFile(filename, tree, _) = file
-    val reduced = processTree(tree)
-    
-    // store modified ast and dimensioning
-    files.update( filename, SourceFile(filename, reduced, Some(dimensioning(reduced))) )
+    }
   }
   
-  def fileDimensions(filename: String): DimensionGraph = {    
-    val emitter = new StringEmitter
-    // make sure file is already parsed and dimensions are calculated
-    processFile(filename, JLineConsole, emitter)
-    report(emitter)
-    files(filename).dimensions.get
-  }
-  
-  /**
-   * Attention: This method is pretty much dependent of the current base language!!!
-   */
-  def fileContents(filename: String): ASTNode = {    
-    val emitter = new StringEmitter
-    processFile(filename, JLineConsole, emitter)    
-    report(emitter)
-    
-    // Problem is, that Program cannot be casted to Expression or Statement
-    files(filename).ast match {
-      case Program(Nil) => EmptyStmt
-      case Program(one :: Nil) => one
-      case Program(some) => BlockStmt(some)
+  def processFileWithParser(filename: String, parser: Parser[ASTNode]): Unit = cached(filename) {    
+      
+    try {      
+      val reader = filereader (filename, encoding)
+      
+      println("Trying to parse "+ filename + " with parser: " + parser.toString)
+      
+      parseAll(phrase(memo(parser)), reader) match {
+        case Success(ast, _) => processTree(ast) match { 
+          case reduced => Right(SourceFile(filename, reduced, Some(dimensioning(reduced))))
+        }
+        case f => Left(f.toString)
+        }
+    } catch {
+      case e: FileNotFoundException => Left(e.message)      
     }
   }
     
+  def fileDimensions(include: IncludeExpr[_,_]): DimensionGraph = include match {
+    case IncludeExpr(filename, p:Parser[ASTNode]) => {
+      processFileWithParser(filename, p)
+      val Some(SourceFile(_, _, Some(dim))) = files.get(filename)
+      dim
+    }
+  }
+  
+  def fileContents(include: IncludeExpr[_,_]): ASTNode = include match {
+    case IncludeExpr(filename, p:Parser[ASTNode]) => {
+      processFileWithParser(filename, p)
+      val Some(SourceFile(_, ast, _)) = files.get(filename)
+      ast
+    }
+  }
 }
 
-
-trait Dimensioning { self: DimensionGraph with FileHandling =>
+trait Dimensioning { self: DimensionGraph with Includes =>
   
   import org.kiama.attribution.Attribution.{attr, paramAttr, CachedParamAttribute}
 
@@ -129,10 +126,9 @@ trait Dimensioning { self: DimensionGraph with FileHandling =>
       case (old, (dim, tag)) => old.select(dim, tag)(e)
     })
     
-    // Just some congruence rules
     case ShareExpr(name, boundExpr, body) => body->dimensioning
     
-    case IncludeExpr(filename) => fileDimensions(filename) 
+    case inc:IncludeExpr[_,_] => fileDimensions(inc) 
     
     case Term(p, children) => children.flatMap {
       case n: ASTNode => List(n->dimensioning)
@@ -157,7 +153,7 @@ trait Dimensioning { self: DimensionGraph with FileHandling =>
    * 
    * Here the second binding of v appears to be circular, which is wrong!
    */
-  val bindingShare: Symbol => ASTNode => Option[ShareExpr] = paramAttr {
+  val bindingShare: Symbol => ASTNode => Option[ShareExpr[_,_]] = paramAttr {
     name => {
       case s@ShareExpr(n, _, _) if n == name => Some(s)
       case other if other.isRoot => None
@@ -184,7 +180,7 @@ trait Dimensioning { self: DimensionGraph with FileHandling =>
   }
   
   // this one is easier then bindingShare
-  val bindingDimension: Symbol => ASTNode => DimensionExpr = paramAttr {
+  val bindingDimension: Symbol => ASTNode => DimensionExpr[_] = paramAttr {
     name => {
       case d@DimensionExpr(n, _ ,_) if n == name => d
       case other if other.isRoot => sys error "Cannot find a binding for %s".format(name)
@@ -208,18 +204,17 @@ trait Selecting { self: Choosing =>
   val selectRelation = rule {
     
     // Don't select dependent dimensions!
-    case SelectExpr(_, _, c:ChoiceExpr) => c
+    case SelectExpr(_, _, c:ChoiceExpr[_]) => c
     
     case SelectExpr(dim, tag, DimensionExpr(name, tags, body)) if name == dim =>
       rewrite (choose(dim, tag)) (body)
   
-    case SelectExpr(dim, tag, id:IdExpr) => PartialConfig(id, List((dim, tag)))
+    case SelectExpr(dim, tag, id:IdExpr[_]) => PartialConfig(id, List((dim, tag)))
     
-    case SelectExpr(dim, tag, inc:IncludeExpr) => PartialConfig(inc, List((dim, tag)))
+    case SelectExpr(dim, tag, inc:IncludeExpr[_,_]) => PartialConfig(inc, List((dim, tag)))
   
     case SelectExpr(dim, tag, PartialConfig(body, configs)) => PartialConfig(body, configs ++ List((dim, tag)))
-  
-    // Congruences  
+    
     case SelectExpr(dim, tag, ShareExpr(name, expr, body)) => 
       ShareExpr(name, expr, SelectExpr(dim, tag, body))
   
@@ -229,6 +224,7 @@ trait Selecting { self: Choosing =>
     // Hostlanguage constructs - wrap every child into selectexpressions and reconstruct node
     case SelectExpr(dim, tag, t) => rewrite ( all ( rule {
       case n:ASTNode => SelectExpr(dim, tag, n)
+      case l:Seq[ASTNode] => l.map(SelectExpr(dim, tag, _))
       case lit => lit
     })) (t)
   }
@@ -238,7 +234,7 @@ trait Selecting { self: Choosing =>
 /**
  * 2. Step - Substitution and Removal of unnecessary Shares
  */
-trait Substituting { self: Selecting with Dimensioning with FileHandling =>
+trait Substituting { self: Selecting with Dimensioning with Includes =>
   
   import ast._
   import org.kiama.rewriting.Rewriter._
@@ -249,34 +245,34 @@ trait Substituting { self: Selecting with Dimensioning with FileHandling =>
   
   
   // We only substitute variables, if they are fully configured
-  private val substituteBindings = 
-    test(isFullyConfigured) <* (substIdExpr + substIncludeExpr + substPartialConfig) <* desugarPartialConfig
+  val substituteBindings = 
+    test(isFullyConfigured) <* (substIdExpr + substIncludeExpr + substPartialConfig) <* attempt(desugarPartialConfig)
 
-  private val isFullyConfigured = strategyf {
+  val isFullyConfigured = strategyf {
     case exp: ASTNode if (exp->dimensioning).fullyConfigured => Some(exp)
     case _ => None
   }
   
   // (a) the bound expression itself is fully configured, then the id can be substituted by the expression
   // i. It's an id
-  private val substIdExpr = rule {
+  val substIdExpr = rule {
     case id@IdExpr(name) => id->bindingShare(name) match {
       case Some(ShareExpr(_, binding, _)) => binding
-      case _ => sys error "cannot substitute binding for %s".format(name)
+      case other => sys error "cannot substitute binding for %s, got %s".format(name, other)
     }
   }
   // ii. It's an include
-  private val substIncludeExpr = rule {
-    case id@IncludeExpr(filename) => fileContents(filename)
+  val substIncludeExpr = rule {
+    case inc:IncludeExpr[_,_] => fileContents(inc)
   }
   
   // (b) the bound expression is fully configured by delayed selections
-  private val substPartialConfig = rule {
+  val substPartialConfig = rule {
     case PartialConfig(body, configs) => PartialConfig( rewrite(substIdExpr + substIncludeExpr) (body), configs)
   }
   
   // The expression has been substituted by one of the previous steps - just desugar the partial configuration
-  private val desugarPartialConfig = rule {
+  val desugarPartialConfig = rule {
     case PartialConfig(body, configs) => configs.foldLeft(body) {
       case (old, (dim, tag)) => SelectExpr(dim, tag, old)
     }

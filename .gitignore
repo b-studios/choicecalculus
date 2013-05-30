@@ -29,5 +29,8 @@
 # bak files produced by ./cleanup-commit
 *.bak
 
+
 # sublime project files
 .sublime
+/*.sublime
+/*.sublime-workspace

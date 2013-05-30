@@ -137,6 +137,11 @@ trait JavaScriptParser extends HostLanguageParser with JavaScriptLexer {
   // -------
   lazy val topLevel: PackratParser[ASTNode] = multiple (declaration) <~ spaces <~ eos ^^ Program
   
+  lazy val typeParser: PackratParser[PackratParser[ASTNode]] =
+    ("Expression" ^^^ assignExpr
+    | "Statement" ^^^ statement
+    )
+    
   def declaration: PackratParser[Statement] = funcDecl | statement
   
   
@@ -228,7 +233,7 @@ trait JavaScriptParser extends HostLanguageParser with JavaScriptLexer {
       case many => SequenceExpr(many)
     }    
     
-  lazy val assignExpr: PackratParser[Expression] = 
+  def assignExpr: PackratParser[Expression] = 
     ( leftExpr ␣ ( ">>>=" | ">>=" | "+="  | "-=" | "*="  | "/=" | "%="   | "<<=" 
                  | "^=" | "&&=" | "&=" | "||=" | "|=" | "=" 
                  ) ␣ assignExpr ^^ BinaryOpExpr
