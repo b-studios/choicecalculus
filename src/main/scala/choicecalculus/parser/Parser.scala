@@ -9,6 +9,7 @@ import choicecalculus.ast.IncludeExpr
 trait HostLanguageParser extends PositionedParserUtilities with ParserUtils {
   
   val topLevel: PackratParser[ASTNode]
+  val typeParser: PackratParser[PackratParser[ASTNode]]
   
 }
 
@@ -73,7 +74,7 @@ trait ChoiceCalculusParser { self: HostLanguageParser =>
         }
       
     def cc_shareExpr[T <: ASTNode](body: PackratParser[T]): PackratParser[T] =
-      "share" ␣> "§" ~> cc_id ␣ ("=" ␣> body) ␣ body ^^ {
+      ("share" ␣> "§" ~> cc_id <␣ ":") ␣ (typeParser into { (spaces ~ "=") ␣> _ <␣  "in" }) ␣ body ^^ {
          case id ~ binding ~ body => ShareExpr(id, binding, body).asInstanceOf[T]
         }
     
@@ -89,7 +90,7 @@ trait ChoiceCalculusParser { self: HostLanguageParser =>
     // Here disambiguation has to take place, if the host language uses ids
     def cc_idExpr[T <: ASTNode](body: PackratParser[T]): PackratParser[T] =
       "§" ~> cc_id ^^ { 
-        case name => IdExpr(name, body).asInstanceOf[T]
+        case name => IdExpr(name).asInstanceOf[T]
       }
       
 }
