@@ -228,10 +228,11 @@ trait JavaScriptParser extends HostLanguageParser with JavaScriptLexer {
   // Expressions
   // -----------
   def expression: PackratParser[Expression] = 
-    listOf(assignExpr, ",") ^^ {
-      case expr :: Nil => expr
-      case many => SequenceExpr(many)
-    }    
+  ( assignExpr ␣ ("," ␣> assignExpr ).+ ^^ { 
+      case first ~ rest => SequenceExpr(first :: rest) 
+    } 
+  | assignExpr
+  )
     
   def assignExpr: PackratParser[Expression] = 
     ( leftExpr ␣ ( ">>>=" | ">>=" | "+="  | "-=" | "*="  | "/=" | "%="   | "<<=" 
