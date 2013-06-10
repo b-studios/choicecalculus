@@ -4,13 +4,13 @@ package tests
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers._
 import org.kiama.util.RegexParserTests
-import choicecalculus.parser.JavaScriptParser
+import choicecalculus.parser.Parser
 
 class JavaScriptParserTests extends FlatSpec {
 
   import ast._
   
-  object parser extends JavaScriptParser with RegexParserTests {
+  object parser extends Parser with RegexParserTests {
     
     it should "parse basic expressions" in {
     

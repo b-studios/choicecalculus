@@ -2,7 +2,6 @@ package choicecalculus
 package semantics
 
 import ast._
-import org.kiama.rewriting.Rewriter._
 import org.kiama.util.Messaging.{message, report}
 import scala.collection.mutable
 import org.kiama.util.PositionedParserUtilities
@@ -11,6 +10,7 @@ import org.kiama.util.IO.{filereader, FileNotFoundException }
 import org.kiama.util.{ Console, Emitter, StringEmitter, Compiler, JLineConsole }
 import org.kiama.output.ParenPrettyPrinter
 import org.kiama.attribution.Attribution.initTree
+import utility.AttributableRewriter._
 
 trait Semantics extends Dimensioning 
     with DimensionGraph 
@@ -21,8 +21,8 @@ trait Semantics extends Dimensioning
   
   def processTree(tree: ASTNode): ASTNode = {
     initTree(tree)
-    dimensioning(tree)
-    rewrite (attempt(select) <* substitute) (tree)  
+    tree->dimensioning
+    rewrite (select then substitute) (tree)
   }
       
 }
@@ -72,6 +72,7 @@ trait Includes {
   def fileDimensions(include: IncludeExpr[_,_]): DimensionGraph = include match {
     case IncludeExpr(filename, p:Parser[ASTNode]) => {
       processFileWithParser(filename, p)
+      println(files.get(filename))
       val Some(SourceFile(_, _, Some(dim))) = files.get(filename)
       dim
     }
@@ -168,17 +169,6 @@ trait Dimensioning { self: DimensionGraph with Includes =>
     }
   }
   
-  val variableIsUsed: Symbol => ASTNode => Boolean = paramAttr {
-    name => {
-      case IdExpr(n) => n == name
-      // shadowed
-      case ShareExpr(n,_,_) if n == name => false
-      case other => other.children.foldLeft(false) {
-        case (old, node:ASTNode) => old || node->variableIsUsed(name)
-      }
-    }
-  }
-  
   // this one is easier then bindingShare
   val bindingDimension: Symbol => ASTNode => DimensionExpr[_] = paramAttr {
     name => {
@@ -194,8 +184,6 @@ trait Selecting { self: Choosing =>
   import ast._
   import org.kiama.util.Messaging.message
   
-  import org.kiama.rewriting.Rewriter._  
- 
   /**
    * We do the traversal bottomup to perform inner selection first 
    */
@@ -237,11 +225,11 @@ trait Selecting { self: Choosing =>
 trait Substituting { self: Selecting with Dimensioning with Includes =>
   
   import ast._
-  import org.kiama.rewriting.Rewriter._
-  
+  import org.kiama.attribution.Attribution.{ paramAttr } 
+    
   // If bindings are substituted, then we have to reduce them again
   // afterwards a cleanup step is performed
-  val substitute = bottomup ( attempt( substituteBindings <* attempt(select) ) <* attempt(removeShares) )
+  val substitute = bottomup ((substituteBindings <* select) then attempt(removeShares) )
   
   
   // We only substitute variables, if they are fully configured
@@ -281,6 +269,17 @@ trait Substituting { self: Selecting with Dimensioning with Includes =>
   // Unused shares can be removed.
   private val removeShares = rule {
     case ShareExpr(n,_,body) if !(body->variableIsUsed(n)) => body
+  }
+  
+  val variableIsUsed: Symbol => ASTNode => Boolean = paramAttr {
+    name => {
+      case IdExpr(n) => n == name
+      // shadowed
+      case ShareExpr(n,_,_) if n == name => false
+      case other => other.children.foldLeft(false) {
+        case (old, node:ASTNode) => old || node->variableIsUsed(name)
+      }
+    }
   }
 }
 

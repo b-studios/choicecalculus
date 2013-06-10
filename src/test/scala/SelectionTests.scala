@@ -6,8 +6,9 @@ import org.scalatest.matchers.ShouldMatchers._
 import org.kiama.util.Tests
 import semantics.{ DimensionGraph, Semantics }
 import ast._
+import ast.implicits._
 import org.kiama.util.{ Compiler }
-import org.kiama.rewriting.Rewriter.{bottomup, attempt, rewrite, test}
+import utility.AttributableRewriter.{bottomup, attempt, rewrite, test}
 import parser.Parser
 import org.kiama.attribution.Attribution.initTree
 
@@ -16,8 +17,6 @@ class SelectionTests extends FlatSpec {
   
   object interpreter extends Semantics with Compiler[ASTNode] with Parser {
     
-    implicit def string2Literal(str: String): Literal = Literal(str)
-  
     def substitutionTest(input: ASTNode)(expected: ASTNode) = {
       initTree(input)
       dimensioning(input)
@@ -100,6 +99,26 @@ class SelectionTests extends FlatSpec {
       processTree(select('b, share( dim ))) should equal {
         ReturnStmt(Some(BinaryOpExpr("2", "*", BinaryOpExpr("3","+","5"))))
       }
+    }
+    
+    it should "include files and calculate dimensions correctly" in {
+      
+      // select Config.advanced from 
+      //   include "included.cclang"
+      val stmt = SelectExpr('Config, 'advanced, 
+                  IncludeExpr("examples/include/included.js.cc", statement))
+      
+      processTree(stmt) should equal { Literal("14") }
+    }
+    
+    it should "detect correctly whether a variable is used or not" in {
+      
+      val expr = SelectExpr('Config, 'advanced, IdExpr('foo))
+      initTree(expr)
+      variableIsUsed('foo)(expr) should equal (true)
+      variableIsUsed('bar)(expr) should equal (false)
+      
+      
     }
     
   }
