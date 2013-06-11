@@ -20,7 +20,11 @@ trait AttributableRewriter extends org.kiama.rewriting.CallbackRewriter {
 object AttributableRewriter extends AttributableRewriter {
   
   case class UtilStrategy(base: Strategy) {
-    def then(other: => Strategy): Strategy = attempt(base) <* other
+    def then(other: => Strategy): Strategy = 
+      attempt(base) <* other
+      
+    def andFinally(other: => Strategy): Strategy = 
+      (base <* attempt(other) + (other <* fail)) 
   }
   
   implicit def strategy2utilStrategy(s: Strategy): UtilStrategy = UtilStrategy(s)

@@ -74,8 +74,7 @@ trait DimensionGraph {
       this.getDimensionNodes(dim).size == 1
     }    
     
-    def fullyConfigured = 
-      nodes == Set()    
+    def fullyConfigured = nodes == Set()
     
     /**
      * (A) --a--> B<> --b--> C<>
