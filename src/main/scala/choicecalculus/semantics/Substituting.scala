@@ -2,6 +2,7 @@ package choicecalculus
 package semantics
 
 import ast.{ ASTNode, IdExpr, IncludeExpr, PartialConfig, SelectExpr, ShareExpr }
+import dimensioning.Dimensioning
 import utility.DebugRewriter._ //{ attempt, allbu, alltd, child, congruence, bottomup, debug, reduce, repeat, rewrite, rule, strategyf, test }
 import org.kiama.attribution.UncachedAttribution.{ paramAttr } 
 import org.kiama.rewriting.Strategy

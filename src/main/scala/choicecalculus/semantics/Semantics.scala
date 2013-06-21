@@ -6,9 +6,9 @@ import org.kiama.util.{ PositionedParserUtilities, Compiler }
 import org.kiama.attribution.UncachedAttribution.initTree
 import org.kiama.rewriting.Strategy
 import utility.DebugRewriter._
-
-trait Semantics extends Dimensioning 
-    with DimensionGraph 
+import utility.Messaging
+import dimensioning.{ DimensionGraph, Dimensioning }
+trait Semantics extends Dimensioning
     with Selecting     
     with Choosing 
     with Substituting
@@ -18,10 +18,16 @@ trait Semantics extends Dimensioning
   // top down traversal breaks attribution links to parents, so lookup of bindings cannot be performed
   def reduce(s: Strategy): Strategy = repeat(manybu(s))
       
-  def processTree(tree: ASTNode): ASTNode = {
+  def processTree(tree: ASTNode): Either[String, ASTNode] = {
     initTree(tree)
+    
+    Messaging.resetmessages
     tree->dimensioning
-    rewrite(reduce(select + substitute + removeShares)) (tree)
+    if (Messaging.errorcount > 0) {
+      Left("Errors occured while dimensioning")
+    } else {      
+      Right(rewrite(reduce(select + substitute + removeShares)) (tree))
+    }
   }
   
   def performSelection(tree: ASTNode): ASTNode = {

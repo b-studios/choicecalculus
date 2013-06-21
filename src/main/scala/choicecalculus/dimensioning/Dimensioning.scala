@@ -1,12 +1,14 @@
 package choicecalculus
-package semantics
+package dimensioning
 
 import ast.{ ASTNode, DimensionExpr, SelectExpr, ChoiceExpr, IdExpr, Choice, ShareExpr, PartialConfig, IncludeExpr }
 import utility.AttributableRewriter.Term
+import semantics.Includes
 import org.kiama.util.Messaging.{message, report}
 import org.kiama.attribution.UncachedAttribution.{attr, paramAttr }
 
-trait Dimensioning { self: DimensionGraph with Includes =>
+
+trait Dimensioning { self: Includes =>
 
   /**
    * The type parameters are: [ParamType, NodeType, ResultType]

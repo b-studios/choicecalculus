@@ -2,9 +2,11 @@ package choicecalculus
 package semantics
 
 import ast.{ ASTNode, Program, IncludeExpr }
+import dimensioning.DimensionGraph
 import scala.collection.mutable
 import org.kiama.util.{ Compiler, PositionedParserUtilities }
 import org.kiama.util.IO.{filereader, FileNotFoundException }
+import java.io.File
 
 trait Includes {
   self: PositionedParserUtilities with Compiler[ASTNode] with Semantics =>
@@ -31,10 +33,7 @@ trait Includes {
     case s@SourceFile(path, ast, Some(dims)) => s
     case None => {
       files.update(filename, Dummy)
-      action match {
-        case Left(msg) => println(msg)
-        case Right(file) => files.update(filename, file)
-      }
+      action.fold(println, files.update(filename, _))
     }
   }
   
@@ -46,13 +45,14 @@ trait Includes {
       println("Trying to parse "+ filename + " with parser: " + parser.toString)
       
       parseAll(phrase(memo(parser)), reader) match {
-        case Success(ast, _) => processTree(ast) match { 
-          case reduced => Right(SourceFile(filename, reduced, Some(dimensioning(reduced))))
-        }
+        case Success(ast, _) => processTree(ast).fold(Left(_), (reduced) =>
+          Right(SourceFile(filename, reduced, Some(dimensioning(reduced)))))
         case f => Left(f.toString)
         }
     } catch {
-      case e: FileNotFoundException => Left(e.message)      
+      case e: FileNotFoundException => {
+        Left(e.message + " absolute path: " +  new File(filename).getAbsolutePath())       
+      }
     }
   }
     

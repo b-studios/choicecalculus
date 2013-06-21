@@ -33,6 +33,7 @@ object Messaging {
     import scala.collection.mutable.{ListBuffer, StringBuilder}
     import scala.util.parsing.input.{Positional, Position}    
     import org.kiama.util.{Emitter, Positioned}    
+    import scala.Console.{YELLOW, RED, RESET}
     
     /**
      * A message record consisting of a coordinate position `pos` and
@@ -41,13 +42,20 @@ object Messaging {
     abstract class Record {
       def pos: Position
       def message: String
+      val label: String
       
       override def toString : String =
-            pos.line + "." + pos.column + ": " + message
+            "[%s] %d.%d: %s".format(label, pos.line, pos.column, message)
     }
-    case class Info(pos : Position, message : String) extends Record
-    case class Warning(pos : Position, message : String) extends Record
-    case class Error(pos : Position, message : String) extends Record
+    case class Info(pos : Position, message : String) extends Record {
+      val label = "info"
+    }
+    case class Warning(pos : Position, message : String) extends Record {
+      val label = YELLOW + "warn" + RESET
+    }
+    case class Error(pos : Position, message : String) extends Record {
+      val label = RED + "error" + RESET
+    }
 
     /**
      * Buffer of messages.
@@ -59,7 +67,7 @@ object Messaging {
     )
     
     def allmessages = 
-      messages('info).toList ++ messages('warning).toList ++ messages('error).toList
+      (messages('info) ++ messages('warning) ++ messages('error)).distinct.toList
     
     def sortedmessages : Seq[Record] =
       allmessages.sortWith (_.pos < _.pos)

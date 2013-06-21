@@ -100,12 +100,9 @@ trait AttributableRewriter extends org.kiama.rewriting.CallbackRewriter {
 </code></div>
 <div id="rules">
     """.format(beforeString))
-    
-    println("before")
+
     val result = block
-    println("after")
-    
-    
+   
     outputBuffer.append("""
 </div>
         
