@@ -4,7 +4,7 @@ organization in ThisBuild := "de.unimarburg.ps"
 
 version in ThisBuild := "0.1-SNAPSHOT"
 
-scalaVersion in ThisBuild := "2.10.1"
+scalaVersion in ThisBuild := "2.10.2"
 
 resolvers in ThisBuild ++= Seq (
     Resolver.sonatypeRepo ("releases"),
@@ -12,7 +12,7 @@ resolvers in ThisBuild ++= Seq (
 )
 
 libraryDependencies in ThisBuild ++= Seq (
-    "com.googlecode.kiama" %% "kiama" % "1.4.0"
+    "com.googlecode.kiama" %% "kiama" % "1.5.0"
 )
 
 logLevel in ThisBuild := Level.Info
