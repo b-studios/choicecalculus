@@ -8,7 +8,7 @@ import choicecalculus.parser.Parser
 
 class JavaScriptParserTests extends FlatSpec {
 
-  import ast._
+  import choicecalculus.ast._
   
   object parser extends Parser with RegexParserTests {
     

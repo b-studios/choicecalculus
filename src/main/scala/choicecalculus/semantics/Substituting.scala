@@ -2,62 +2,65 @@ package choicecalculus
 package semantics
 
 import ast.{ ASTNode, IdExpr, IncludeExpr, PartialConfig, SelectExpr, ShareExpr }
-import utility.AttributableRewriter.{ attempt, allbu, alltd, bottomup, reduce, repeat, rewrite, rule, strategyf, test }
-import org.kiama.attribution.Attribution.{ paramAttr } 
-    
+import utility.DebugRewriter._ //{ attempt, allbu, alltd, child, congruence, bottomup, debug, reduce, repeat, rewrite, rule, strategyf, test }
+import org.kiama.attribution.UncachedAttribution.{ paramAttr } 
+import org.kiama.rewriting.Strategy
 
 /**
- * 2. Step - Substitution and Removal of unnecessary Shares
+ * 2. Step - Substitution
+ * ----------------------
+ * Substitution of bindings (`substitute`) and removal of unnecessary shares (`removeShares`).
  */
 trait Substituting { self: Selecting with Dimensioning with Includes =>
-  
-  // If bindings are substituted, then we have to reduce them again
-  // afterwards a cleanup step is performed
-  val substitute = bottomup(reduce(substituteBindings <* select) andFinally removeShares)
-  
-  
-  // We only substitute variables, if they are fully configured
-  val substituteBindings = 
-    test(isFullyConfigured) <* ((substIdExpr + substIncludeExpr + substPartialConfig) andFinally desugarPartialConfig)
 
-  val isFullyConfigured = strategyf {
+  // We only substitute variables, if they are fully configured
+  lazy val substitute = named("substitute",
+    test(isFullyConfigured) <* (substIdExpr + substIncludeExpr + (substPartialConfig <* desugarPartialConfig))
+  )
+  lazy val isFullyConfigured = strategyf("isFullyConfigured?", {
     case exp: ASTNode if (exp->dimensioning).fullyConfigured => Some(exp)
     case exp: ASTNode => None
     case _ => None
-  }
+  })
   
   // (a) the bound expression itself is fully configured, then the id can be substituted by the expression
   // i. It's an id
-  val substIdExpr = rule {
+  lazy val substIdExpr = rule("substIdExpr", {
     case id@IdExpr(name) => id->bindingShare(name) match {
-      case Some(ShareExpr(_, binding, _)) => binding
+      case Some(ShareExpr(_, binding, _)) => binding.clone
       case other => sys error "cannot substitute binding for %s, got %s".format(name, other)
     }
-  }
+  })
+  
   // ii. It's an include
-  val substIncludeExpr = rule {
-    case inc:IncludeExpr[_,_] => fileContents(inc)
-  }
+  lazy val substIncludeExpr = rule ("substIncludeExpr", {
+    case inc:IncludeExpr[_,_] => fileContents(inc).clone
+  })
   
   // (b) the bound expression is fully configured by delayed selections
-  val substPartialConfig = rule {
-    case PartialConfig(body, configs) =>
-      PartialConfig( rewrite(substIdExpr + substIncludeExpr) (body), configs)
-  }
+  // IDEA: directly perform selections / choices after substituion
+  // use kiama's `congruence` rule for this
+  lazy val substPartialConfig = rule("substPartialConfig", {
+    case PartialConfig(body:IdExpr[_], configs) =>      
+      PartialConfig( rewrite(substIdExpr) (body), configs)
+      
+    case PartialConfig(body:IncludeExpr[_,_], configs) =>      
+      PartialConfig( rewrite(substIncludeExpr) (body), configs)
+  })
   
   // The expression has been substituted by one of the previous steps - just desugar the partial configuration
-  val desugarPartialConfig = rule {
+  lazy val desugarPartialConfig = rule("desugarPartialConfig", {
     case PartialConfig(body, configs) => configs.foldLeft(body) {
       case (old, (dim, tag)) => SelectExpr(dim, tag, old)
     }
-  }  
+  })
 
   // Unused shares can be removed.
-  private val removeShares = rule {
+  lazy val removeShares = rule("removeShares", {
     case ShareExpr(n,_,body) if !(body->variableIsUsed(n)) => body
-  }
+  })
   
-  val variableIsUsed: Symbol => ASTNode => Boolean = paramAttr {
+  lazy val variableIsUsed: Symbol => ASTNode => Boolean = paramAttr {
     name => {
       case IdExpr(n) => n == name
       // shadowed
@@ -66,6 +69,5 @@ trait Substituting { self: Selecting with Dimensioning with Includes =>
         case (old, node:ASTNode) => old || node->variableIsUsed(name)
       }
     }
-  }
+  }  
 }
-

@@ -4,7 +4,7 @@ package semantics
 import ast.{ ASTNode, DimensionExpr, SelectExpr, ChoiceExpr, IdExpr, Choice, ShareExpr, PartialConfig, IncludeExpr }
 import utility.AttributableRewriter.Term
 import org.kiama.util.Messaging.{message, report}
-import org.kiama.attribution.Attribution.{attr, paramAttr, CachedParamAttribute}
+import org.kiama.attribution.UncachedAttribution.{attr, paramAttr }
 
 trait Dimensioning { self: DimensionGraph with Includes =>
 
@@ -49,7 +49,7 @@ trait Dimensioning { self: DimensionGraph with Includes =>
     case inc:IncludeExpr[_,_] => fileDimensions(inc) 
     
     case Term(p, children) => children.flatMap {
-      case n: ASTNode => List(n->dimensioning)
+      case n:ASTNode => List(n->dimensioning)
       case l:Seq[ASTNode] => l.map(dimensioning)
       case _ => List.empty
     }.foldLeft(DimensionGraph.empty) {
@@ -78,15 +78,14 @@ trait Dimensioning { self: DimensionGraph with Includes =>
       
       // If the parent is a share expression we have to check whether we are in the binding branch
       // then skip ahead to next parent
-      // TODO check whether parent is root and a grand parent can exist!
       case other => other.parent match {
-        case s@ShareExpr(_, e, _) if e == other => s.parent[ASTNode]->bindingShare(name)
+        case s@ShareExpr(_, e, _) if e == other && !s.isRoot => s.parent[ASTNode]->bindingShare(name)
         case otherParent:ASTNode => otherParent->bindingShare(name)
+        case _ => None
       }
     }
   }
   
-  // this one is easier then bindingShare
   val bindingDimension: Symbol => ASTNode => DimensionExpr[_] = paramAttr {
     name => {
       case d@DimensionExpr(n, _ ,_) if n == name => d

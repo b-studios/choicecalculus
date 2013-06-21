@@ -57,3 +57,7 @@ case class PropertyBinding(name: Literal, value: Expression) extends Binding
 
 case class FunctionDecl(name: Literal, args: List[Literal], body: BlockStmt) extends Expression
 case class FunctionExpr(args: List[Literal], body: BlockStmt) extends Expression
+
+object implicits {
+  implicit def string2Literal(str: String): Literal = Literal(str)
+}

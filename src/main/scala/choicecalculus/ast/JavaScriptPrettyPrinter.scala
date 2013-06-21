@@ -1,4 +1,5 @@
-package choicecalculus.ast
+package choicecalculus
+package ast
 
 import org.kiama.output.ParenPrettyPrinter
 

@@ -9,15 +9,24 @@ import org.kiama.util.IO.{filereader, FileNotFoundException }
 trait Includes {
   self: PositionedParserUtilities with Compiler[ASTNode] with Semantics =>
   
-  case class SourceFile(path: String, ast: ASTNode, dimensions: Option[DimensionGraph]) {
+  abstract class Cacheable {
+    val path: String
+    val ast: ASTNode
+    val dimensions: Option[DimensionGraph]
+  }
+    
+  case class SourceFile(path: String, ast: ASTNode, dimensions: Option[DimensionGraph]) extends Cacheable {
     override def toString = "SourceFile(%s, ..., %s)".format(path, dimensions)
   }
-  case object Dummy extends SourceFile("", Program(List()), None)
+  case object Dummy extends Cacheable {
+    val path = ""
+    val ast = Program(List())
+    val dimensions = None
+  }
   
-  val files: mutable.HashMap[String, SourceFile] = mutable.HashMap()
+  val files: mutable.HashMap[String, Cacheable] = mutable.HashMap()
     
-  
-  def cached(filename: String)(action: => Either[String, SourceFile]): Unit = files.getOrElse(filename, None) match {
+  def cached(filename: String)(action: => Either[String, Cacheable]): Unit = files.getOrElse(filename, None) match {
     case Dummy => sys error "Cycle in file dependencies!"
     case s@SourceFile(path, ast, Some(dims)) => s
     case None => {
@@ -47,7 +56,7 @@ trait Includes {
     }
   }
     
-  def fileDimensions(include: IncludeExpr[_,_]): DimensionGraph = include match {
+  def fileDimensions(include: IncludeExpr[_ <: ASTNode,_]): DimensionGraph = include match {
     case IncludeExpr(filename, p:Parser[ASTNode]) => {
       processFileWithParser(filename, p)
       println(files.get(filename))
@@ -56,7 +65,7 @@ trait Includes {
     }
   }
   
-  def fileContents(include: IncludeExpr[_,_]): ASTNode = include match {
+  def fileContents(include: IncludeExpr[_ <: ASTNode,_]): ASTNode = include match {
     case IncludeExpr(filename, p:Parser[ASTNode]) => {
       processFileWithParser(filename, p)
       val Some(SourceFile(_, ast, _)) = files.get(filename)

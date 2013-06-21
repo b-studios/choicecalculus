@@ -9,7 +9,7 @@ import scala.collection.mutable
 trait DimensionGraph {
 
   import org.kiama.util.Messaging.message
-  import choicecalculus.ast.ASTNode
+  import ast.ASTNode
   
   abstract class GraphNode {
     
