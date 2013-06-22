@@ -1,11 +1,11 @@
 package choicecalculus
 package dimensioning
 
-import ast.{ ASTNode, DimensionExpr, SelectExpr, ChoiceExpr, IdExpr, Choice, ShareExpr, PartialConfig, IncludeExpr }
-import utility.AttributableRewriter.Term
-import semantics.Includes
 import org.kiama.util.Messaging.{message, report}
-import org.kiama.attribution.UncachedAttribution.{attr, paramAttr }
+import ast.{ ASTNode, DimensionExpr, SelectExpr, ChoiceExpr, IdExpr, Choice, ShareExpr, PartialConfig, IncludeExpr }
+import semantics.Includes
+import utility.AttributableRewriter.Term
+import utility.Attribution.{attr, paramAttr }
 
 
 trait Dimensioning { self: Includes =>

@@ -55,7 +55,7 @@ class ChoiceCalculusParserTests extends FlatSpec {
     
     it should "parse share expressions" in {
       
-      assertParseOk("share §x:Expression as 4 within §x", expression, ShareExpr('x, Literal("4"), IdExpr('x)))
+      assertParseOk("share #x:Expression as 4 within #x", expression, ShareExpr('x, Literal("4"), IdExpr('x)))
       
     }
     

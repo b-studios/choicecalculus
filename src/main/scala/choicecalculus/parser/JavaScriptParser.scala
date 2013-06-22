@@ -142,7 +142,7 @@ trait JavaScriptParser extends HostLanguageParser with JavaScriptLexer {
     | "Statement" ^^^ statement
     )
     
-  def declaration: PackratParser[Statement] = funcDecl | statement
+  lazy val declaration: PackratParser[Statement] = funcDecl | statement
   
   
   
@@ -152,7 +152,7 @@ trait JavaScriptParser extends HostLanguageParser with JavaScriptLexer {
     "{" ␣> multiple (declaration) <␣ "}" ^^ BlockStmt
 
 
-  def statement: PackratParser[Statement] = 
+  lazy val statement: PackratParser[Statement] = 
     ( bindings <~ sc
         
     | 'if ␣> ("(" ␣> expression <␣ ")") ␣ statement ␣ ('else ␣> statement).? ^^ IfStmt
@@ -227,14 +227,14 @@ trait JavaScriptParser extends HostLanguageParser with JavaScriptLexer {
     
   // Expressions
   // -----------
-  def expression: PackratParser[Expression] = 
+  lazy val expression: PackratParser[Expression] = 
   ( assignExpr ␣ ("," ␣> assignExpr ).+ ^^ { 
       case first ~ rest => SequenceExpr(first :: rest) 
     } 
   | assignExpr
   )
     
-  def assignExpr: PackratParser[Expression] = 
+  lazy val assignExpr: PackratParser[Expression] = 
     ( leftExpr ␣ ( ">>>=" | ">>=" | "+="  | "-=" | "*="  | "/=" | "%="   | "<<=" 
                  | "^=" | "&&=" | "&=" | "||=" | "|=" | "=" 
                  ) ␣ assignExpr ^^ BinaryOpExpr
@@ -341,7 +341,8 @@ trait JavaScriptParser extends HostLanguageParser with JavaScriptLexer {
 
   // 11.1 Primary Expressions
   lazy val primExpr: PackratParser[Expression] =
-    ( objectLiteral
+    ( expressionHook
+    | objectLiteral
     | arrayLiteral
     | "(" ␣> expression <␣ ")" ^^ GroupExpr    
     | 'this ^^^ Literal("this")

@@ -34,7 +34,7 @@ trait Selecting { self: Choosing =>
       case n:ASTNode => SelectExpr(dim, tag, n)
       case l:Seq[ASTNode] => l.map(SelectExpr(dim, tag, _))
       case lit => lit
-    })) (t).fixAttr
+    })) (t)
   })
 }
 

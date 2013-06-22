@@ -3,38 +3,15 @@ package interpreter
 
 import org.kiama.output.PrettyPrinter
 import org.kiama.util.{ParsingREPL, Emitter, Compiler, Console}
-import org.kiama.attribution.Attribution.initTree
 import ast.{ ASTNode, ChoiceCalculusPP, JavaScriptPP }
 import parser.Parser
 
 import semantics.Semantics
 
-import org.kiama.util.Messaging.{messagecount, report}
-import org.kiama.rewriting.Rewriter.{rewrite}
-/*
-object Main extends Parser with ParsingREPL[ASTNode] with Semantics {
-  
-  def start: Parser[ASTNode] = parser
-  override def prompt = "> "
-  
-  object prettyprinter extends JavaScriptPP with ChoiceCalculusPP
-    
-  def process(tree: ASTNode) {
-    
-    println("Parsed: " + tree)
-    
-    
-    val dims = tree->dimensioning
-    
-    report(emitter)
-    val selected = rewrite (select) (tree)
-    
-    emitter.emitln("\n\nSelected: \n" + prettyprinter.pretty(prettyprinter.toDoc(selected)))
-    
-    //emitter.emitln("\n\nPrettyprinted: \n" + prettyPrinter.pretty(prettyPrinter.toDoc(tree)) )
-  }
-}*/
-
+import utility.Attribution
+import utility.Attribution.initTree
+import utility.Messaging.{messagecount, report}
+import utility.DebugRewriter.{rewrite, debugging}
 
 object CommandLine extends Compiler[ASTNode] 
     with Parser
@@ -42,17 +19,16 @@ object CommandLine extends Compiler[ASTNode]
   
   object prettyprinter extends JavaScriptPP with ChoiceCalculusPP
   
-  override def process(tree: ASTNode, console: Console, emitter: Emitter) : Boolean = {   
-    
-    val reduced = processTree(tree)
-    
-    emitter.emitln("dims: " + dimensioning(tree))
-    
+  override def process(filename: String, tree: ASTNode, console: Console, emitter: Emitter) : Boolean = {   
+  
+    val result = processTree(tree) 
     report(emitter)
     
-    emitter.emitln("Files: " + files)
-    
-    emitter.emitln(prettyprinter.pretty(prettyprinter.toDoc(reduced)) )
+    result.fold(emitter.emitln, (rewrite) => {          
+        emitter.emitln(prettyprinter.pretty(prettyprinter.toDoc(rewrite)))
+        emitter.emitln(dimensioning(rewrite))
+      }
+    )
     
     true    
   } 

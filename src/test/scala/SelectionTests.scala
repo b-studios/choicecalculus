@@ -4,13 +4,16 @@ package tests
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers._
 import org.kiama.util.Tests
-import choicecalculus.semantics.{ DimensionGraph, Semantics }
+
+import choicecalculus.semantics.Semantics
 import choicecalculus.ast._
 import choicecalculus.ast.implicits._
 import org.kiama.util.{ Compiler }
-import utility.DebugRewriter.{bottomup, attempt, rewrite, test, strategy2utilStrategy}
+
 import choicecalculus.parser.Parser
-import org.kiama.attribution.UncachedAttribution.initTree
+import choicecalculus.dimensioning.DimensionGraph
+import choicecalculus.utility.AttributableRewriter
+import choicecalculus.utility.Attribution.initTree
 
 
 class SelectionTests extends FlatSpec {
@@ -26,7 +29,7 @@ class SelectionTests extends FlatSpec {
     }
     
     def fullReductionTest(input: ASTNode)(expected: ASTNode) = {
-      processTree(input) should equal (expected)
+      processTree(input) should equal (Right(expected))
     }
     
     it should "find correct dimensioning" in {
@@ -92,11 +95,12 @@ class SelectionTests extends FlatSpec {
           ))
       )
         
-      processTree(select('a, share( IdExpr('x) ))) should equal (BinaryOpExpr("3","+","5"))
-      processTree(select('a, share( dim ))) should equal { 
+      // undeclared dimension
+      processTree(select('a, share( IdExpr('x) ))) should be an ('left)
+      fullReductionTest(select('a, share( dim ))) { 
         ReturnStmt(Some(BinaryOpExpr("3","+","5")))
       }
-      processTree(select('b, share( dim ))) should equal {
+      fullReductionTest(select('b, share( dim ))) {
         ReturnStmt(Some(BinaryOpExpr("2", "*", BinaryOpExpr("3","+","5"))))
       }
     }
@@ -108,7 +112,7 @@ class SelectionTests extends FlatSpec {
       val stmt = SelectExpr('Config, 'advanced, 
                   IncludeExpr("examples/include/included.js.cc", statement))
       
-      processTree(stmt) should equal { Literal("14") }
+      fullReductionTest(stmt) { Literal("14") }
     }
     
     it should "detect correctly whether a variable is used or not" in {
@@ -167,6 +171,118 @@ class SelectionTests extends FlatSpec {
       val share = ShareExpr('x, first_dim, ShareExpr('y, second_dim, SelectExpr('B, 'b, IdExpr('y))))
       
       fullReductionTest(share) {  BinaryOpExpr("4", "*", BinaryOpExpr("1", "+", "1")) }      
+    }
+    
+    // select A.a from
+    //  select A.b from
+    //    dim A(a,b) in choice A {
+    //      case a => dim A(b,c) in
+    //        choice A {
+    //          case b => 3
+    //          case c => 7
+    //        }
+    //      case b => 42
+    //      }
+    it should "perform inner selections first" in {
+      
+      val dimBody = DimensionExpr('A, List('a, 'b),
+        ChoiceExpr('A,List(
+          Choice[ASTNode]('a, DimensionExpr('A,List('b, 'c),
+            ChoiceExpr('A, List(
+               Choice[ASTNode]('b, "3"), 
+               Choice[ASTNode]('c, "7")
+            )))), 
+          Choice[ASTNode]('b, "42"))))
+      
+      val selects1 = SelectExpr('A,'b, SelectExpr('A,'a, dimBody));
+      val selects2 = SelectExpr('A,'a, SelectExpr('A,'b, dimBody));
+      
+      fullReductionTest(selects1) { Literal("3") }
+      
+      // undeclared dimension
+      processTree(selects2) should be an ('left)
+    }
+    
+    
+    // Examples from the paper
+    it should "handle the examples from the vamos2013 paper correctly" in {
+      
+      // select D.a from 
+      //   dim D<a,b> in D<1,2>
+      val example3_0 = SelectExpr('D, 'a, 
+          DimensionExpr('D, 'a :: 'b :: Nil, ChoiceExpr('D, List( 
+            Choice('a, Literal("1")),
+            Choice('b, Literal("2"))))))
+      
+      fullReductionTest(example3_0) { Literal("1") }
+      
+      // share v = e in
+      //   dim X<y, z> in
+      //     X<select A.b from v, select A.c from v>
+      //
+      // with e being something like: dim A<a,b,c> in A<1,2,3>
+      val example3_1_e = DimensionExpr('A, 'a :: 'b :: 'c :: Nil, ChoiceExpr('A, List(
+        Choice('a, Literal("1")),
+        Choice('b, Literal("2")),
+        Choice('c, Literal("3"))
+      )));
+      
+      val example3_1 = ShareExpr('v, example3_1_e, DimensionExpr('X, 'y :: 'z :: Nil, ChoiceExpr('X, List(
+        Choice('y, SelectExpr('A, 'b, IdExpr('v))),
+        Choice('z, SelectExpr('A, 'c, IdExpr('v)))
+      ))))
+      
+      val example3_1_sel1 = SelectExpr('X, 'y, example3_1);
+      val example3_1_sel2 = SelectExpr('X, 'z, example3_1);
+      
+      fullReductionTest(example3_1_sel1) { Literal("2") }
+      fullReductionTest(example3_1_sel2) { Literal("3") }
+      
+      // Section 4: Open Questions
+      
+      // 4.1 Undeclared Dimension
+      // Design decision: Not allowed
+      val example4_1 = SelectExpr('D, 't, BinaryOpExpr("1", "+", "2"))
+      processTree(example4_1) should be an ('left)
+      
+      // 4.2 Multiple Dimensions
+      // Design decision: Not allowed
+      val example4_2 = SelectExpr('D, 'a, 
+          BinaryOpExpr(DimensionExpr('D, 'a :: 'b :: Nil, ChoiceExpr('D, List(
+              Choice('a, Literal("1")),
+              Choice('b, Literal("2"))
+          ))), "+" ,DimensionExpr('D, 'a :: 'c :: Nil, ChoiceExpr('D, List(
+              Choice('a, Literal("3")),
+              Choice('c, Literal("4"))
+          )))))
+       processTree(example4_2) should be an ('left)
+      
+      // 4.3 Undeclared Tag
+      // Design decision: Not allowed
+      val example4_3 = SelectExpr('D,'a, DimensionExpr('D, List('b, 'c), ChoiceExpr('D, List(
+          Choice('b, Literal("1")), 
+          Choice('c, Literal("2"))))))
+      val example4_3_2 = SelectExpr('D,'a, DimensionExpr('D, List('b, 'c), BinaryOpExpr("3", "+", "4")))
+      processTree(example4_3_2) should be an ('left)
+      
+      // 4.4 Dependent Dimensions
+      // Design decision: Do not select dependent dimension
+      //select B.c from
+      //  dim A(a,b) in
+      //   choice A {
+      //     case a => dim B(c,d) in choice B {
+      //       case c => 1
+      //       case d => 2
+      //     }
+      //     case b => 3
+      //   }
+      val example4_4 = SelectExpr('B,'c,DimensionExpr('A,List('a, 'b),
+          ChoiceExpr[Expression]('A, List(
+            Choice('a,DimensionExpr('B,List('c, 'd), ChoiceExpr('B,List(
+              Choice('c,Literal("1")), 
+              Choice('d,Literal("2")))))), 
+            Choice('b,Literal("3"))))))
+      processTree(example4_4) should be an ('left)
     }
   }
   

@@ -11,10 +11,12 @@ trait PrettyPrinter extends ParenPrettyPrinter with org.kiama.output.PrettyPrint
 
 trait ChoiceCalculusPP extends PrettyPrinter {
 
+  val cc_prefix = text("#")
+  
   override def toDoc(e: ASTNode): Doc = e match {
     
     case DimensionExpr(dim, tags, body) => 
-      "dim" <+> text(dim.name) <> "<" <> fillsep(tags.map( (t) => text(t.name)), comma) <> ">" <+> 
+      "dim" <+> text(dim.name) <> parens(fillsep(tags.map( (t) => text(t.name)), comma)) <+> 
         "in" <+> toDoc(body)
     
     case ChoiceExpr(dim, choices) =>
@@ -28,10 +30,10 @@ trait ChoiceCalculusPP extends PrettyPrinter {
       "select" <+> text(dim.name) <> dot <> text(tag.name) <+> "from" <+> toDoc(body)
       
     case IdExpr(id) =>
-      text(id.name)
+      cc_prefix <> text(id.name)
       
     case ShareExpr(x, binding, body) =>
-      "share" <+> text(x.name) <+> equal <+> toDoc(binding) <+> "in" <+> toDoc(body)
+      "share" <+> text(x.name) <+> equal <+> toDoc(binding) <+> "within" <+> toDoc(body)
     
     case PartialConfig(body, configs) =>      
       configs.foldLeft(toDoc(body)) {

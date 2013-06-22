@@ -63,6 +63,11 @@ object XMLPrettyPrinter {
   }
   
 }
+
+
+// [Uncached]AttributionCore
+object Attribution extends org.kiama.attribution.AttributionCore {}
+
 /**
  * Attribution preserving rewriter
  */
@@ -73,10 +78,7 @@ trait AttributableRewriter extends org.kiama.rewriting.CallbackRewriter {
   import org.kiama.rewriting.Strategy
   import ast.ASTNode
   
-  val debugFile = "debug.html"
-  
-  val outputBuffer = new scala.collection.mutable.ListBuffer[String]();
-    
+
   def rewriting[T] (oldTerm : T, newTerm : T) : T = { 
     (oldTerm, newTerm) match {
       case (o: Attributable, n: Attributable) => n.initTreeProperties
@@ -84,6 +86,42 @@ trait AttributableRewriter extends org.kiama.rewriting.CallbackRewriter {
     }
     newTerm
   }
+  
+  case class AttributionFix[T <: Attributable](a: T) {
+    def fixAttr(): T = {
+      a.initTreeProperties
+      a
+    }
+  }
+  implicit def attr2attrFix[T <: Attributable](a: T): AttributionFix[T] = AttributionFix(a)
+    
+  
+  case class UtilStrategy(base: Strategy) {
+    def then(other: => Strategy): Strategy = 
+      attempt(base) <* other
+      
+    def andFinally(other: => Strategy): Strategy = 
+      (base <* attempt(other) + (other <* fail)) 
+  }
+  
+  implicit def strategy2utilStrategy(s: Strategy): UtilStrategy = UtilStrategy(s)
+  
+}
+object AttributableRewriter extends AttributableRewriter {}
+
+trait DebugRewriter extends AttributableRewriter {
+  
+  import org.bitbucket.inkytonik.dsprofile.Events.{Event, Start}
+  import org.bitbucket.inkytonik.dsprofile.Events
+  import org.kiama.rewriting.Strategy
+  
+  Events.profiling = true
+  
+  val debugFile = "debug.html"
+  
+  val outputBuffer = new scala.collection.mutable.ListBuffer[String]();
+
+  def attributeInfo(term: Any): Option[String] = None
   
   def debugging(before: Any)(block: => Any) {
     var beforeString = XMLPrettyPrinter.pretty(before);
@@ -125,40 +163,21 @@ trait AttributableRewriter extends org.kiama.rewriting.CallbackRewriter {
     outputBuffer.append(s)
   }
   
-  case class AttributionFix[T <: Attributable](a: T) {
-    def fixAttr(): T = {
-      a.initTreeProperties
-      a
-    }
-  }
-  implicit def attr2attrFix[T <: Attributable](a: T): AttributionFix[T] = AttributionFix(a)
-    
-  
-  case class UtilStrategy(base: Strategy) {
-    def then(other: => Strategy): Strategy = 
-      attempt(base) <* other
-      
-    def andFinally(other: => Strategy): Strategy = 
-      (base <* attempt(other) + (other <* fail)) 
-  }
-  
-  implicit def strategy2utilStrategy(s: Strategy): UtilStrategy = UtilStrategy(s)
-  
-}
-object AttributableRewriter extends AttributableRewriter {}
-
-trait DebugRewriter extends AttributableRewriter {
-  
-  import org.bitbucket.inkytonik.dsprofile.Events.{Event, Start}
-  import org.bitbucket.inkytonik.dsprofile.Events
-  import org.kiama.rewriting.Strategy
-  
-  Events.profiling = true
-  
   def named (name : String, s : Strategy) : Strategy =
-        new Strategy (name) {
-            val body = (t : Any) => s (t) 
+    new Strategy (name) {
+        val body = (t : Any) => s (t) 
+    }
+  
+  def analyze(s: Strategy)(f: PartialFunction[(Strategy, Any, Any), Unit]): Strategy =
+    new Strategy("report") {
+      val body = (before : Any) => { 
+        val after = s (before)
+        if (f.isDefinedAt((s, before, after))) {
+          f(s, before, after)
         }
+        after
+      }
+    }
   
   // add a switch for verbose (not checking whether oldTerm == newTerm)
   override def rewriting[T] (oldTerm : T, newTerm : T) : T = { 

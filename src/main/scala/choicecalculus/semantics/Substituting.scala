@@ -3,8 +3,8 @@ package semantics
 
 import ast.{ ASTNode, IdExpr, IncludeExpr, PartialConfig, SelectExpr, ShareExpr }
 import dimensioning.Dimensioning
-import utility.DebugRewriter._ //{ attempt, allbu, alltd, child, congruence, bottomup, debug, reduce, repeat, rewrite, rule, strategyf, test }
-import org.kiama.attribution.UncachedAttribution.{ paramAttr } 
+import utility.DebugRewriter._
+import utility.Attribution.{ paramAttr } 
 import org.kiama.rewriting.Strategy
 
 /**
@@ -28,19 +28,18 @@ trait Substituting { self: Selecting with Dimensioning with Includes =>
   // i. It's an id
   lazy val substIdExpr = rule("substIdExpr", {
     case id@IdExpr(name) => id->bindingShare(name) match {
-      case Some(ShareExpr(_, binding, _)) => binding.clone
+      case Some(ShareExpr(_, binding, _)) => /*resetMemo;*/ binding.clone
       case other => sys error "cannot substitute binding for %s, got %s".format(name, other)
     }
   })
   
   // ii. It's an include
   lazy val substIncludeExpr = rule ("substIncludeExpr", {
-    case inc:IncludeExpr[_,_] => fileContents(inc).clone
+    case inc:IncludeExpr[_,_] =>  /*resetMemo;*/ fileContents(inc).clone
   })
   
   // (b) the bound expression is fully configured by delayed selections
-  // IDEA: directly perform selections / choices after substituion
-  // use kiama's `congruence` rule for this
+  // TODO use kiama's `congruence` rule for this
   lazy val substPartialConfig = rule("substPartialConfig", {
     case PartialConfig(body:IdExpr[_], configs) =>      
       PartialConfig( rewrite(substIdExpr) (body), configs)
