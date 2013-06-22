@@ -16,7 +16,7 @@ trait Semantics extends Dimensioning
   
   // Our reduction strategy
   // top down traversal breaks attribution links to parents, so lookup of bindings cannot be performed
-  def reduce(s: Strategy): Strategy = repeat(manybu(s))
+  def reduce(s: Strategy): Strategy = repeat(oncebu(s))
       
   def processTree(tree: ASTNode): Either[String, ASTNode] = {
     initTree(tree)
