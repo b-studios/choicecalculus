@@ -56,3 +56,6 @@ Here `CONTEXT` can either be `Expression` or `Statement` and specifies which par
 include "filename"
 ```
 Depending on the context in which `include` appears determines how the file is processed. So using `include` in expression position like `3 + include "foo"` requires the file foo to only contain an expression.
+
+
+[1] Martin Erwig, Klaus Ostermann, Tillmann Rendel, and Eric Walkingshaw. 2013. Adding configuration to the choice calculus. In *Proceedings of the Seventh International Workshop on Variability Modelling of Software-intensive Systems* (VaMoS '13). ACM, New York, NY, USA, , Article 13 , 8 pages. DOI=[10.1145/2430502.2430520](http://doi.acm.org/10.1145/2430502.2430520)
