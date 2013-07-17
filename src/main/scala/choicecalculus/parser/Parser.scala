@@ -9,16 +9,7 @@ trait HostLanguageParser extends PositionedParserUtilities with ParserUtils {
   
   val topLevel: PackratParser[ASTNode]
   val typeParser: PackratParser[PackratParser[ASTNode]]
-  
-  
-  // using this way of wiring, since overriding definitions does not work
-  // well with PackratParser's `lazy val`
-  //
-  // would be cool to have a more generic way of doing this
-  val expression: PackratParser[Expression]
-  val expressionHook: PackratParser[Expression]
-  val statement: PackratParser[Statement]
-  val statementHook: PackratParser[Statement]
+ 
 }
 
 
@@ -26,19 +17,14 @@ trait Parser extends JavaScriptParser {
   
   import ast.{ASTNode, CCExpression, DimensionExpr, ChoiceExpr, Choice, SelectExpr, IdExpr, ShareExpr }
   
-  lazy val parser: PackratParser[ASTNode] =
-    phrase (topLevel).named("toplevelphrase")      
-      
+  lazy val parser: PackratParser[ASTNode]      = topLevel
   
   lazy val cc_id: PackratParser[Symbol]        = """[a-zA-Z$_][a-zA-Z0-9$_]*""".r ^^ (Symbol(_))
   
   lazy val cc_string: PackratParser[String]    = '"' ~> consumed ((not('"') ~ any).*) <~ '"'
 
-  lazy val expressionHook: PackratParser[Expression] = cc_expression(expression)
-  lazy val statementHook: PackratParser[Statement] = cc_expression(statement)
-  
   val cc_prefix = "#"
-  
+    
   /**
    * cc_expression is a parser for all kinds of choice calculus expressions, parametrized over
    * their body parser. This body parser is dependend on the context in which the cc-expression
@@ -96,8 +82,29 @@ trait Parser extends JavaScriptParser {
       } 
     }
       
- private def cc_idExpr[T <: ASTNode](body: PackratParser[T]): PackratParser[T] =
-   cc_prefix ~> cc_id ^^ { 
-     case name => IdExpr(name).asInstanceOf[T]
-   }
+  private def cc_idExpr[T <: ASTNode](body: PackratParser[T]): PackratParser[T] =
+    cc_prefix ~> cc_id ^^ { 
+      case name => IdExpr(name).asInstanceOf[T]
+    }
+   
+  // wiring of cc parser and hostlanguage parser
+  override def _expression = 
+    ( cc_expression(expression)
+    | super._expression
+    )
+    
+  override def _assignExpr = 
+    ( cc_expression(expression)
+    | super._assignExpr
+    )
+  
+  override def _primExpr = 
+    ( cc_expression(expression)
+    | super._primExpr
+    )
+    
+  override def _statement = 
+    ( cc_expression(statement)
+    | super._statement
+    )
 }

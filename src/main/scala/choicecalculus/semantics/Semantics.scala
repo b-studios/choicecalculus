@@ -2,10 +2,10 @@ package choicecalculus
 package semantics
 
 import ast._
-import org.kiama.util.{ PositionedParserUtilities, Compiler }
+import org.kiama.util.{ Compiler }
 import org.kiama.rewriting.Strategy
 import utility.DebugRewriter._
-import utility.Messaging
+import utility.{ Messaging, ParserUtils }
 import utility.Attribution.initTree
 import dimensioning.{ DimensionGraph, Dimensioning }
 
@@ -14,7 +14,7 @@ trait Semantics extends Dimensioning
     with Selecting     
     with Choosing 
     with Substituting
-    with Includes { self: Compiler[ASTNode] with PositionedParserUtilities =>
+    with Includes { self: Compiler[ASTNode] with ParserUtils =>
   
   // Our reduction strategy
   // top down traversal breaks attribution links to parents, so lookup of bindings cannot be performed

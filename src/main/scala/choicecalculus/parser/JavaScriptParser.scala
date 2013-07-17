@@ -54,7 +54,6 @@ trait JavaScriptLexer extends PositionedParserUtilities with ParserUtils {
     (spacesNoNl ~ (linebreak | guard("}") | eos ) //| EOS)
     | ";"
     )
-  
     
   /**
    * Identifiers
@@ -135,7 +134,7 @@ trait JavaScriptParser extends HostLanguageParser with JavaScriptLexer {
   
   // Program
   // -------
-  lazy val topLevel: PackratParser[ASTNode] = multiple (declaration) <~ spaces <~ eos ^^ Program
+  lazy val topLevel: PackratParser[ASTNode] = phrase (multiple (declaration)) ^^ Program
   
   lazy val typeParser: PackratParser[PackratParser[ASTNode]] =
     ("Expression" ^^^ assignExpr
@@ -152,7 +151,7 @@ trait JavaScriptParser extends HostLanguageParser with JavaScriptLexer {
     "{" ␣> multiple (declaration) <␣ "}" ^^ BlockStmt
 
 
-  lazy val statement: PackratParser[Statement] = 
+  def _statement: PackratParser[Statement] = 
     ( bindings <~ sc
         
     | 'if ␣> ("(" ␣> expression <␣ ")") ␣ statement ␣ ('else ␣> statement).? ^^ IfStmt
@@ -220,26 +219,28 @@ trait JavaScriptParser extends HostLanguageParser with JavaScriptLexer {
     | spaces ~> ( not ("{" | 'function | sc) ~> expression) <~ sc
     
     | block
-    | failure ("statement expected")
     )
+  lazy val statement = _statement
   
     
     
   // Expressions
   // -----------
-  lazy val expression: PackratParser[Expression] = 
+  def _expression: PackratParser[Expression] = 
   ( assignExpr ␣ ("," ␣> assignExpr ).+ ^^ { 
       case first ~ rest => SequenceExpr(first :: rest) 
     } 
   | assignExpr
   )
+  lazy val expression = _expression
     
-  lazy val assignExpr: PackratParser[Expression] = 
+  def _assignExpr: PackratParser[Expression] = 
     ( leftExpr ␣ ( ">>>=" | ">>=" | "+="  | "-=" | "*="  | "/=" | "%="   | "<<=" 
                  | "^=" | "&&=" | "&=" | "||=" | "|=" | "=" 
                  ) ␣ assignExpr ^^ BinaryOpExpr
     | condExpr
     )
+  lazy val assignExpr = _assignExpr
   
   // ternary operators
   lazy val condExpr: PackratParser[Expression] = 
@@ -340,16 +341,15 @@ trait JavaScriptParser extends HostLanguageParser with JavaScriptLexer {
 
 
   // 11.1 Primary Expressions
-  lazy val primExpr: PackratParser[Expression] =
-    ( expressionHook
-    | objectLiteral
+  def _primExpr: PackratParser[Expression] =
+    ( objectLiteral
     | arrayLiteral
     | "(" ␣> expression <␣ ")" ^^ GroupExpr    
     | 'this ^^^ Literal("this")
     | literal
     | reLiteral
-    | failure ("Expression or Literal expected")
     )
+  lazy val primExpr = _primExpr
     
   
     

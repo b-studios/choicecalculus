@@ -59,6 +59,36 @@ class ChoiceCalculusParserTests extends FlatSpec {
       
     }
     
+    it should "parse statements as declaration bodies" in {
+      
+      assertParseOk("dim A(a) { function Foo() { return 3 } }", statement,
+          DimensionExpr('A,List('a), BlockStmt(List(
+            FunctionDecl(Literal("Foo"),List(),BlockStmt(List(ReturnStmt(Some(Literal("3"))))))))))    
+      
+    }
+    
+    it should "parse sequence expressions with correct precedence" in {
+      
+      assertParseOk("dim A(a) 4, dim B(b) 5", expression, 
+          DimensionExpr('A, List('a), SequenceExpr(List(Literal("4"), 
+            DimensionExpr('B, List('b), Literal("5"))))))
+     
+      assertParseOk("(dim A(a) 4), dim B(b) 5", expression, 
+          SequenceExpr(List(GroupExpr(
+            DimensionExpr('A, List('a), Literal("4"))), 
+              DimensionExpr('B, List('b), Literal("5")))))
+            
+    }
+    
+    it should "ignore leading and trailing whitespacess when using strippedPhrase" in {
+      
+      val expected = DimensionExpr('A, List('a), Literal("4"))
+      
+      assertParseOk("     dim A(a) 4", strippedPhrase(expression), expected)
+      assertParseOk("dim A(a) 4     ", strippedPhrase(expression), expected)
+      assertParseOk("     dim A(a) 4   ", strippedPhrase(expression), expected)
+    }
+    
   }
   
   parser  

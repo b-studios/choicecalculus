@@ -5,13 +5,16 @@ import scala.util.parsing.combinator.Parsers
 import org.kiama.util.PositionedParserUtilities
 import scala.util.matching.Regex
 
-trait ParserUtils {  self: PositionedParserUtilities with ParserUtils =>
+trait ParserUtils extends PositionedParserUtilities {
   
   override val skipWhitespace = false
   
   val space: Parser[Any]
   
   lazy val spaces = rep(space)
+  
+  def strippedPhrase[T](body: PackratParser[T]): PackratParser[T] = 
+    phrase(spaces ~> body <~ spaces)
   
   case class WSParserWrapper[T](parser: Parser[T]) {
     def ␣[U](other: => Parser[U]) = 

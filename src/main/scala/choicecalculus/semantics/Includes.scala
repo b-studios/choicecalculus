@@ -3,13 +3,14 @@ package semantics
 
 import ast.{ ASTNode, Program, IncludeExpr }
 import dimensioning.DimensionGraph
+import utility.ParserUtils
 import scala.collection.mutable
 import org.kiama.util.{ Compiler, PositionedParserUtilities }
 import org.kiama.util.IO.{filereader, FileNotFoundException }
 import java.io.File
 
 trait Includes {
-  self: PositionedParserUtilities with Compiler[ASTNode] with Semantics =>
+  self: ParserUtils with Compiler[ASTNode] with Semantics =>
   
   abstract class Cacheable {
     val path: String
@@ -18,7 +19,7 @@ trait Includes {
   }
     
   case class SourceFile(path: String, ast: ASTNode, dimensions: Option[DimensionGraph]) extends Cacheable {
-    override def toString = "SourceFile(%s, ..., %s)".format(path, dimensions)
+    override def toString = s"SourceFile($path, ..., $dimensions)"
   }
   case object Dummy extends Cacheable {
     val path = ""
@@ -42,16 +43,16 @@ trait Includes {
     try {      
       val reader = filereader (filename, encoding)
       
-      println("Trying to parse "+ filename + " with parser: " + parser.toString)
+      println(s"Trying to parse $filename with parser: ${parser.toString}")
       
-      parseAll(phrase(memo(parser)), reader) match {
+      parseAll(strippedPhrase(parser), reader) match {
         case Success(ast, _) => processTree(ast).fold(Left(_), (reduced) =>
           Right(SourceFile(filename, reduced, Some(dimensioning(reduced)))))
         case f => Left(f.toString)
         }
     } catch {
       case e: FileNotFoundException => {
-        Left(e.message + " absolute path: " +  new File(filename).getAbsolutePath())       
+        Left(s"${e.message} absolute path: ${new File(filename).getAbsolutePath()}")       
       }
     }
   }
@@ -60,16 +61,20 @@ trait Includes {
     case IncludeExpr(filename, p:Parser[ASTNode]) => {
       processFileWithParser(filename, p)
       println(files.get(filename))
-      val Some(SourceFile(_, _, Some(dim))) = files.get(filename)
-      dim
+      files.get(filename) match {
+        case Some(SourceFile(_, _, Some(dim))) => dim
+        case _ => sys error s"Error while processing file ${filename}"
+      }
     }
   }
   
   def fileContents(include: IncludeExpr[_ <: ASTNode,_]): ASTNode = include match {
     case IncludeExpr(filename, p:Parser[ASTNode]) => {
       processFileWithParser(filename, p)
-      val Some(SourceFile(_, ast, _)) = files.get(filename)
-      ast
+      files.get(filename) match {
+        case Some(SourceFile(_, ast, _)) => ast
+        case _ => sys error s"Error while processing file ${filename}"
+      }
     }
   }
 }
