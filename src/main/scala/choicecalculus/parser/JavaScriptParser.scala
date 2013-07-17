@@ -134,7 +134,7 @@ trait JavaScriptParser extends HostLanguageParser with JavaScriptLexer {
   
   // Program
   // -------
-  lazy val topLevel: PackratParser[ASTNode] = phrase (multiple (declaration)) ^^ Program
+  lazy val topLevel: PackratParser[ASTNode] = strippedPhrase( multiple (declaration) ) ^^ Program
   
   lazy val typeParser: PackratParser[PackratParser[ASTNode]] =
     ("Expression" ^^^ assignExpr

@@ -43,12 +43,12 @@ trait Parser extends JavaScriptParser {
   private def cc_dimensionExpr[T <: ASTNode](body: PackratParser[T]): PackratParser[T] =
       
     // This cast can only succeed, if CCExpression is subtype of T
-    ("dim" ␣> cc_id) ␣ ("(" ␣> listOf(cc_id, ",") <␣ ")" ␣ "in".? ) ␣ body ^^ {
+    ('dim ␣> cc_id) ␣ ("(" ␣> listOf(cc_id, ",") <␣ ")" ␣ 'in.? ) ␣ body ^^ {
       case dim ~ tags ~ body => DimensionExpr(dim, tags, body).asInstanceOf[T]
     }     
       
   private def cc_choiceExpr[T <: ASTNode](body: PackratParser[T]): PackratParser[T] =
-    ( ("choice" ␣> cc_id) ␣ ("{" ␣> multiple(memo(cc_choice(body))) <␣ "}") ^^ {
+    ( ('choice ␣> cc_id) ␣ ("{" ␣> multiple(memo(cc_choice(body))) <␣ "}") ^^ {
         case dim ~ choices => ChoiceExpr(dim, choices).asInstanceOf[T] 
       }
     /*| cc_id ␣ ("«" ␣> listOf(cc_inlineChoice, ",") <␣ "»") ^^ {
@@ -57,7 +57,7 @@ trait Parser extends JavaScriptParser {
     )
     
   private def cc_choice[T <: ASTNode](body: PackratParser[T]): PackratParser[Choice[T]] =
-    ("case" ␣> cc_id <␣ ("=>" | "→")) ␣ body ^^ Choice[T]
+    ('case ␣> cc_id <␣ ("=>" | "→")) ␣ body ^^ Choice[T]
   
   // ugly hack
   // JavaScript's comma operator causes some trouble here, since the comma in A<a:1,b:2> is parsed as comma operator
@@ -65,17 +65,17 @@ trait Parser extends JavaScriptParser {
     (cc_id <␣ ":") ␣ assignExpr ^^ Choice[Expression]
       
   private def cc_selectExpr[T <: ASTNode](body: PackratParser[T]): PackratParser[T] =
-    "select" ␣> (cc_id ~ ("." ~> cc_id)) ␣ ("from".? ␣> body) ^^ {
+    'select ␣> (cc_id ~ ("." ~> cc_id)) ␣ ('from.? ␣> body) ^^ {
       case dim ~ tag ~ body => SelectExpr(dim, tag, body).asInstanceOf[T]
     }
       
   private def cc_shareExpr[T <: ASTNode](body: PackratParser[T]): PackratParser[T] =
-    ("share" ␣> cc_prefix ~> cc_id <␣ ":") ␣ (typeParser into { (spaces ~ "as") ␣>  _ <␣  "within" }) ␣ body ^^ {
+    ('share ␣> cc_prefix ~> cc_id <␣ ":") ␣ (typeParser into { (spaces ~ 'as) ␣>  _ <␣  'within }) ␣ body ^^ {
       case id ~ binding ~ body => ShareExpr(id, binding, body).asInstanceOf[T]
     }
     
   private def cc_includeExpr[T <: ASTNode](body: PackratParser[T]): PackratParser[T] =
-    "include" ␣> cc_string ^^ {
+    'include ␣> cc_string ^^ {
       case filename =>{
         println(body)
         IncludeExpr(filename, body).asInstanceOf[T]

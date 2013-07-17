@@ -38,6 +38,18 @@ class ChoiceCalculusParserTests extends FlatSpec {
       assertParseOk("A<a: 10, b: 15> + A<a: 10, b: 15>", expression, expected)
     }
     
+    it should "not parse identifiers as keywords" in {
+      
+      assertParseOk("selector.charAt(0)", expression, 
+          CallExpr(NameAccessExpr("selector", "charAt"), List(Literal("0"))))
+      
+      assertParseOk("dimension(a) +  4", expression, 
+          BinaryOpExpr(CallExpr("dimension",List(Literal("a"))),"+","4"))
+      
+      
+      
+    }
+    
     it should "parse choice calculus expressions without parenthesis" in {
       
       assertParseOk("3 + dim A(a) in (4 + 4)", expression, BinaryOpExpr("3","+",
@@ -65,6 +77,21 @@ class ChoiceCalculusParserTests extends FlatSpec {
           DimensionExpr('A,List('a), BlockStmt(List(
             FunctionDecl(Literal("Foo"),List(),BlockStmt(List(ReturnStmt(Some(Literal("3"))))))))))    
       
+    }
+    
+    it should "parse statements as select bodies" in {
+      
+      val toParse = """select A.a from {
+        dim A(a) { 3 + 4 }
+      }"""
+      
+      val expected = SelectExpr('A, 'a, BlockStmt(List(
+        DimensionExpr('A,List('a), BlockStmt(List(
+          BinaryOpExpr("3", "+", "4")))))))
+      
+       assertParseOk(toParse, statement, expected)
+       assertParseOk(toParse, topLevel, Program(List(expected)))
+       assertParseOk(toParse, parser, Program(List(expected)))
     }
     
     it should "parse sequence expressions with correct precedence" in {
