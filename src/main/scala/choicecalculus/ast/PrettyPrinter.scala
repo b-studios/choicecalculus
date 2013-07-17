@@ -33,7 +33,7 @@ trait ChoiceCalculusPP extends PrettyPrinter {
       cc_prefix <> text(id.name)
       
     case ShareExpr(x, binding, body) =>
-      "share" <+> text(x.name) <+> equal <+> toDoc(binding) <+> "within" <+> toDoc(body)
+      "share" <+> text(x.name) <+> "as" <+> toDoc(binding) <+> "within" <+> toDoc(body)
     
     case PartialConfig(body, configs) =>      
       configs.foldLeft(toDoc(body)) {
