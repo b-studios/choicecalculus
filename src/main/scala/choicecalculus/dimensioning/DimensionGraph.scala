@@ -3,7 +3,7 @@ package dimensioning
 
 import scala.collection.mutable
 import utility.Messaging.{message, error, warning}
-import ast.ASTNode
+import lang.ASTNode
 import GraphPrettyPrinter.pretty_graph
 
 abstract class GraphNode {

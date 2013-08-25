@@ -76,7 +76,7 @@ trait AttributableRewriter extends org.kiama.rewriting.CallbackRewriter {
   import org.kiama.attribution.Attributable
   import scala.xml._
   import org.kiama.rewriting.Strategy
-  import ast.ASTNode
+  import lang.ASTNode
   
 
   def rewriting[T] (oldTerm : T, newTerm : T) : T = { 

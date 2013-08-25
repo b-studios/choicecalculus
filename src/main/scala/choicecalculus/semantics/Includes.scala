@@ -1,12 +1,14 @@
 package choicecalculus
 package semantics
 
-import ast.{ ASTNode, Program, IncludeExpr }
+import lang.ASTNode
+import lang.choicecalculus.Include
+import lang.javascript.Program
 import dimensioning.DimensionGraph
 import utility.ParserUtils
 import scala.collection.mutable
 import org.kiama.util.{ Compiler, PositionedParserUtilities }
-import org.kiama.util.IO.{filereader, FileNotFoundException }
+import org.kiama.util.IO.{ filereader, FileNotFoundException }
 import java.io.File
 
 trait Includes {
@@ -57,8 +59,8 @@ trait Includes {
     }
   }
     
-  def fileDimensions(include: IncludeExpr[_ <: ASTNode,_]): DimensionGraph = include match {
-    case IncludeExpr(filename, p:Parser[ASTNode]) => {
+  def fileDimensions(include: Include[_ <: ASTNode,_]): DimensionGraph = include match {
+    case Include(filename, p:Parser[ASTNode]) => {
       processFileWithParser(filename, p)
       println(files.get(filename))
       files.get(filename) match {
@@ -68,8 +70,8 @@ trait Includes {
     }
   }
   
-  def fileContents(include: IncludeExpr[_ <: ASTNode,_]): ASTNode = include match {
-    case IncludeExpr(filename, p:Parser[ASTNode]) => {
+  def fileContents(include: Include[_ <: ASTNode,_]): ASTNode = include match {
+    case Include(filename, p:Parser[ASTNode]) => {
       processFileWithParser(filename, p)
       files.get(filename) match {
         case Some(SourceFile(_, ast, _)) => ast

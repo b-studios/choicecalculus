@@ -1,20 +1,21 @@
 package choicecalculus
 package interpreter
 
-import org.kiama.output.PrettyPrinter
-import org.kiama.util.{ParsingREPL, Emitter, Compiler, Console}
-import ast.{ ASTNode, ChoiceCalculusPP, JavaScriptPP }
-import parser.Parser
+import org.kiama.util.{ ParsingREPL, Emitter, Compiler, Console }
+import lang.ASTNode
+import lang.javascript.JavaScriptPP
+import lang.choicecalculus.ChoiceCalculusPP
+import lang.choicecalculus.ChoiceCalculusParser
 
 import semantics.Semantics
 
 import utility.Attribution
 import utility.Attribution.initTree
-import utility.Messaging.{messagecount, report}
-import utility.DebugRewriter.{rewrite, debugging}
+import utility.Messaging.{ messagecount, report }
+import utility.DebugRewriter.{ rewrite, debugging }
 
 object CommandLine extends Compiler[ASTNode] 
-    with Parser
+    with ChoiceCalculusParser
     with Semantics {  
   
   object prettyprinter extends JavaScriptPP with ChoiceCalculusPP

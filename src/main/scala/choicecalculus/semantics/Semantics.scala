@@ -1,7 +1,7 @@
 package choicecalculus
 package semantics
 
-import ast._
+import lang.ASTNode
 import org.kiama.util.{ Compiler }
 import org.kiama.rewriting.Strategy
 import utility.DebugRewriter._

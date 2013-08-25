@@ -1,7 +1,5 @@
-package choicecalculus
-package ast
-
-import org.kiama.output.ParenPrettyPrinter
+package choicecalculus.lang
+package javascript
 
 trait JavaScriptPP extends PrettyPrinter  {
   
@@ -29,8 +27,8 @@ trait JavaScriptPP extends PrettyPrinter  {
   
   override def toDoc(e: ASTNode): Doc = e match {
 
-    case Literal(contents) => 
-      text(contents) 
+    case AtomLit(contents) => 
+      text(contents)
     
     case Program(contents) => 
       stmtsep(contents)
@@ -157,5 +155,4 @@ trait JavaScriptPP extends PrettyPrinter  {
       "function" <> parens( ssep(args.map(toDoc), comma) ) <+> toDoc(body)
     
   }
-  
 }

@@ -1,5 +1,10 @@
-package choicecalculus
-package ast
+package choicecalculus.lang
+package javascript
+
+/**
+ * Host Language Expressions
+ */
+abstract class HostLanguageNode extends ASTNode
 
 case class Program(contents: List[Statement]) extends HostLanguageNode
 
@@ -33,7 +38,8 @@ case object EmptyStmt extends Statement
 
 trait Expression extends Statement
 
-case class Literal(text: String) extends Expression
+trait Literal extends Expression
+case class AtomLit(text: String) extends Literal
 
 case class BinaryOpExpr(lhs: Expression, op: String, rhs: Expression) extends Expression
 case class TernaryExpr(cond: Expression, trueBlock: Expression, falseBlock: Expression) extends Expression
@@ -44,10 +50,12 @@ case class CallExpr(body: Expression, args: List[Expression]) extends Expression
 case class MemberExpr(body: Expression, access: Expression) extends Expression
 case class NameAccessExpr(body: Expression, name: Literal) extends Expression
 case class ArrayExpr(contents: List[Expression]) extends Expression
+case class ObjectExpr(bindings: List[PropertyBinding]) extends Expression
+
 case class GroupExpr(content: Expression) extends Expression
 case class SequenceExpr(contents: List[Expression]) extends Expression
 
-case class ObjectExpr(bindings: List[PropertyBinding]) extends Expression
+
 
 abstract class Binding extends HostLanguageNode {
   def name: Literal
@@ -59,5 +67,5 @@ case class FunctionDecl(name: Literal, args: List[Literal], body: BlockStmt) ext
 case class FunctionExpr(args: List[Literal], body: BlockStmt) extends Expression
 
 object implicits {
-  implicit def string2Literal(str: String): Literal = Literal(str)
+  implicit def string2Literal(str: String): Literal = AtomLit(str)
 }

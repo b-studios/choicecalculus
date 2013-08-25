@@ -4,21 +4,21 @@ package tests
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers._
 import org.kiama.util.RegexParserTests
-import choicecalculus.parser.{ Parser }
-import choicecalculus.ast.implicits._
+import lang.choicecalculus.ChoiceCalculusParser
+import lang.javascript.implicits._
 
-class ChoiceCalculusParserTests extends FlatSpec {
+class ChoiceCalculusParserTests extends FlatSpec with utility.Helpers {
 
-  import choicecalculus.ast._
+  import lang.javascript.{ BlockStmt, CallExpr, FunctionDecl, GroupExpr, Program, NameAccessExpr, SequenceExpr, ReturnStmt }
   
-  object parser extends Parser with RegexParserTests {
+  object parser extends ChoiceCalculusParser with RegexParserTests {
     
     ignore("parse choice expressions with commas inside") {
       
-      val expected = ChoiceExpr('A, List( 
-          Choice[Expression]('a, "10"),
-          Choice[Expression]('b, "15")
-      ))
+      val expected = choices('A) ( 
+        'a -> lit("10"),
+        'b -> lit("15")
+      )
       
       assertParseOk("A<a: 10, b: 15>", expression, expected)
       assertParseOk("A<a: 10, b: 15>", statement, expected)
@@ -27,13 +27,13 @@ class ChoiceCalculusParserTests extends FlatSpec {
     
     ignore("parse choice expressions as operands") {
       
-      val expected = BinaryOpExpr(ChoiceExpr('A, List( 
-          Choice[Expression]('a, "10"),
-          Choice[Expression]('b, "15")
-      )),"+", ChoiceExpr('A, List( 
-          Choice[Expression]('a, "10"),
-          Choice[Expression]('b, "15")
-      )))
+      val expected = choices('A) (
+        'a -> lit("10"),
+        'b -> lit("15")
+      ) + choices('A) ( 
+        'a -> lit("10"),
+        'b -> lit("15")
+      )
       
       assertParseOk("A<a: 10, b: 15> + A<a: 10, b: 15>", expression, expected)
     }
@@ -41,41 +41,34 @@ class ChoiceCalculusParserTests extends FlatSpec {
     it should "not parse identifiers as keywords" in {
       
       assertParseOk("selector.charAt(0)", expression, 
-          CallExpr(NameAccessExpr("selector", "charAt"), List(Literal("0"))))
+          CallExpr(NameAccessExpr("selector", "charAt"), List(lit("0"))))
       
       assertParseOk("dimension(a) +  4", expression, 
-          BinaryOpExpr(CallExpr("dimension",List(Literal("a"))),"+","4"))
-      
-      
+          CallExpr("dimension",List(lit("a"))) + lit("4"))
       
     }
     
     it should "parse choice calculus expressions without parenthesis" in {
       
-      assertParseOk("3 + dim A(a) in (4 + 4)", expression, BinaryOpExpr("3","+",
-          DimensionExpr('A, 'a :: Nil, GroupExpr(BinaryOpExpr("4","+","4")))))      
+      assertParseOk("3 + dim A(a) in (4 + 4)", expression, 
+          lit("3") + dim('A)('a) { GroupExpr(lit("4") + lit("4")) })
       
-      val expected = BinaryOpExpr("3","+",
-        SelectExpr('A, 'a, 
-          DimensionExpr('A, 'a :: Nil,
-            ChoiceExpr('A, List(
-              Choice[Expression]('a, BinaryOpExpr("4","+","5")))))))
+      val expected = lit("3") + select('A, 'a, dim('A)('a) { choices('A) ('a -> (lit("4") + lit("5"))) })
       
       assertParseOk("3 + select A.a from dim A(a) in choice A {\n  case a → 4 + 5\n}", expression, expected)
           
     }
     
     it should "parse share expressions" in {
-      
-      assertParseOk("share #x:Expression as 4 within #x", expression, ShareExpr('x, Literal("4"), IdExpr('x)))
-      
+      assertParseOk("share #x:Expression as 4 within #x", expression, share('x, lit("4"), id('x)))
     }
     
     it should "parse statements as declaration bodies" in {
       
       assertParseOk("dim A(a) { function Foo() { return 3 } }", statement,
-          DimensionExpr('A,List('a), BlockStmt(List(
-            FunctionDecl(Literal("Foo"),List(),BlockStmt(List(ReturnStmt(Some(Literal("3"))))))))))    
+          dim('A)('a) { BlockStmt(List(
+            FunctionDecl(lit("Foo"),List(),BlockStmt(List(ReturnStmt(Some(lit("3"))))))))
+          })
       
     }
     
@@ -85,9 +78,10 @@ class ChoiceCalculusParserTests extends FlatSpec {
         dim A(a) { 3 + 4 }
       }"""
       
-      val expected = SelectExpr('A, 'a, BlockStmt(List(
-        DimensionExpr('A,List('a), BlockStmt(List(
-          BinaryOpExpr("3", "+", "4")))))))
+      val expected = select('A, 'a, BlockStmt(List(
+        dim('A)('a) { BlockStmt(List(
+          lit("3") + lit("4")))
+        })))
       
        assertParseOk(toParse, statement, expected)
        assertParseOk(toParse, topLevel, Program(List(expected)))
@@ -97,19 +91,20 @@ class ChoiceCalculusParserTests extends FlatSpec {
     it should "parse sequence expressions with correct precedence" in {
       
       assertParseOk("dim A(a) 4, dim B(b) 5", expression, 
-          DimensionExpr('A, List('a), SequenceExpr(List(Literal("4"), 
-            DimensionExpr('B, List('b), Literal("5"))))))
+        dim('A)('a) { SequenceExpr(List(lit("4"), 
+          dim('B)('b) { lit("5") })) 
+        })
      
       assertParseOk("(dim A(a) 4), dim B(b) 5", expression, 
           SequenceExpr(List(GroupExpr(
-            DimensionExpr('A, List('a), Literal("4"))), 
-              DimensionExpr('B, List('b), Literal("5")))))
+            dim('A)('a) { lit("4") }), 
+              dim('B)('b) { lit("5") })))
             
     }
     
     it should "ignore leading and trailing whitespacess when using strippedPhrase" in {
       
-      val expected = DimensionExpr('A, List('a), Literal("4"))
+      val expected = dim('A)('a) { lit("4") }
       
       assertParseOk("     dim A(a) 4", strippedPhrase(expression), expected)
       assertParseOk("dim A(a) 4     ", strippedPhrase(expression), expected)

@@ -2,7 +2,8 @@ package choicecalculus
 package dimensioning
 
 import org.kiama.util.Messaging.{message, report}
-import ast.{ ASTNode, DimensionExpr, SelectExpr, ChoiceExpr, IdExpr, Choice, ShareExpr, PartialConfig, IncludeExpr }
+import lang.ASTNode
+import lang.choicecalculus.{ Choice, Choices, Dimension, Include, PartialConfig, Select, Share, SharedId }
 import semantics.Includes
 import utility.AttributableRewriter.Term
 import utility.Attribution.{attr, paramAttr }
@@ -24,18 +25,18 @@ trait Dimensioning { self: Includes =>
      * A<> --a--> B<> --b--> C<>
      *    \--b--> D<>
      */
-    case DimensionExpr(name, tags, body) => (body->dimensioning).declareDimension(name, tags)(e)
+    case Dimension(name, tags, body) => (body->dimensioning).declareDimension(name, tags)(e)
     
     // only toplevel dimensions, which are not dependent can be selected
-    case SelectExpr(dim, tag, body) => (body->dimensioning).select(dim, tag)(e)    
+    case Select(dim, tag, body) => (body->dimensioning).select(dim, tag)(e)    
     
-    case ChoiceExpr(dim, choices) => choices.foldLeft(DimensionGraph.empty) {
+    case Choices(dim, choices) => choices.foldLeft(DimensionGraph.empty) {
       case (old, c@Choice(tag, body)) => old.merge((body->dimensioning).fromChoice(dim, tag)(e))(e) 
     }
     
     // gracefully fall back to empty dimension graph
-    case IdExpr(name) => e->bindingShare(name) match {
-      case Some(ShareExpr(_, boundExpr, _)) => boundExpr->dimensioning
+    case SharedId(name) => e->bindingShare(name) match {
+      case Some(Share(_, boundExpr, _)) => boundExpr->dimensioning
       case _ => {
         message(e, "ERROR: Use of unbound choice calculus variable '%s'".format(name.name))
         DimensionGraph.empty
@@ -46,9 +47,9 @@ trait Dimensioning { self: Includes =>
       case (old, (dim, tag)) => old.select(dim, tag)(e)
     })
     
-    case ShareExpr(name, boundExpr, body) => body->dimensioning
+    case Share(name, boundExpr, body) => body->dimensioning
     
-    case inc:IncludeExpr[_,_] => fileDimensions(inc) 
+    case inc:Include[_,_] => fileDimensions(inc) 
     
     case Term(p, children) => children.flatMap {
       case n:ASTNode => List(n->dimensioning)
@@ -73,24 +74,24 @@ trait Dimensioning { self: Includes =>
    * 
    * Here the second binding of v appears to be circular, which is wrong!
    */
-  val bindingShare: Symbol => ASTNode => Option[ShareExpr[_,_]] = paramAttr {
+  val bindingShare: Symbol => ASTNode => Option[Share[_,_]] = paramAttr {
     name => {
-      case s@ShareExpr(n, _, _) if n == name => Some(s)
+      case s@Share(n, _, _) if n == name => Some(s)
       case other if other.isRoot => None
       
       // If the parent is a share expression we have to check whether we are in the binding branch
       // then skip ahead to next parent
       case other => other.parent match {
-        case s@ShareExpr(_, e, _) if e == other && !s.isRoot => s.parent[ASTNode]->bindingShare(name)
+        case s@Share(_, e, _) if e == other && !s.isRoot => s.parent[ASTNode]->bindingShare(name)
         case otherParent:ASTNode => otherParent->bindingShare(name)
         case _ => None
       }
     }
   }
   
-  val bindingDimension: Symbol => ASTNode => DimensionExpr[_] = paramAttr {
+  val bindingDimension: Symbol => ASTNode => Dimension[_] = paramAttr {
     name => {
-      case d@DimensionExpr(n, _ ,_) if n == name => d
+      case d@Dimension(n, _ ,_) if n == name => d
       case other if other.isRoot => sys error "Cannot find a binding for %s".format(name)
       case other => other.parent[ASTNode]->bindingDimension(name)
     }
