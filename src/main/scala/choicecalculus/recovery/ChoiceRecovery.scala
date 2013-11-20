@@ -1,12 +1,21 @@
 package choicecalculus
 package recovery
 
-private[recovery] trait ChoiceRecovery[T] { self: Dimensions with PathLabels with Choices[T] =>
+import lang.ASTNode
+import lang.choicecalculus.{ Choices, Choice }
+
+private[recovery] trait ChoiceRecovery { self: Dimensions with PathLabels =>
   
-  // has to be invoked once per variable    
-  def toCC(labels: Map[T, Label]): Option[CCExpr] = labels.size match {
+  type Labeled[T] = Map[T, Label]
+
+  /**
+   * Returns a choice calculus expression, that represents all
+   * labeled ASTNodes provided as input.
+   *
+   */  
+  def toCC(labels: Labeled[ASTNode]): Option[ASTNode] = labels.size match {
     case 0 => sys error ""
-    case 1 => Some(Literal(labels.head._1))
+    case 1 => Some(labels.head._1)
     case _ => 
 
     val cheapestDim = (for {
@@ -18,11 +27,11 @@ private[recovery] trait ChoiceRecovery[T] { self: Dimensions with PathLabels wit
     
     for {
       (dim, _, ls) <- cheapestDim
-    } yield CCChoice(dim, splitNodes(ls, dim))
+    } yield Choices[ASTNode](dim, splitNodes(ls, dim))
   }
   
   // split nodes into cases according to the labels
-  def splitNodes(labels: Map[T, Label], dim: Symbol): List[CCCase] =
+  def splitNodes(labels: Labeled[ASTNode], dim: Symbol): List[Choice[ASTNode]] =
     (for {
       tag <- dimensions(dim)
       ls = for {
@@ -32,21 +41,21 @@ private[recovery] trait ChoiceRecovery[T] { self: Dimensions with PathLabels wit
       } yield (value, labelsWithout)
       
       ccexpr <- toCC(ls)
-    } yield CCCase(tag, ccexpr)).toList
+    } yield Choice(tag, ccexpr)).toList
   
    
   // All tags must be present (Only call with expanded labels)
-  def canChoose(dim: Symbol, labels: Map[T, Label]): Boolean = 
+  def canChoose(dim: Symbol, labels: Labeled[ASTNode]): Boolean = 
     dimensions(dim).forall { tag => 
       labels.exists { 
         case (_, l) => l.contains((dim, tag)) 
       }      
     }
     
-  def expansion(dim: Symbol, labels: Map[T, Label]) = labels.map {
+  def expansion(dim: Symbol, labels: Labeled[ASTNode]) = labels.map {
     case (value, label) => (value, label.expand(dim)) 
   }
   
-  def size(labels: Map[T, Label]): Int = 
+  def size(labels: Labeled[ASTNode]): Int = 
     labels.map{ case (_, l) => l.size }.reduce(_+_)
 }

@@ -2,22 +2,24 @@ package choicecalculus
 package recovery
 
 import utility.setops._
-import utility.{ Node, Table }
+import utility.Node
 
-trait CCRecovery[T] extends PathRecovery with ChoiceRecovery[T] with Dimensions with PathLabels with Choices[T] {
+import lang.ASTNode
+import lang.choicecalculus.{ Choices, Choice }
+
+trait CCRecovery extends PathRecovery with ChoiceRecovery with Dimensions with PathLabels {
   
-  object problemGraph extends ProblemGraphBuilder[T]
+  object problemGraph extends ProblemGraphBuilder[ASTNode]
   
   import problemGraph.NamedInstance
   
-  
-  def tableToGraph(table: Table[Symbol, T]): ProblemGraph = 
+  def tableToGraph(table: CloneInstanceTable): ProblemGraph = 
     problemGraph.createFromTable(table)
   
   def graphToLabeledGraph(graph: ProblemGraph): (ProblemGraph, Map[Node, Label]) = 
     (graph, recover(graph))
     
-  def labelsToChoices(graph: ProblemGraph, labels: Map[Node, Label]): Map[Symbol, CCExpr] = 
+  def labelsToChoices(graph: ProblemGraph, labels: Map[Node, Label]): Map[Symbol, ASTNode] = 
     for {
       (variable, nodes) <- graph.variables
       labelsWithValues  = labels.filter { case (n, _) => nodes contains n }
@@ -25,26 +27,26 @@ trait CCRecovery[T] extends PathRecovery with ChoiceRecovery[T] with Dimensions 
       ccexpr <- toCC(labelsWithValues)
     } yield (variable, ccexpr)  
   
-  def process(table: Table[Symbol, T]): Map[Symbol, CCExpr] = 
+  def process(table: CloneInstanceTable): Map[Symbol, ASTNode] = 
     graphToLabeledGraph(tableToGraph(table)) match {
       case (graph, labels) => labelsToChoices(graph, labels)
     }
     
   
-  def tableToTable(table: Table[Symbol, T]): Table[Symbol, T] =
+  def tableToTable(table: CloneInstanceTable): CloneInstanceTable =
     tableFromChoices(process(table))
   
   // TODO last step before results can be checked automatically
   // REWRITE to use selection implementation, then generate all possible
   //  selections and create table after reduction
-  def tableFromChoices(choices: Map[Symbol, CCExpr]): Table[Symbol, T] = {
+  def tableFromChoices(choices: Map[Symbol, ASTNode]): CloneInstanceTable = {
         
     val dims = choices.values.flatMap(collectDims).toMap
     
     // make sure that keys always occur in same order
     val keys = choices.keySet.toList
     
-    val table = new Table[Symbol, T](keys:_*)
+    val table = new CloneInstanceTable(keys:_*)
     
     val selections: Set[Set[(Symbol, Symbol)]] = (for {
       (dim, tags) <- dims
@@ -61,12 +63,12 @@ trait CCRecovery[T] extends PathRecovery with ChoiceRecovery[T] with Dimensions 
   }
   
   // this is a primitive implementation of choice selection
-  private def select(selection: Map[Symbol, Symbol], expr: CCExpr): T = expr match {
-    case CCChoice(dim, cases) => 
+  private def select(selection: Map[Symbol, Symbol], expr: ASTNode): ASTNode = expr match {
+    case Choices(dim, cases) => 
       cases.collectFirst { 
-        case CCCase(tag, v) if tag == selection(dim) => select(selection, v) 
+        case Choice(tag, v) if tag == selection(dim) => select(selection, v) 
       }.head
-    case Literal(v) => v
+    case other => other
   }
   
   def crossSets[T](first: Set[Set[T]], second: Set[Set[T]]): Set[Set[T]] =
@@ -75,10 +77,10 @@ trait CCRecovery[T] extends PathRecovery with ChoiceRecovery[T] with Dimensions 
       el2 <- second
     } yield el1 ++ el2
   
-  private def collectDims(expr: CCExpr): Map[Symbol, List[Symbol]] = expr match {
-    case CCChoice(dim, cases) => 
-      Map(dim -> cases.map(_.tag)) ++ cases.flatMap( c => collectDims(c.value) )
-    case Literal(_) => Map()
+  private def collectDims(expr: ASTNode): Map[Symbol, List[Symbol]] = expr match {
+    case Choices(dim, cases) => 
+      Map(dim -> cases.map(_.tag)) ++ cases.flatMap( c => collectDims(c.body) )
+    case other => Map()
   } 
     
     

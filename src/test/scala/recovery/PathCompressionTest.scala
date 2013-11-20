@@ -4,11 +4,9 @@ package recovery
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers._
 
-import recovery.CCRecovery
-
 class PathCompressionTest extends FlatSpec {
   
-  object recover extends CCRecovery[Nothing] {
+  object recover extends CCRecovery {
     dimensions = Map(('A, 'a :: 'b :: Nil), ('B, 'a :: 'b :: 'c :: Nil))
     
     it should "remove fully expanded dimensions" in {

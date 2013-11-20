@@ -3,9 +3,14 @@ package recovery
 
 private[recovery] trait PathLabels { self: Dimensions =>
 
-	type Choice = (Symbol, Symbol)
+  /**
+   * Using a local representation for choices on paths just consisting of
+   * the dimension and tag. For instance `('A, 'b)` represents the choice
+   * of tag `b` on dimension `A`.
+   */
+	private[this] type Choice = (Symbol, Symbol)
 
-  val dummyChoice = (Symbol(""), Symbol(""))
+  private val dummyChoice = (Symbol(""), Symbol(""))
 
 	// type Path = List[Choice]
 	

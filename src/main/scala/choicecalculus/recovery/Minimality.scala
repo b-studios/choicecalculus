@@ -1,36 +1,16 @@
 package choicecalculus
 package recovery
 
-import utility.Table
+import lang.ASTNode
+import lang.choicecalculus.{ Choices, Choice }
 
-private[recovery] trait Minimality[T] { self: Choices[T] with CCRecovery[T] =>
+private[recovery] trait Minimality { self: CCRecovery =>
   
-  type Solution = Map[Symbol, CCExpr]
-  
-  private def numberOfLeafs(sol: Solution): Int = 
-    sol.map { case (_, c) => numberOfLeafs(c) }.sum
-    
-  private def numberOfLeafs(sol: CCExpr): Int = sol match {
-    case CCChoice(dim, cases) => cases.map { 
-      case CCCase(_, c) => numberOfLeafs(c)
-    }.sum
-    
-    case _:Literal => 1
-  } 
-  
-  private def numberOfDims(sol: Solution): Int = 
-    sol.flatMap { 
-      case (_, c) => collectDims(c) 
-    }.toSet.size
-    
-  private def collectDims(sol: CCExpr): Set[Symbol] = sol match {
-    case CCChoice(dim, cases) => Set(dim) ++ cases.flatMap { 
-      case CCCase(_, c) => collectDims(c)
-    }.toSet
-    
-    case _ => Set.empty
-  }
- 
+  type Solution = Map[
+    Symbol, // Variable name
+    ASTNode // Choice calculus expression
+  ]
+
   implicit object SolutionOrdering extends Ordering[Solution] {
     def compare(a: Solution, b: Solution) = 
       (numberOfLeafs(a) compare numberOfLeafs(b)) match {
@@ -39,18 +19,46 @@ private[recovery] trait Minimality[T] { self: Choices[T] with CCRecovery[T] =>
       }
   }
   
-  def isSolution(sol: Solution)(implicit table: Table[Symbol, T]): Boolean =
+  def isSolution(sol: Solution)(implicit table: CloneInstanceTable): Boolean =
     tableFromChoices(sol) == table
   
-  def minimalSolution(implicit table: Table[Symbol, T]): Solution = {
+  def minimalSolution(implicit table: CloneInstanceTable): Solution = {
     generateAllSolutions.filter(isSolution).sorted.head
   }
+
   
-  trait ChoiceShape
-  case class ChoiceNode(dim: Symbol, choices: Map[Symbol, ChoiceShape]) extends ChoiceShape {
+  private def numberOfLeafs(sol: Solution): Int = 
+    sol.map { case (_, c) => numberOfLeafs(c) }.sum
+    
+  private def numberOfLeafs(sol: ASTNode): Int = sol match {
+    case Choices(dim, cases) => cases.map { 
+      case Choice(_, c) => numberOfLeafs(c)
+    }.sum
+    
+    case _ => 1
+  } 
+  
+  private def numberOfDims(sol: Solution): Int = 
+    sol.flatMap { 
+      case (_, c) => collectDims(c) 
+    }.toSet.size
+    
+  private def collectDims(sol: ASTNode): Set[Symbol] = sol match {
+    case Choices(dim, cases) => Set(dim) ++ cases.flatMap { 
+      case Choice(_, c) => collectDims(c)
+    }.toSet
+    
+    case _ => Set.empty
+  }
+  
+  /**
+   * Local representation of choice shapes. A shape can either be a node or a hole
+   */
+  private[this] trait ChoiceShape
+  private[this] case class ChoiceNode(dim: Symbol, choices: Map[Symbol, ChoiceShape]) extends ChoiceShape {
     override def toString: String = s"$dim<$choices>"
   }
-  case object Hole extends ChoiceShape {
+  private[this] case object Hole extends ChoiceShape {
     override def toString: String = "☐"
   }
   
@@ -58,14 +66,14 @@ private[recovery] trait Minimality[T] { self: Choices[T] with CCRecovery[T] =>
   // example: 
   //     scala> combinatoricMapping(List(1,2,3), List('a,'b))
   //     res0: Set[Map[Symbol,Int]] = Set(Map('a -> 1, 'b -> 2), Map('a -> 1, 'b -> 3), Map('a -> 2, 'b -> 3))
-  def combinatoricMappingNoDup[S,K](src: Iterable[S], keys: Iterable[K]): Set[Map[K,S]] =
+  private[this] def combinatoricMappingNoDup[S,K](src: Iterable[S], keys: Iterable[K]): Set[Map[K,S]] =
     src.toList.combinations(keys.size).map(c => (keys zip c).toMap).toSet
 
   // This implementation also allows for duplicates
   // example:
   //      scala> combinatoricMapping(List(1,2), List('a, 'b))
   //      res0: Set[Map[Symbol,Int]] = Set(Map('a -> 1, 'b -> 1), Map('a -> 2, 'b -> 1), Map('a -> 1, 'b -> 2), Map('a -> 2, 'b -> 2))
-  def combinatoricMapping[S,K](src: Iterable[S], keys: Iterable[K]): Set[Map[K,S]] =
+  private[this] def combinatoricMapping[S,K](src: Iterable[S], keys: Iterable[K]): Set[Map[K,S]] =
     keys.foldLeft(Set(Map.empty[K,S])) { case (acc, key) =>
       src.map(el => acc.map(_ + (key -> el))).reduce(_++_)
     }
@@ -77,7 +85,7 @@ private[recovery] trait Minimality[T] { self: Choices[T] with CCRecovery[T] =>
   //     object m extends Minimality[Int] with Choices[Int] with CCRecovery[Int]
   //     import m._
   //     allChoiceShapes(('A,Set('a,'b)) :: ('B, Set('a,'b,'c)) :: Nil)
-  def allChoiceShapes(dims: Seq[(Symbol, Set[Symbol])]): Set[ChoiceShape] = dims match {
+  private[this] def allChoiceShapes(dims: Seq[(Symbol, Set[Symbol])]): Set[ChoiceShape] = dims match {
     case Nil => Set(Hole)
     case (dim, tags) :: rest => {
       val shapes = allChoiceShapes(rest).view;
@@ -131,11 +139,11 @@ private[recovery] trait Minimality[T] { self: Choices[T] with CCRecovery[T] =>
   // 3. doubling x.1 and y.2
   // 4. doubling x.2 and y.1
   // ...
-  def generateAllSolutions(implicit table: Table[Symbol, T]): Seq[Solution] = 
+  def generateAllSolutions(implicit table: CloneInstanceTable): Seq[Solution] = 
     ???
   
   // if given solution is not minimal a counter example is provided
-  def isMinimal(sol: Solution)(implicit table: Table[Symbol, T]): Option[Solution] =
+  def isMinimal(sol: Solution)(implicit table: CloneInstanceTable): Option[Solution] =
     minimalSolution match {
       case min if SolutionOrdering.lteq(sol, min) => None
       case min => Some(min)
