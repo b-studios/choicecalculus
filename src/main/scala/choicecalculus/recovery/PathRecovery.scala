@@ -3,7 +3,9 @@ package recovery
 
 import utility.{ ColoringBruteforceSolver, Node }
 
-private[recovery] trait PathRecovery { self: Dimensions with PathLabels =>
+import labeling.{ Path, Label }
+
+private[recovery] trait PathRecovery { self: Dimensions =>
   
   // Optimization step: split into connected components (this reduces the amount
   // of instantiations per variable)
@@ -62,11 +64,28 @@ private[recovery] trait PathRecovery { self: Dimensions with PathLabels =>
     }
     
     for (label <- labels.values)  {
-      label.allVariantsStripping
+      allVariantsStripping(label)
     }
     //println("\nafter cleanup")
     //println(labels.map { case (n, l) => n.name.name + ": " + l }.mkString("\n"))
     
     labels
+  }
+
+   /**
+   * All variants stripping ({ αA1β, ..., αAkβ } -> {αβ} if A<1,...,k> is defined)
+   * Complexity: |dims| * |paths|
+   */
+  private[recovery] def allVariantsStripping(label: Label): Unit = 
+    for ((dim, tags) <- dimensions) {
+    
+      label.paths.map { _.replaceByDummy(dim) }
+        .groupBy { case (tag, restPath) => restPath }
+        .mapValues { _.collect { case (Some(tag), path) => tag }.toSet }
+        .collect {
+          case (path, tags) if (dimensions(dim).toSet == tags) =>            
+            label.paths = label.paths -- path.replaceDummyByChoices(dim, tags)
+            label.paths = label.paths + path.removeDummy
+      }
   }
 }

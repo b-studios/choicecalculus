@@ -3,8 +3,9 @@ package recovery
 
 import lang.ASTNode
 import lang.choicecalculus.{ Choices, Choice }
+import labeling.{ Path, Label }
 
-private[recovery] trait ChoiceRecovery { self: Dimensions with PathLabels =>
+private[recovery] trait ChoiceRecovery { self: Dimensions =>
   
   type Labeled[T] = Map[T, Label]
 
@@ -52,10 +53,17 @@ private[recovery] trait ChoiceRecovery { self: Dimensions with PathLabels =>
       }      
     }
     
+  def expand(label: Label, dim: Symbol): Label = Label(label.paths.flatMap {
+    case p if p.containsChoiceFor(dim) => Set(p)
+    // expansion
+    case p => dimensions(dim).map { tag => p:+((dim, tag)) }
+  })
+
   def expansion(dim: Symbol, labels: Labeled[ASTNode]) = labels.map {
-    case (value, label) => (value, label.expand(dim)) 
+    case (value, label) => (value, expand(label, dim)) 
   }
   
   def size(labels: Labeled[ASTNode]): Int = 
     labels.map{ case (_, l) => l.size }.reduce(_+_)
+
 }

@@ -6,8 +6,9 @@ import utility.Node
 
 import lang.ASTNode
 import lang.choicecalculus.{ Choices, Choice }
+import labeling.{ Path, Label }
 
-trait CCRecovery extends PathRecovery with ChoiceRecovery with Dimensions with PathLabels {
+trait CCRecovery extends PathRecovery with ChoiceRecovery with Dimensions {
   
   object problemGraph extends ProblemGraphBuilder[ASTNode]
   

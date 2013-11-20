@@ -4,6 +4,8 @@ package recovery
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers._
 
+import labeling.{ Path, Label }
+
 class PathCompressionTest extends FlatSpec {
   
   object recover extends CCRecovery {
@@ -14,7 +16,7 @@ class PathCompressionTest extends FlatSpec {
         Path(('A,'a) :: ('B,'a) :: Nil),
         Path(('A,'b) :: ('B,'a) :: Nil)  
       ))
-      label.allVariantsStripping
+      allVariantsStripping(label)
       label should equal (Label(Set(Path(('B,'a) :: Nil))))
     }
     
@@ -23,7 +25,7 @@ class PathCompressionTest extends FlatSpec {
         Path(('A,'a) :: ('B,'a) :: Nil),
         Path(('A,'a) :: ('B,'b) :: Nil)  
       ))
-      label.allVariantsStripping
+      allVariantsStripping(label)
       label should equal (Label(Set(
         Path(('A,'a) :: ('B,'a) :: Nil),
         Path(('A,'a) :: ('B,'b) :: Nil)  
@@ -36,7 +38,7 @@ class PathCompressionTest extends FlatSpec {
         Path(('A,'a) :: ('B,'b) :: Nil),
         Path(('A,'a) :: ('B,'c) :: Nil)
       ))
-      label.allVariantsStripping
+      allVariantsStripping(label)
       label should equal (Label(Set(Path(('A,'a) :: Nil))))
     }
     
@@ -49,7 +51,7 @@ class PathCompressionTest extends FlatSpec {
         Path(('A,'b) :: ('B,'b) :: Nil),
         Path(('A,'b) :: ('B,'c) :: Nil)
       ))
-      label.allVariantsStripping
+      allVariantsStripping(label)
       label should equal (Label(Set(Path(Nil))))
     }
   }
