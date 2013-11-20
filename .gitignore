@@ -25,6 +25,8 @@
 /.cache
 /.idea
 /.settings
+.worksheet
+*.sc
 
 # bak files produced by ./cleanup-commit
 *.bak
