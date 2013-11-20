@@ -36,6 +36,7 @@
 .sublime
 /*.sublime
 /*.sublime-workspace
+.ensime*
 
 # sublime sbt plugins
 /project/plugins.sbt
