@@ -36,3 +36,6 @@
 .sublime
 /*.sublime
 /*.sublime-workspace
+
+# sublime sbt plugins
+/project/plugins.sbt
