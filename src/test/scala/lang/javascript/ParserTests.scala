@@ -1,12 +1,13 @@
 package choicecalculus
-package tests
+package lang.javascript
 
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers._
 import org.kiama.util.RegexParserTests
-import lang.javascript.JavaScriptParser
 
-class JavaScriptParserTests extends FlatSpec with utility.Helpers {
+import utility.test
+
+class ParserTests extends FlatSpec with test.Helpers {
   
   object parser extends JavaScriptParser with RegexParserTests {
     
@@ -19,6 +20,5 @@ class JavaScriptParserTests extends FlatSpec with utility.Helpers {
     
   }
   
-  parser  
-   
+  parser
 }

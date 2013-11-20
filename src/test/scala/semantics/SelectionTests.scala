@@ -1,22 +1,23 @@
 package choicecalculus
-package tests
+package semantics
 
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers._
 import org.kiama.util.Tests
 
-import semantics.Semantics
 import org.kiama.util.{ Compiler }
 import lang.choicecalculus.ChoiceCalculusParser
 import lang.ASTNode
 import dimensioning.DimensionGraph
 import org.kiama.attribution.Attribution.initTree
 
+import utility.test
+
 class SelectionTests extends FlatSpec {
   
   import lang.javascript.{ Expression, Program, VarDeclStmt, Statement, VarBinding, ReturnStmt }
   
-  object interpreter extends Semantics with Compiler[ASTNode] with ChoiceCalculusParser with utility.Helpers {
+  object interpreter extends Semantics with Compiler[ASTNode] with ChoiceCalculusParser with test.Helpers {
     
     def substitutionTest(input: ASTNode)(expected: ASTNode) = {
       performSubstitution(input) should equal (expected)
@@ -43,7 +44,7 @@ class SelectionTests extends FlatSpec {
       selectionTest(test_selection) { Program(lit("1") :: Nil) } 
       
       dimensioning(test_dim) should equal (graph_dim)
-      dimensioning(test_selection) should equal (DimensionGraph.empty)      
+      dimensioning(test_selection) should equal (DimensionGraph.empty)
     }
     
     it should "not change plain hostlanguage programs" in {

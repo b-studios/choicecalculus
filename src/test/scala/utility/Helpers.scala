@@ -1,6 +1,5 @@
 package choicecalculus
-package tests
-package utility
+package utility.test
 
 import lang.ASTNode
 import lang.choicecalculus.{ Choice, Choices, Dimension, Include, PartialConfig, Select, Share, SharedId }

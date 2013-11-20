@@ -1,13 +1,14 @@
 package choicecalculus
-package tests
+package lang.choicecalculus
 
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers._
 import org.kiama.util.RegexParserTests
-import lang.choicecalculus.ChoiceCalculusParser
+import utility.test
+
 import lang.javascript.implicits._
 
-class ChoiceCalculusParserTests extends FlatSpec with utility.Helpers {
+class ParserTests extends FlatSpec with test.Helpers {
 
   import lang.javascript.{ BlockStmt, CallExpr, FunctionDecl, GroupExpr, Program, NameAccessExpr, SequenceExpr, ReturnStmt }
   
@@ -99,7 +100,6 @@ class ChoiceCalculusParserTests extends FlatSpec with utility.Helpers {
           SequenceExpr(List(GroupExpr(
             dim('A)('a) { lit("4") }), 
               dim('B)('b) { lit("5") })))
-            
     }
     
     it should "ignore leading and trailing whitespacess when using strippedPhrase" in {
@@ -113,5 +113,5 @@ class ChoiceCalculusParserTests extends FlatSpec with utility.Helpers {
     
   }
   
-  parser  
+  parser
 }
