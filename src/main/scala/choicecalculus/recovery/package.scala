@@ -5,6 +5,8 @@ import lang.ASTNode
 
 package object recovery {
 
+  private[recovery] type Dimension = (Symbol, Set[Symbol])
+
   private[recovery] type CloneInstanceTable = Table[
     Symbol,  // variable name
     ASTNode  // value / instance

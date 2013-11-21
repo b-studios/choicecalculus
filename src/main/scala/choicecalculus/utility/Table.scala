@@ -51,9 +51,13 @@ class Table[S, T](val headers: S*) {
   }
   
   // equal meta data, such as header size and names
-  def equalColumnMeta(that: Table[S,T]): Boolean = 
+  private def equalColumnMeta(that: Table[S,T]): Boolean = 
     this.headers.size == that.headers.size &&
     this.headers.toSet == that.headers.toSet
+
+  // equal meta data, such as header size and names
+  private def equalRowMeta(that: Table[S,T]): Boolean = 
+    this.rows.size == that.rows.size
   
   def subsetOf(that: Table[S,T]): Boolean = this.equalColumnMeta(that) && 
     (normalizedRows(this.toMap, that.toMap) match {
@@ -62,7 +66,9 @@ class Table[S, T](val headers: S*) {
   
   override def equals(other: Any) = other match {
   
-    case other: Table[S, T] if other.canEqual(this) && this.equalColumnMeta(other) => 
+    case other: Table[S, T] if other.canEqual(this) && 
+                               this.equalColumnMeta(other) && 
+                               this.equalRowMeta(other) => 
       normalizedRows(this.toMap, other.toMap) match {
         case (l, r) => l == r
       }    

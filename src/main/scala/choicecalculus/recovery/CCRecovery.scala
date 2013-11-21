@@ -43,12 +43,15 @@ trait CCRecovery extends PathRecovery with ChoiceRecovery with Dimensions {
   def tableFromChoices(choices: Map[Symbol, ASTNode]): CloneInstanceTable = {
         
     val dims = choices.values.flatMap(collectDims).toMap
-    
+
     // make sure that keys always occur in same order
     val keys = choices.keySet.toList
     
     val table = new CloneInstanceTable(keys:_*)
     
+    if (dims.isEmpty)
+      return table
+
     val selections: Set[Set[(Symbol, Symbol)]] = (for {
       (dim, tags) <- dims
     } yield tags.map( t => (dim, t) ).toSet).toSet

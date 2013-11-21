@@ -3,6 +3,7 @@ package recovery
 
 import lang.ASTNode
 import lang.choicecalculus.{ Choices, Choice }
+import scala.collection.SeqView
 
 private[recovery] trait Minimality { self: CCRecovery =>
   
@@ -26,6 +27,13 @@ private[recovery] trait Minimality { self: CCRecovery =>
     generateAllSolutions.filter(isSolution).sorted.head
   }
 
+
+  private def tagLimit(table: CloneInstanceTable): Int = 
+    table.rows.size
+
+  // TODO check if this is true
+  private def dimLimit(table: CloneInstanceTable): Int = 
+    Math.ceil(Math.log(table.rows.size * table.columns.size) / Math.log(2)).toInt
   
   private def numberOfLeafs(sol: Solution): Int = 
     sol.map { case (_, c) => numberOfLeafs(c) }.sum
@@ -78,22 +86,61 @@ private[recovery] trait Minimality { self: CCRecovery =>
       src.map(el => acc.map(_ + (key -> el))).reduce(_++_)
     }
   
-  // TODO can dimensions occur multiple times????
-  // in a minimal solution, no!
-  //
-  // to play around with it:
-  //     object m extends Minimality[Int] with Choices[Int] with CCRecovery[Int]
-  //     import m._
+  // Usage:
   //     allChoiceShapes(('A,Set('a,'b)) :: ('B, Set('a,'b,'c)) :: Nil)
+
+  // TODO check whether allChoiceshapes also include just the empty leaf
   private[this] def allChoiceShapes(dims: Seq[(Symbol, Set[Symbol])]): Set[ChoiceShape] = dims match {
     case Nil => Set(Hole)
     case (dim, tags) :: rest => {
       val shapes = allChoiceShapes(rest).view;
-      for (mapping <- combinatoricMapping(shapes, tags))
-        yield ChoiceNode(dim, mapping)  
+
+      Set(Hole) ++ // empty
+      shapes    ++ // without dim
+      (for (mapping <- combinatoricMapping(shapes, tags)) // with dim
+        yield ChoiceNode(dim, mapping))
     }
   }
-  
+
+  private[this] def allAssignments(shapes: Set[ChoiceShape], values: List[ASTNode]): Set[ASTNode]
+    = shapes.flatMap(allAssignments(_, values))
+
+  private[this] def allAssignments(shape: ChoiceShape, values: List[ASTNode]): Set[ASTNode] =
+    shape match {
+
+      case Hole => values.toSet
+
+      case ChoiceNode(dim, choices) =>
+        // recursively apply to subshapes
+        choices.map { case (tag, c) => 
+          (tag, allAssignments(c, values)) 
+
+        // combine to set of maps
+        }.foldLeft(Set(Map.empty[Symbol, ASTNode])) { case (acc, (tag, partialSol)) =>
+          partialSol.flatMap(s => acc.map(_ + (tag -> s)))
+        }.map { case m =>
+          Choices(dim, m.toList.map { case (tag, v) => Choice(tag, v) })
+        }
+    }
+
+  // maybe remove, or call allTrees
+  def allSolutionCandidates(dims: Seq[(Symbol, Set[Symbol])], values: List[ASTNode]): Set[ASTNode] =
+    allAssignments(allChoiceShapes(dims), values)
+
+  // TODO turn into View
+  def allDimensions(maxDims: Int, maxTags: Int): Seq[Seq[Dimension]] = 
+    (1 to maxDims).flatMap { dimCount =>
+      val dimNames = (1 to dimCount).map { number => Symbol(s"d_$number") }
+      combinatoricMapping(allTags(maxTags), dimNames).map(_.toList)
+    }
+
+  // if limit is 4 then
+  // [{t_1,t_2}, {t_1,t_2,t_3}, {t_1,t_2,t_3,t_4}]
+  def allTags(maxTags: Int): Seq[Set[Symbol]] =
+    for {
+      i <- (2 to maxTags)
+    } yield (1 to i).map( n => Symbol(s"t_$n")).toSet
+
   // Example 2 variables 2 values
   // Table
   //   x  y
@@ -139,14 +186,18 @@ private[recovery] trait Minimality { self: CCRecovery =>
   // 3. doubling x.1 and y.2
   // 4. doubling x.2 and y.1
   // ...
-  def generateAllSolutions(implicit table: CloneInstanceTable): Seq[Solution] = 
-    ???
-  
-  // if given solution is not minimal a counter example is provided
-  def isMinimal(sol: Solution)(implicit table: CloneInstanceTable): Option[Solution] =
-    minimalSolution match {
-      case min if SolutionOrdering.lteq(sol, min) => None
-      case min => Some(min)
-    }
-  
+  def generateAllSolutions(implicit table: CloneInstanceTable): Seq[Solution] = { 
+    val dims = allDimensions(dimLimit(table), tagLimit(table))
+    (for {
+      (col, name) <- table.columns.zip(table.headers)
+      values = col.distinct
+      candidate <- dims.map(dims => allSolutionCandidates(dims, values))
+
+    // reduce as cross product
+    } yield (name, candidate)).foldLeft(Set(Map.empty[Symbol, ASTNode])) {
+      case (acc, (name, sols)) =>
+        // TODO extract this pattern!
+        sols.map(sol => acc.map(_ + (name -> sol))).reduce(_++_)
+    }.toSeq
+  }
 }
