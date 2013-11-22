@@ -64,6 +64,8 @@ class Table[S, T](val headers: S*) {
       case (l, r) => l.subsetOf(r)
     })
   
+  def isEmpty: Boolean = this.rows.size > 0
+
   override def equals(other: Any) = other match {
   
     case other: Table[S, T] if other.canEqual(this) && 

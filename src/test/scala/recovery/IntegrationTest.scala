@@ -13,8 +13,14 @@ class IntegrationTest extends FlatSpec {
   
     object recovery extends CCRecovery {
       val result = process(table)
-      tableFromChoices(result) should equal (table)
+
+      if (!table.isEmpty) {
+        withClue(s"result for $table is empty") { result should not be ('empty) }
+      }
+
+      withClue(s"wrong result: $result") { tableFromChoices(result) should equal (table) }
     }
+    recovery
     
   }
 
@@ -48,7 +54,7 @@ class IntegrationTest extends FlatSpec {
       | (1) | (4) | (1) |;
       | (2) | (4) | (2) |;
       | (2) | (5) | (2) |;
-    })    
+    })
   }
   
   it should "generate variational equivalent expressions for all binary dimensions" in {
@@ -60,7 +66,7 @@ class IntegrationTest extends FlatSpec {
       a <- 1 to 2
     } yield x :: y :: z :: a :: Nil)
     
-    rows.subsets.foreach { rows => 
+    rows.subsets.filter(!_.isEmpty).foreach { rows => 
       val table = new CloneInstanceTable('x, 'y, 'z, 'a)
       performTableTest(table.addRows(rows.toList))
     }
@@ -74,9 +80,29 @@ class IntegrationTest extends FlatSpec {
       z <- 1 to 5
     } yield x :: y :: z :: Nil)
     
-    rows.subsets.foreach { rows => 
+    rows.subsets.filter(!_.isEmpty).foreach { rows => 
       val table = new CloneInstanceTable('x, 'y, 'z)
       performTableTest(table.addRows(rows.toList))
     }
+  }
+
+  it should "generate minimal solution on cai's counter example" in {
+
+    val counterExample = new CloneInstanceTable('w, 'x, 'y, 'z) {
+      | (1) | (1) | (1) | (1) |;
+      | (2) | (1) | (1) | (1) |;
+      | (2) | (2) | (2) | (2) |;
+      | (2) | (3) | (3) | (3) |;
+    }
+
+
+    performTableTest(counterExample)
+
+    object recovery extends CCRecovery {
+    val result = process(counterExample);
+    println( tableFromChoices(result).toString );
+    println(result);
+  }
+  recovery
   }
 }

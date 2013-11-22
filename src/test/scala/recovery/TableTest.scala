@@ -43,12 +43,17 @@ class TableTest extends FlatSpec {
   
   it should "recognize equal tables as equal" in {
     (table1 == table2) should be (true)
+    (table2 == table1) should be (true)
     (table1 == table3) should be (false)
+    (table3 == table1) should be (false)
     (table3 == table2) should be (false)
+    (table2 == table3) should be (false)
+    (table3 == table3) should be (true)
   }
   
   it should "eliminate duplicate rows" in {
     (table4 == table1) should be (true)
+    (table1 == table4) should be (true)
   }
   
   it should "implement subset in terms of rows" in {
