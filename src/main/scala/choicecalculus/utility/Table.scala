@@ -79,7 +79,10 @@ class Table[S, T](val headers: S*) {
     // find column sizes
     val sizes = columns.map { _.map { _.toString.size }.max }
     
-    rows.map { row =>
+
+    // TODO Fixme
+
+    headers.map(_.toString).mkString("|") + "\n" + rows.map { row =>
       (row zip sizes).map { case (col, size) =>
         s"| %${size}s ".format(col.toString)
       }.mkString("")
