@@ -90,19 +90,22 @@ class IntegrationTest extends FlatSpec {
 
     val counterExample = new CloneInstanceTable('w, 'x, 'y, 'z) {
       | (1) | (1) | (1) | (1) |;
-      | (2) | (1) | (1) | (1) |;
-      | (2) | (2) | (2) | (2) |;
+      | (2) | (1) | (1) | (2) |;
+      | (2) | (2) | (2) | (3) |;
       | (2) | (3) | (3) | (3) |;
     }
 
-
-    performTableTest(counterExample)
-
     object recovery extends CCRecovery {
-    val result = process(counterExample);
-    println( tableFromChoices(result).toString );
-    println(result);
-  }
-  recovery
+
+      val labeled = graphToLabeledGraph(tableToGraph(counterExample))
+
+      println( labeled )
+
+      val result = process(counterExample);
+      println( tableFromChoices(result).toString );
+      println(result);
+    }
+    recovery
+    performTableTest(counterExample)
   }
 }

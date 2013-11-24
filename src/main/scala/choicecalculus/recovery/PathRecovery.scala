@@ -63,9 +63,12 @@ private[recovery] trait PathRecovery { self: Dimensions =>
       // println(labels.map { case (n, l) => n.name.name + ": " + l }.mkString("\n"))
     }
     
-    for (label <- labels.values)  {
-      allVariantsStripping(label)
-    }
+    // NOTE: turned off path compression since it does not work on Cai's example
+
+    // for (label <- labels.values)  {
+    //   allVariantsStripping(label)
+    // }
+
     //println("\nafter cleanup")
     //println(labels.map { case (n, l) => n.name.name + ": " + l }.mkString("\n"))
     
