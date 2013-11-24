@@ -37,7 +37,6 @@ trait CCRecovery extends PathRecovery with ChoiceRecovery with Dimensions {
   def tableToTable(table: CloneInstanceTable): CloneInstanceTable =
     tableFromChoices(process(table))
   
-  // TODO last step before results can be checked automatically
   // REWRITE to use selection implementation, then generate all possible
   //  selections and create table after reduction
   def tableFromChoices(choices: Map[Symbol, ASTNode]): CloneInstanceTable = {
@@ -49,9 +48,10 @@ trait CCRecovery extends PathRecovery with ChoiceRecovery with Dimensions {
     
     val table = new CloneInstanceTable(keys:_*)
     
-    if (dims.isEmpty)
+    if (dims.isEmpty) {
+      table.addRow(keys.map(choices): _*)
       return table
-
+    }
     val selections: Set[Set[(Symbol, Symbol)]] = (for {
       (dim, tags) <- dims
     } yield tags.map( t => (dim, t) ).toSet).toSet
