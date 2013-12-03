@@ -115,6 +115,10 @@ trait BruteforceSolver {
   case class Partition[+T](lhs: Partitioning[T], rhs: Partitioning[T]) extends Partitioning[T]
 
   // with 7 distinct rows thats already 665280
+  // thats ~ O(2^n * n!) which is approx. |choice shapes| * instantiation
+  // 
+  // We can reduce the number of choice shapes by removing symmetric ones
+  // to fib(n) instead of ~2^n but this allows probably just one more row.
   def allPartitions[T](rows: Set[T]): Set[Partitioning[T]] = rows match {
     case _ if rows.isEmpty => Set.empty
     case _ if rows.size == 1 => Set(Elem(rows.head))
