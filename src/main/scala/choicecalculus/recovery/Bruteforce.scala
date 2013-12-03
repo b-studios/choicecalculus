@@ -125,8 +125,7 @@ trait BruteforceSolver {
         set <- allSubsets
         p1 <- allPartitions(set)
         p2 <- allPartitions(rows -- set)
-        part <- Set(Partition(p1, p2), Partition(p2, p1))
-      } yield part
+      } yield Partition(p1, p2)
     }
   }
 
