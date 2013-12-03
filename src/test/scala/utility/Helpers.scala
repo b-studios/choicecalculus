@@ -34,4 +34,5 @@ trait Helpers {
   }
   
   implicit def exp2binOp(e: Expression): BinOpConstructor = BinOpConstructor(e)
+  implicit def intToLit(n: Int): AtomLit = AtomLit(n.toString)
 }
