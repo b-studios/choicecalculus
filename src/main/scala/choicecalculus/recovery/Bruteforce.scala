@@ -9,14 +9,12 @@ import org.kiama.rewriting.Strategy
 // we limit ourselves to binary choices first
 case class BinaryChoice(dim: Symbol, lhs: ASTNode, rhs: ASTNode) extends ASTNode
 
-// this is defined on a small subset of cc expressions. If necessary it needs to be
-// instantiated to the complete object language and all additional CC extensions
-//
-// there are two approaches to rewriting. One is semantics driven (mostly that's what we
-// do before we get the rules) and one is syntactical.
+/**
+ * This implementation of the choice normal form factoring is defined on a small subset 
+ * of cc expressions. If necessary it needs to be instantiated to the complete object 
+ * language and all additional CC extensions
+ */
 trait CNF {
-
-  // TODO define some ordering on dimensions
 
   val ord: Ordering[Symbol]
 
@@ -112,15 +110,9 @@ trait BruteforceSolver {
 
   // Partitioning
   // ------------
-  // Partitioning has to respect already disjoint instances, otherwise it would always generate
-  // permutations of the trivial solution which cannot be optimized locally.
-
-  // partitioning has to be performed on all permutations of column ordering.
-
   trait Partitioning[+T]
   case class Elem[+T](v: T) extends Partitioning[T]
   case class Partition[+T](lhs: Partitioning[T], rhs: Partitioning[T]) extends Partitioning[T]
-
 
   // with 7 distinct rows thats already 665280
   def allPartitions[T](rows: Set[T]): Set[Partitioning[T]] = rows match {
