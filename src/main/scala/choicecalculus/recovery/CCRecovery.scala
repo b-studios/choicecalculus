@@ -1,7 +1,7 @@
 package choicecalculus
 package recovery
 
-import utility.setops._
+import utility.combinatorics._
 import utility.Node
 
 import lang.ASTNode

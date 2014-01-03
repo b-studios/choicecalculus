@@ -1,7 +1,7 @@
 package choicecalculus
 package utility
 
-import setops._
+import combinatorics._
 
 /**
  6:    149ms

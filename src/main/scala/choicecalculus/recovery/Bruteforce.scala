@@ -64,7 +64,7 @@ object CNF {
 /** This is based on recovery/Minimality.scala */
 trait BruteforceSolver {
 
-  import utility.setops._
+  import utility.combinatorics._
 
   type Solution = Map[
     Symbol, // Variable name
