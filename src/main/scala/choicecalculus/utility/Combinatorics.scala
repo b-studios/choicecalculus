@@ -40,9 +40,24 @@ package object combinatorics {
     }
   }
 
+  /**
+   * Adds methods for combinatorics to a given set
+   *
+   * Just import `utility.combinatorics._` and the methods are available
+   * on sets.
+   */
   implicit class SetOps[T](self: Set[T]) {
-      
-    // http://stackoverflow.com/questions/11581175/how-to-generate-the-power-set-of-a-set-in-scala
+    
+    /**
+     * Computes the powerset of the given set
+     *
+     * @example {{{ 
+     *   scala> Set(1,2).power
+     *   res0: Set[Set[Int]] = Set(Set(), Set(1), Set(2), Set(1,2))
+     * }}}
+     *
+     * @see http://stackoverflow.com/questions/11581175/how-to-generate-the-power-set-of-a-set-in-scala
+     */
     def power: Set[Set[T]] = {
       def pwr(t: Set[T], ps: Set[Set[T]]): Set[Set[T]] =
         if (t.isEmpty) ps
@@ -51,13 +66,23 @@ package object combinatorics {
       pwr(self, Set(Set.empty[T])) //Powerset of ∅ is {∅}
     }
     
-    // {1, 2, 3} -> { {{1,2,3}, {}}, {{1}, {2,3}}, {{1,2}, {3}} }
-    // O(2^(i-1))
+    /**
+     * Computes all possibilities to split a set into two parts.
+     *
+     * It returns Set[Set[Set[T]]] instead of Set[(Set[], Set[])] to 
+     * eliminate ordering of the tuples.
+     * 
+     * @example {{{
+     *   scala> Set(1,2,3).allSplittings
+     *   res0: Set[Set[Set[Int]]]: Set(
+     *     Set(Set(1,2,3), Set()), 
+     *     Set(Set(1),     Set(2,3)), 
+     *     Set(Set(1,2),   Set(3)))
+     * }}}
+     */
     def allSplittings: Set[Set[Set[T]]] = 
       for {
         subset <- power
       } yield Set(subset, self -- subset)
-      
   }
-
 }
