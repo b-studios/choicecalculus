@@ -1,10 +1,8 @@
 package choicecalculus
-package recovery
+package utility
 
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers._
-
-import utility.Table
 
 class TableTest extends FlatSpec {
 
