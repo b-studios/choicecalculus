@@ -10,8 +10,8 @@ class BDDBuilderTest extends FlatSpec with utility.test.Helpers {
 
   type Value = Int
 
-  trait Node
-  case class Choice(l: Node, r: Node) extends Node
+  sealed trait Node
+  case class Choice(lvl: Int, l: Node, r: Node) extends Node
   case class Leaf(v: Value) extends Node
     
   locally {
@@ -20,7 +20,7 @@ class BDDBuilderTest extends FlatSpec with utility.test.Helpers {
 
     def countLeafs(n: Node): Int = n match {
       case _:Leaf => 1
-      case Choice(l,r) => countLeafs(l) + countLeafs(r)
+      case Choice(_,l,r) => countLeafs(l) + countLeafs(r)
     }
 
     def leafsFor(values: Value*): Int = 
@@ -43,7 +43,7 @@ class BDDBuilderTest extends FlatSpec with utility.test.Helpers {
     def countLeafs(n: Option[Node]): Int = n match {
       case None => 0
       case Some(Leaf(_)) => 1
-      case Some(Choice(l,r)) => countLeafs(Some(l)) + countLeafs(Some(r))
+      case Some(Choice(_,l,r)) => countLeafs(Some(l)) + countLeafs(Some(r))
     }
 
     it should "create the reduced OBDD graph for option values" in {
