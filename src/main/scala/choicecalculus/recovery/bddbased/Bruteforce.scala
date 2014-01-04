@@ -1,5 +1,6 @@
 package choicecalculus
 package recovery
+package bddbased
 
 import lang.ASTNode
 import lang.choicecalculus.{ Choices, Choice }
@@ -7,7 +8,6 @@ import lang.choicecalculus.{ Choices, Choice }
 import scala.math.{ ceil, pow, log }
 
 import utility.combinatorics._
-import solution._
 
 /**
  * Bruteforce solver to recover choice calculus expressions from clone
@@ -24,7 +24,7 @@ import solution._
  * The solver relies on binary choices in order to correspond to BDDs.
  * 
  * @example {{{
- *   object solver extends BDDBruteforceSolver
+ *   object solver extends BruteforceSolver
  *   solver.globalSolution(new CloneInstanceTable('x, 'y) {
  *     | (1) | (1) |;
  *     | (2) | (1) |;
@@ -40,9 +40,10 @@ import solution._
  *
  * Ad 2.: The reduced OBDD is created by using hash consing. Also see [[BDDBuilder]]
  *
- * Ad 3.: Minimality of solutions is defined in [[solution.SolutionOrdering]]
+ * Ad 3.: Minimality of solutions is defined in [[Solution]] via implementation of
+ *        trait [[Ordered]]
  */
-trait BDDBruteforceSolver {
+trait BruteforceSolver {
 
   /**
    * Finds the minimal choice calculus representation for a given clone instance table.
@@ -78,8 +79,8 @@ trait BDDBruteforceSolver {
     val indices = table.columns.indices.toList
 
     def update(candidate: List[ASTNode]) {
-      val sol: Solution = (table.headers zip candidate).toMap
-      smallestSolution = smallestSolution map(SolutionOrdering.min(_,sol)) orElse Some(sol)
+      val sol: Solution = Solution((table.headers zip candidate).toMap)
+      smallestSolution = smallestSolution map(sol min _) orElse Some(sol)
     }
 
     // The `foreach` could be parallelized, synchronizing around `update`

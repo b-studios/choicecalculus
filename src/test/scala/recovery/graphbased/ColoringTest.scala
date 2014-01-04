@@ -1,5 +1,6 @@
 package choicecalculus
 package recovery
+package graphbased
 
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers._

@@ -1,5 +1,6 @@
 package choicecalculus
 package recovery
+package bddbased
 
 import scala.math.{ ceil, floor, log }
 import utility.memoization._

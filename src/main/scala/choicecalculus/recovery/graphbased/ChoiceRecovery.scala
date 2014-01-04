@@ -1,5 +1,6 @@
 package choicecalculus
 package recovery
+package graphbased
 
 import lang.ASTNode
 import lang.choicecalculus.{ Choices, Choice }

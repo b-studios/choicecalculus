@@ -1,5 +1,6 @@
 package choicecalculus
 package recovery
+package rewritingbased
 
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers._
@@ -46,12 +47,12 @@ class BruteforceTest extends FlatSpec with utility.test.Helpers with BruteforceS
   }
 
   // scales pretty well in the number of variables, but not in number of variants
-  println(globalSolution(new CloneInstanceTable('w, 'x, 'y, 'z, 'a, 'b, 'c, 'd, 'e, 'f, 'g) {
-    | (1) | (1) | (1) | (1) | (5) | (6) | (7) | (8) | (9) | (10) | (11) |;
-    | (2) | (1) | (1) | (2) | (5) | (6) | (7) | (8) | (9) | (10) | (11) |;
-    | (2) | (2) | (2) | (3) | (5) | (6) | (7) | (8) | (9) | (10) | (11) |;
-    | (2) | (3) | (3) | (3) | (5) | (6) | (7) | (8) | (9) | (10) | (11) |;
-    | (2) | (3) | (3) | (1) | (5) | (6) | (7) | (8) | (9) | (10) | (11) |;
-  }))
+  // println(globalSolution(new CloneInstanceTable('w, 'x, 'y, 'z) {
+  //   | (1) | (1) | (1) | (1) |;
+  //   | (2) | (1) | (1) | (2) |;
+  //   | (2) | (2) | (2) | (3) |;
+  //   | (2) | (3) | (3) | (3) |;
+  //   | (2) | (3) | (3) | (1) |;
+  // }))
 
 }

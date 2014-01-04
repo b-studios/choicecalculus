@@ -1,5 +1,6 @@
 package choicecalculus
 package recovery
+package graphbased
 
 import utility.{ ColoringBruteforceSolver, Node }
 

@@ -1,5 +1,6 @@
 package choicecalculus
 package recovery
+package graphbased
 
 import scala.collection.mutable
 import utility.{ Node, Edge, Table }

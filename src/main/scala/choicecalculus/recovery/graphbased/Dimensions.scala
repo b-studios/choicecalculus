@@ -1,5 +1,6 @@
 package choicecalculus
 package recovery
+package graphbased
 
 private[recovery] trait Dimensions {
 
