@@ -165,7 +165,7 @@ object BDDBuilder {
     (v: Option[Value]) => v map buildLeaf,
     (lvl: Int, l: Option[Node], r: Option[Node]) => (l, r) match {
       case (Some(lhs), Some(rhs)) => Some(buildNode(lvl, lhs,rhs))
-      case (lhs, rhs) => lhs orElse rhs        
+      case (lhs, rhs) => lhs orElse rhs
     }
   )
 }
