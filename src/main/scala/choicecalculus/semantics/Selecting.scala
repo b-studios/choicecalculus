@@ -2,7 +2,7 @@ package choicecalculus
 package semantics
 
 import lang.ASTNode
-import lang.choicecalculus.{ Choice, Choices, Dimension, Include, PartialConfig, Select, Share, SharedId }
+import lang.choicecalculus.{ Choice, Alternative, Dimension, Include, PartialConfig, Select, Share, Identifier }
 import utility.DebugRewriter.{ all, attr2attrFix, bottomup, congruence, debug, fail, reduce, rewrite, rule, sometd, topdown }
 import org.kiama.rewriting.Strategy;
 
@@ -11,12 +11,12 @@ trait Selecting { self: Choosing =>
   lazy val select: Strategy = rule("selectRelation", {
     
     // Don't select dependent dimensions!
-    case Select(_, _, c:Choices[_]) => c
+    case Select(_, _, c:Choice[_]) => c
     
     case Select(dim, tag, Dimension(name, tags, body)) if name == dim =>
       rewrite (choose(dim, tag)) (body)
   
-    case Select(dim, tag, id:SharedId[_]) => PartialConfig(id, List((dim, tag)))
+    case Select(dim, tag, id:Identifier[_]) => PartialConfig(id, List((dim, tag)))
     
     case Select(dim, tag, inc:Include[_,_]) => PartialConfig(inc, List((dim, tag)))
   
@@ -59,8 +59,8 @@ trait Choosing {
     case e@Dimension(d, _, _) if d == dim => e
     
     // actual choosing 
-    case Choices(d, choices) if d == dim => choices.collect {
-      case Choice(t, body) if t == tag => body
+    case Choice(d, alts) if d == dim => alts.collect {
+      case Alternative(t, body) if t == tag => body
     }.head
     
   }))

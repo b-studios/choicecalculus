@@ -34,7 +34,7 @@ class SelectionTests extends FlatSpec {
     it should "find correct dimensioning" in {
       
       // dim A<a> { A<a: 1> }
-      val test_dim = dim('A)('a) { choices('A) ('a -> lit("1")) }
+      val test_dim = dim('A)('a) { choice('A) ('a -> lit("1")) }
       // select A.a from dim A<a> { A<a: 1> }
       val test_selection = Program( select[Statement]('A, 'a, test_dim ) :: Nil)
 
@@ -85,7 +85,7 @@ class SelectionTests extends FlatSpec {
       //  }
       // }
       val dimA = dim('A)('a, 'b) { 
-          choices('A) (
+          choice('A) (
             'a -> ReturnStmt(Some(id('x))),
             'b -> ReturnStmt(Some(lit("2") * id('x)))
           )
@@ -135,7 +135,7 @@ class SelectionTests extends FlatSpec {
     
     it should "perform selections on shared dimensions" in {
       
-      val test_dim = dim('A)('a) { choices('A) ('a -> lit("1")) }
+      val test_dim = dim('A)('a) { choice('A) ('a -> lit("1")) }
       val exp = share('x, test_dim, select('A, 'a, id('x)))
       
       selectionTest(exp) { share('x, test_dim, partialConfig('A -> 'a) (id('x))) }
@@ -145,8 +145,8 @@ class SelectionTests extends FlatSpec {
     
     it should "perform selections in shared dependend dimensions" in {
       
-      val inner_dim = dim('A)('a) { choices('A) ('a -> lit("1")) }
-      val outer_dim = dim('B)('b) { choices('B) ('b -> inner_dim) }
+      val inner_dim = dim('A)('a) { choice('A) ('a -> lit("1")) }
+      val outer_dim = dim('B)('b) { choice('B) ('b -> inner_dim) }
       val shared = share('x, outer_dim, select('A, 'a, select('B, 'b, id('x))))
       
       fullReductionTest(shared) { lit("1") }      
@@ -158,11 +158,11 @@ class SelectionTests extends FlatSpec {
     it should "perform selections on renamed dimensions" in {
       
       val first_dim = dim('A)('a) {
-          choices('A) ('a -> lit("1")) + choices('A) ('a -> lit("1")) 
+          choice('A) ('a -> lit("1")) + choice('A) ('a -> lit("1")) 
         }
         
       val second_dim = dim('B)('b) { 
-          lit("4") * choices('B) ('b -> select('A, 'a, id('x)))
+          lit("4") * choice('B) ('b -> select('A, 'a, id('x)))
         }
       val shared = share('x, first_dim, share('y, second_dim, select('B, 'b, id('y))))
       
@@ -182,9 +182,9 @@ class SelectionTests extends FlatSpec {
     it should "perform inner selections first" in {
       
       val dimBody = dim('A)('a, 'b) {
-        choices('A) (
+        choice('A) (
           'a -> dim('A)('b, 'c) {
-            choices('A) (
+            choice('A) (
                'b -> lit("3"), 
                'c -> lit("7")
             )
@@ -207,7 +207,7 @@ class SelectionTests extends FlatSpec {
       // select D.a from 
       //   dim D<a,b> in D<1,2>
       val example3_0 = select('D, 'a, 
-          dim('D)('a, 'b) { choices('D) (
+          dim('D)('a, 'b) { choice('D) (
             'a -> lit("1"),
             'b -> lit("2")
           )})
@@ -219,13 +219,13 @@ class SelectionTests extends FlatSpec {
       //     X<select A.b from v, select A.c from v>
       //
       // with e being something like: dim A<a,b,c> in A<1,2,3>
-      val example3_1_e = dim('A)('a, 'b, 'c) { choices('A) (
+      val example3_1_e = dim('A)('a, 'b, 'c) { choice('A) (
         'a -> lit("1"),
         'b -> lit("2"),
         'c -> lit("3")
       )}
       
-      val example3_1 = share('v, example3_1_e, dim('X)('y, 'z) { choices('X) (
+      val example3_1 = share('v, example3_1_e, dim('X)('y, 'z) { choice('X) (
         'y -> select('A, 'b, id('v)),
         'z -> select('A, 'c, id('v))
       )})
@@ -246,10 +246,10 @@ class SelectionTests extends FlatSpec {
       // 4.2 Multiple Dimensions
       // Design decision: Not allowed
       val example4_2 = select('D, 'a, 
-          dim('D)('a, 'b) { choices('D) (
+          dim('D)('a, 'b) { choice('D) (
               'a -> lit("1"),
               'b -> lit("2")
-          )} + dim('D)('a, 'c) { choices('D) (
+          )} + dim('D)('a, 'c) { choice('D) (
               'a -> lit("3"),
               'c -> lit("4")
           )})
@@ -257,7 +257,7 @@ class SelectionTests extends FlatSpec {
       
       // 4.3 Undeclared Tag
       // Design decision: Not allowed
-      val example4_3 = select('D,'a, dim('D)('b, 'c) { choices('D) (
+      val example4_3 = select('D,'a, dim('D)('b, 'c) { choice('D) (
           'b -> lit("1"), 
           'c -> lit("2")
         )})
@@ -276,8 +276,8 @@ class SelectionTests extends FlatSpec {
       //     case b => 3
       //   }
       val example4_4 = select('B, 'c, dim('A)('a, 'b) {
-          choices('A) (
-            'a -> dim('B)('c, 'd) { choices('B) (
+          choice('A) (
+            'a -> dim('B)('c, 'd) { choice('B) (
               'c -> lit("1"),
               'd -> lit("2")
               )},

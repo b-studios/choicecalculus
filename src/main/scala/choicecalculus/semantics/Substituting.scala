@@ -2,7 +2,7 @@ package choicecalculus
 package semantics
 
 import lang.ASTNode
-import lang.choicecalculus.{ Include, PartialConfig, Select, Share, SharedId }
+import lang.choicecalculus.{ Include, PartialConfig, Select, Share, Identifier }
 import dimensioning.Dimensioning
 import utility.DebugRewriter._
 import utility.Attribution.{ paramAttr } 
@@ -28,7 +28,7 @@ trait Substituting { self: Selecting with Dimensioning with Includes =>
   // (a) the bound expression itself is fully configured, then the id can be substituted by the expression
   // i. It's an id
   lazy val substIdExpr = rule("substIdExpr", {
-    case id@SharedId(name) => id->bindingShare(name) match {
+    case id@Identifier(name) => id->bindingShare(name) match {
       case Some(Share(_, binding, _)) => /*resetMemo;*/ binding.clone
       case other => sys error "cannot substitute binding for %s, got %s".format(name, other)
     }
@@ -42,7 +42,7 @@ trait Substituting { self: Selecting with Dimensioning with Includes =>
   // (b) the bound expression is fully configured by delayed selections
   // TODO use kiama's `congruence` rule for this
   lazy val substPartialConfig = rule("substPartialConfig", {
-    case PartialConfig(body:SharedId[_], configs) =>      
+    case PartialConfig(body:Identifier[_], configs) =>      
       PartialConfig( rewrite(substIdExpr) (body), configs)
       
     case PartialConfig(body:Include[_,_], configs) =>      
@@ -63,7 +63,7 @@ trait Substituting { self: Selecting with Dimensioning with Includes =>
   
   lazy val variableIsUsed: Symbol => ASTNode => Boolean = paramAttr {
     name => {
-      case SharedId(n) => n == name
+      case Identifier(n) => n == name
       // shadowed
       case Share(n,_,_) if n == name => false
       case other => other.children.foldLeft(false) {

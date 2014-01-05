@@ -3,7 +3,7 @@ package recovery
 package graphbased
 
 import lang.ASTNode
-import lang.choicecalculus.{ Choices, Choice }
+import lang.choicecalculus.{ Choice, Alternative }
 import labeling.{ Path, Label }
 
 private[recovery] trait ChoiceRecovery { self: Dimensions =>
@@ -29,11 +29,11 @@ private[recovery] trait ChoiceRecovery { self: Dimensions =>
     
     for {
       (dim, _, ls) <- cheapestDim
-    } yield Choices[ASTNode](dim, splitNodes(ls, dim))
+    } yield Choice[ASTNode](dim, splitNodes(ls, dim))
   }
   
   // split nodes into cases according to the labels
-  def splitNodes(labels: Labeled[ASTNode], dim: Symbol): List[Choice[ASTNode]] =
+  def splitNodes(labels: Labeled[ASTNode], dim: Symbol): List[Alternative[ASTNode]] =
     (for {
       tag <- dimensions(dim)
       ls = for {
@@ -43,7 +43,7 @@ private[recovery] trait ChoiceRecovery { self: Dimensions =>
       } yield (value, labelsWithout)
       
       ccexpr <- toCC(ls)
-    } yield Choice(tag, ccexpr)).toList
+    } yield Alternative(tag, ccexpr)).toList
   
    
   // All tags must be present (Only call with expanded labels)

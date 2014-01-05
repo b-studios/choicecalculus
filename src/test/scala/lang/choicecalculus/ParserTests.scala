@@ -16,7 +16,7 @@ class ParserTests extends FlatSpec with test.Helpers {
     
     ignore("parse choice expressions with commas inside") {
       
-      val expected = choices('A) ( 
+      val expected = choice('A) ( 
         'a -> lit("10"),
         'b -> lit("15")
       )
@@ -28,10 +28,10 @@ class ParserTests extends FlatSpec with test.Helpers {
     
     ignore("parse choice expressions as operands") {
       
-      val expected = choices('A) (
+      val expected = choice('A) (
         'a -> lit("10"),
         'b -> lit("15")
-      ) + choices('A) ( 
+      ) + choice('A) ( 
         'a -> lit("10"),
         'b -> lit("15")
       )
@@ -54,7 +54,7 @@ class ParserTests extends FlatSpec with test.Helpers {
       assertParseOk("3 + dim A(a) in (4 + 4)", expression, 
           lit("3") + dim('A)('a) { GroupExpr(lit("4") + lit("4")) })
       
-      val expected = lit("3") + select('A, 'a, dim('A)('a) { choices('A) ('a -> (lit("4") + lit("5"))) })
+      val expected = lit("3") + select('A, 'a, dim('A)('a) { choice('A) ('a -> (lit("4") + lit("5"))) })
       
       assertParseOk("3 + select A.a from dim A(a) in choice A {\n  case a → 4 + 5\n}", expression, expected)
           

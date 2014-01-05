@@ -2,7 +2,7 @@ package choicecalculus
 package recovery
 
 import lang.ASTNode
-import lang.choicecalculus.{ Choices, Choice }
+import lang.choicecalculus.{ Choice, Alternative }
 import lang.prettyprinter._
 
 /**
@@ -50,16 +50,16 @@ case class Solution(mapping: Map[Symbol, ASTNode]) extends Ordered[Solution] {
   }.sum
 
   private def collectDims(sol: ASTNode): Set[Symbol] = sol match {
-    case Choices(dim, cases) => Set(dim) ++ cases.flatMap { 
-      case Choice(_, c) => collectDims(c)
+    case Choice(dim, alts) => Set(dim) ++ alts.flatMap { 
+      case Alternative(_, c) => collectDims(c)
     }.toSet
 
     case _ => Set()
   }
 
   private def numberOfLeafs(sol: ASTNode): Int = sol match {
-    case Choices(dim, cases) => cases.map { 
-      case Choice(_, c) => numberOfLeafs(c)
+    case Choice(dim, alts) => alts.map { 
+      case Alternative(_, c) => numberOfLeafs(c)
     }.sum
     
     case _ => 1

@@ -3,7 +3,7 @@ package recovery
 package bddbased
 
 import lang.ASTNode
-import lang.choicecalculus.{ Choices, Choice }
+import lang.choicecalculus.{ Choice, Alternative }
 
 import scala.math.{ ceil, pow, log }
 
@@ -104,12 +104,12 @@ trait BruteforceSolver {
    * we limit ourselves to binary choices for now
    */
   private def binaryChoice(lvl: Int, lhs: ASTNode, rhs: ASTNode): ASTNode =
-    Choices(Symbol(s"D$lvl"), Choice('a, lhs) :: Choice('b, rhs) :: Nil)
+    Choice(Symbol(s"D$lvl"), Alternative('a, lhs) :: Alternative('b, rhs) :: Nil)
 
 
   // reuse definition from Minimality
   private def numberOfLeafs(sol: ASTNode): Int = sol match {
-    case Choices(_, chs) => chs.map(numberOfLeafs).sum
+    case Choice(_, alts) => alts.map(numberOfLeafs).sum
     case _ => 1
   } 
 

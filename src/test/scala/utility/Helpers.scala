@@ -2,7 +2,7 @@ package choicecalculus
 package utility.test
 
 import lang.ASTNode
-import lang.choicecalculus.{ Choice, Choices, Dimension, Include, PartialConfig, Select, Share, SharedId }
+import lang.choicecalculus.{ Alternative, Choice, Dimension, Include, PartialConfig, Select, Share, Identifier }
 import lang.javascript.{ AtomLit, BinaryOpExpr, Expression }
 
 trait Helpers {
@@ -12,15 +12,15 @@ trait Helpers {
    */
   def dim[T <: ASTNode](name: Symbol, tags: List[Symbol], body: T) = Dimension(name, tags, body)
   def dim[T <: ASTNode](name: Symbol)(tags: Symbol*)(body: T) = Dimension(name, tags.toList, body)
-  def choices[T <: ASTNode](dim: Symbol, choices: List[Choice[T]]) = Choices[T](dim, choices)
-  def choices[T <: ASTNode](dim: Symbol)(choices: (Symbol, T)*) = Choices[T](dim, choices.map {
-    case (tag, body) => Choice(tag, body)
+  def choice[T <: ASTNode](dim: Symbol, alts: List[Alternative[T]]) = Choice[T](dim, alts)
+  def choice[T <: ASTNode](dim: Symbol)(alts: (Symbol, T)*) = Choice[T](dim, alts.map {
+    case (tag, body) => Alternative(tag, body)
   }.toList)
-  def choice[T <: ASTNode](tag: Symbol, body: T) = Choice(tag, body)
+  def alternative[T <: ASTNode](tag: Symbol, body: T) = Alternative(tag, body)
   def select[T <: ASTNode](dim: Symbol, tag: Symbol, body: T) = Select(dim, tag, body)
   //def select[T <: ASTNode](dim: Symbol, tag: Symbol)(body: T) = Select(dim, tag, body)
   def share[S <: ASTNode, T <: ASTNode](name: Symbol, exp: S, body: T) = Share(name, exp, body)
-  def id[T <: ASTNode](name: Symbol) = SharedId(name)
+  def id[T <: ASTNode](name: Symbol) = Identifier(name)
   def include[T <: ASTNode, P](filename: String, context: P) = Include(filename, context)
   def partialConfig[T <: ASTNode](selects: (Symbol, Symbol)*)(body: T) = PartialConfig(body, selects.toList)
   

@@ -3,7 +3,7 @@ package dimensioning
 
 import org.kiama.util.Messaging.{message, report}
 import lang.ASTNode
-import lang.choicecalculus.{ Choice, Choices, Dimension, Include, PartialConfig, Select, Share, SharedId }
+import lang.choicecalculus.{ Choice, Alternative, Dimension, Include, PartialConfig, Select, Share, Identifier }
 import semantics.Includes
 import utility.AttributableRewriter.Term
 import utility.Attribution.{attr, paramAttr }
@@ -30,12 +30,12 @@ trait Dimensioning { self: Includes =>
     // only toplevel dimensions, which are not dependent can be selected
     case Select(dim, tag, body) => (body->dimensioning).select(dim, tag)(e)    
     
-    case Choices(dim, choices) => choices.foldLeft(DimensionGraph.empty) {
-      case (old, c@Choice(tag, body)) => old.merge((body->dimensioning).fromChoice(dim, tag)(e))(e) 
+    case Choice(dim, alts) => alts.foldLeft(DimensionGraph.empty) {
+      case (old, Alternative(tag, body)) => old.merge((body->dimensioning).fromChoice(dim, tag)(e))(e) 
     }
     
     // gracefully fall back to empty dimension graph
-    case SharedId(name) => e->bindingShare(name) match {
+    case Identifier(name) => e->bindingShare(name) match {
       case Some(Share(_, boundExpr, _)) => boundExpr->dimensioning
       case _ => {
         message(e, "ERROR: Use of unbound choice calculus variable '%s'".format(name.name))

@@ -6,7 +6,7 @@ import utility.combinatorics._
 import utility.Node
 
 import lang.ASTNode
-import lang.choicecalculus.{ Choices, Choice }
+import lang.choicecalculus.{ Choice, Alternative }
 import labeling.{ Path, Label }
 
 trait CCRecovery extends PathRecovery with ChoiceRecovery with Dimensions {
@@ -69,9 +69,9 @@ trait CCRecovery extends PathRecovery with ChoiceRecovery with Dimensions {
   
   // this is a primitive implementation of choice selection
   private def select(selection: Map[Symbol, Symbol], expr: ASTNode): ASTNode = expr match {
-    case Choices(dim, cases) => 
-      cases.collectFirst { 
-        case Choice(tag, v) if tag == selection(dim) => select(selection, v) 
+    case Choice(dim, alts) => 
+      alts.collectFirst { 
+        case Alternative(tag, v) if tag == selection(dim) => select(selection, v) 
       }.head
     case other => other
   }
@@ -83,8 +83,8 @@ trait CCRecovery extends PathRecovery with ChoiceRecovery with Dimensions {
     } yield el1 ++ el2
   
   private def collectDims(expr: ASTNode): Map[Symbol, List[Symbol]] = expr match {
-    case Choices(dim, cases) => 
-      Map(dim -> cases.map(_.tag)) ++ cases.flatMap( c => collectDims(c.body) )
+    case Choice(dim, alts) => 
+      Map(dim -> alts.map(_.tag)) ++ alts.flatMap( c => collectDims(c.body) )
     case other => Map()
   } 
     

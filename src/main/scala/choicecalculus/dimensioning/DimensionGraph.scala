@@ -2,7 +2,7 @@ package choicecalculus
 package dimensioning
 
 import scala.collection.mutable
-import utility.Messaging.{message, error, warning}
+import utility.Messaging.{ message, error, warning }
 import lang.ASTNode
 import GraphPrettyPrinter.pretty_graph
 

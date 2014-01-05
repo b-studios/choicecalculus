@@ -11,17 +11,17 @@ trait ChoiceCalculusPP extends PrettyPrinter {
       "dim" <+> text(dim.name) <> parens(fillsep(tags.map( (t) => text(t.name)), comma)) <+> 
         "in" <+> toDoc(body)
     
-    case Choices(dim, choices) =>
+    case Choice(dim, alts) =>
       "choice" <+> text(dim.name) <+> 
-        braces (nest (line <> ssep (choices.map(toDoc), line)) <> line)
+        braces (nest (line <> ssep (alts.map(toDoc), line)) <> line)
     
-    case Choice(tag, body) =>
+    case Alternative(tag, body) =>
       "case" <+> text(tag.name) <+> "=>" <+> toDoc(body)
       
     case Select(dim, tag, body) =>
       "select" <+> text(dim.name) <> dot <> text(tag.name) <+> "from" <+> toDoc(body)
       
-    case SharedId(id) =>
+    case Identifier(id) =>
       cc_prefix <> text(id.name)
       
     case Share(x, binding, body) =>
