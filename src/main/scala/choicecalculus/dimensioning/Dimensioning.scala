@@ -1,7 +1,6 @@
 package choicecalculus
 package dimensioning
 
-import org.kiama.util.Messaging.{message, report}
 import lang.ASTNode
 import lang.choicecalculus.{ Choice, Alternative, Dimension, Include, PartialConfig, Select, Share, Identifier }
 import semantics.Includes
@@ -10,7 +9,7 @@ import namer.Namer
 
 import utility.AttributableRewriter.Term
 import utility.Attribution.attr
-
+import utility.Messaging.error
 
 trait Dimensioning { self: Includes with Namer =>
 
@@ -41,7 +40,7 @@ trait Dimensioning { self: Includes with Namer =>
     case id@Identifier(name) => id->bindingInstance match {
       case Some(Share(_, boundExpr, _)) => boundExpr->dimensioning
       case _ => {
-        message(e, "ERROR: Use of unbound choice calculus variable '%s'".format(name.name))
+        error(e, s"Use of unbound choice calculus variable '${name.name}'")
         DimensionGraph.empty
       }
     }

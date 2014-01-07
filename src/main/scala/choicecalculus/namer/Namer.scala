@@ -4,54 +4,58 @@ package namer
 import lang.ASTNode
 import lang.choicecalculus.{ Identifier, Share }
 
+import utility.Messaging.error
 import utility.AttributableRewriter.Term
 import utility.Attribution.{ attr, paramAttr }
-
+import utility.Attribution.initTree
 import utility.DebugRewriter.{ everywheretd, query }
 
 /**
- * Use kiama.util.Environment to implement share and id
- * `Identifier` is a named entity.
- * See Oberon0.L0.NameAnalyzer
- *
- * Entity in kiama === symbol in scala compiler
- *
- *
- * we could introduce a separate namer phase in order to
- * check:
- * 1. that choices are bound to dimensions (this is currently checked by the dimension checker)
- * 2. that two equally named dimensions are introduced in the same scope
- *
- * Since the scopes of share and dimension names are different (are they?) and we might
- * want to be more flexible with the merging strategy of equally named dimensions
- * I think just using a namer phase for shares should be enough.
- *
- * What introduces the scope of a dimension name? A choice of a different dimension?
- * What if a dimension is selected away as in:
- *
- * dim A<a,b> in A<dim B<a,b> in B<1,2>, 3>
+ * The `Namer` phase
  */
 trait Namer {
 
-  // we trigger id resolution once since rewriting might destroy the parent chain
-  // and the parent chain is just used to lookup identifiers
-  //
-  // After triggering the resolution in all follow up phases the binding instance
-  // of an Identifier can be resolved by `id->bindingInstance`.
+  /**
+   * Decorates the given tree with references from variables to their
+   * binding instances.
+   * 
+   * It should be used before any rewriting takes places since rewriting 
+   * might destroy the parent chain which is essential to lookup identifiers.
+   *
+   * After triggering the resolution, in all follow up phases the binding instance
+   * of an `Identifier` can be resolved by `id->bindingInstance`.
+   *
+   * @see [[bindingInstance]]
+   */
   def runNamer(ast: ASTNode): ast.type = { 
-    everywheretd (forceNameResolution) (ast); 
+    initTree(ast)
+    everywheretd (forceNameResolution) (ast);
     ast 
   }
 
+  /**
+   * Resolves the binding of the given `Identifier`
+   *
+   * @example {{{ 
+   *   val id = Identifier('x)
+   *   val tree = Share('x, ..., Add(id, Numeral(4)))
+   *   initTree(tree)
+   *   id->bindingInstance // => tree
+   * }}}
+   *
+   * @param identifier to resolve the binding from
+   * @return the some share expression that binds the `Identifier` it is called on
+   *         or `None` if the `Identifier` is not bound.
+   */
   val bindingInstance: Identifier[ASTNode] => Option[Share[_,_]] = attr { 
-    case p => p->bindingInstanceOf(p) 
+    case p => p->bindingInstanceOf(p)
   }
 
-  /**
-   * TODO raise error if result is `None`
-   */
   private val forceNameResolution = query { 
-    case id: Identifier[ASTNode] => id->bindingInstance 
+    case id: Identifier[ASTNode] => id->bindingInstance match {
+      case None => error(id, s"Use of unbound choice calculus variable '${id.name.name}'")
+      case _ =>
+    }
   }
 
   private val bindingInstanceOf: Identifier[ASTNode] => ASTNode => Option[Share[_,_]] = paramAttr {
