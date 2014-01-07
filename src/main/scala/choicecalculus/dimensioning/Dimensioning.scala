@@ -88,12 +88,4 @@ trait Dimensioning { self: Includes =>
       }
     }
   }
-  
-  val bindingDimension: Symbol => ASTNode => Dimension[_] = paramAttr {
-    name => {
-      case d@Dimension(n, _ ,_) if n == name => d
-      case other if other.isRoot => sys error "Cannot find a binding for %s".format(name)
-      case other => other.parent[ASTNode]->bindingDimension(name)
-    }
-  }
 }
