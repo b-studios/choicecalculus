@@ -5,11 +5,14 @@ import org.kiama.util.Messaging.{message, report}
 import lang.ASTNode
 import lang.choicecalculus.{ Choice, Alternative, Dimension, Include, PartialConfig, Select, Share, Identifier }
 import semantics.Includes
+
+import namer.Namer
+
 import utility.AttributableRewriter.Term
-import utility.Attribution.{attr, paramAttr }
+import utility.Attribution.attr
 
 
-trait Dimensioning { self: Includes =>
+trait Dimensioning { self: Includes with Namer =>
 
   /**
    * The type parameters are: [ParamType, NodeType, ResultType]
@@ -35,7 +38,7 @@ trait Dimensioning { self: Includes =>
     }
     
     // gracefully fall back to empty dimension graph
-    case Identifier(name) => e->bindingShare(name) match {
+    case id@Identifier(name) => id->bindingInstance match {
       case Some(Share(_, boundExpr, _)) => boundExpr->dimensioning
       case _ => {
         message(e, "ERROR: Use of unbound choice calculus variable '%s'".format(name.name))
@@ -61,31 +64,5 @@ trait Dimensioning { self: Includes =>
     
     case _ => DimensionGraph.empty
   }}
-  
-  /**
-   * searches the share expr which provides the binding for the given symbol
-   * works lexical & bottom up
-   * 
-   * ATTENTION: There might be a problem with free variables in shared expressions like
-   * 
-   * 		share v = 2 in 
-   *      share v = v in
-   *        v
-   * 
-   * Here the second binding of v appears to be circular, which is wrong!
-   */
-  val bindingShare: Symbol => ASTNode => Option[Share[_,_]] = paramAttr {
-    name => {
-      case s@Share(n, _, _) if n == name => Some(s)
-      case other if other.isRoot => None
-      
-      // If the parent is a share expression we have to check whether we are in the binding branch
-      // then skip ahead to next parent
-      case other => other.parent match {
-        case s@Share(_, e, _) if e == other && !s.isRoot => s.parent[ASTNode]->bindingShare(name)
-        case otherParent:ASTNode => otherParent->bindingShare(name)
-        case _ => None
-      }
-    }
-  }
+
 }

@@ -9,8 +9,10 @@ import utility.{ Messaging, ParserUtils }
 import utility.Attribution.initTree
 import dimensioning.{ DimensionGraph, Dimensioning }
 
+import namer.Namer
 
 trait Semantics extends Dimensioning
+    with Namer
     with Selecting     
     with Choosing 
     with Substituting

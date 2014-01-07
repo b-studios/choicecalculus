@@ -4,6 +4,7 @@ package semantics
 import lang.ASTNode
 import lang.choicecalculus.{ Include, PartialConfig, Select, Share, Identifier }
 import dimensioning.Dimensioning
+import namer.Namer
 import utility.DebugRewriter._
 import utility.Attribution.{ paramAttr } 
 import org.kiama.rewriting.Strategy
@@ -13,7 +14,7 @@ import org.kiama.rewriting.Strategy
  * ----------------------
  * Substitution of bindings (`substitute`) and removal of unnecessary shares (`removeShares`).
  */
-trait Substituting { self: Selecting with Dimensioning with Includes =>
+trait Substituting { self: Selecting with Dimensioning with Includes with Namer =>
 
   // We only substitute variables, if they are fully configured
   lazy val substitute = named("substitute",
@@ -28,7 +29,7 @@ trait Substituting { self: Selecting with Dimensioning with Includes =>
   // (a) the bound expression itself is fully configured, then the id can be substituted by the expression
   // i. It's an id
   lazy val substIdExpr = rule("substIdExpr", {
-    case id@Identifier(name) => id->bindingShare(name) match {
+    case id@Identifier(name) => id->bindingInstance match {
       case Some(Share(_, binding, _)) => /*resetMemo;*/ binding.clone
       case other => sys error "cannot substitute binding for %s, got %s".format(name, other)
     }
