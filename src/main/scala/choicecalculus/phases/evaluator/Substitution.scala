@@ -1,28 +1,30 @@
 package choicecalculus
-package semantics
+package phases
+package evaluator
 
 import lang.ASTNode
 import lang.choicecalculus.{ Include, PartialConfig, Select, Share, Identifier }
-import dimensioning.Dimensioning
-import namer.Namer
-import utility.DebugRewriter._
+
+import utility.DebugRewriter.{ named, rewrite, rule, strategyf, test }
 import utility.Attribution.{ paramAttr } 
-import org.kiama.rewriting.Strategy
+
 
 /**
  * 2. Step - Substitution
  * ----------------------
- * Substitution of bindings (`substitute`) and removal of unnecessary shares (`removeShares`).
+ * Substitution of bindings (`substitute`) and removal of unnecessary shares 
+ * (`removeShares`).
  */
-trait Substituting { self: Selecting with Dimensioning with Includes with Namer =>
+trait Substitution { self: Reader with Namer with DimensionChecker  =>
 
   // We only substitute variables, if they are fully configured
   lazy val substitute = named("substitute",
     test(isFullyConfigured) <* (substIdExpr + substIncludeExpr + (substPartialConfig <* desugarPartialConfig))
   )
-  lazy val isFullyConfigured = strategyf("isFullyConfigured?", {
+
+  // TODO also check whether exp is an Identifier, a PartialConfig or an Include
+  lazy val isFullyConfigured = strategyf("isFullyConfigured", {
     case exp: ASTNode if (exp->dimensioning).fullyConfigured => Some(exp)
-    case exp: ASTNode => None
     case _ => None
   })
   
@@ -37,16 +39,16 @@ trait Substituting { self: Selecting with Dimensioning with Includes with Namer 
   
   // ii. It's an include
   lazy val substIncludeExpr = rule ("substIncludeExpr", {
-    case inc:Include[_,_] => fileContents(inc)
+    case inc: Include[_,_] => inc->tree
   })
   
   // (b) the bound expression is fully configured by delayed selections
   // TODO use kiama's `congruence` rule for this
   lazy val substPartialConfig = rule("substPartialConfig", {
-    case PartialConfig(body:Identifier[_], configs) =>      
+    case PartialConfig(body: Identifier[_], configs) =>      
       PartialConfig( rewrite(substIdExpr) (body), configs)
       
-    case PartialConfig(body:Include[_,_], configs) =>      
+    case PartialConfig(body: Include[_,_], configs) =>      
       PartialConfig( rewrite(substIncludeExpr) (body), configs)
   })
   

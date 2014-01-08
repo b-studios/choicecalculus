@@ -31,10 +31,10 @@ package utility
  */
 object Messaging {
 
-  import scala.collection.mutable.{ListBuffer, StringBuilder}
-  import scala.util.parsing.input.{Positional, Position}    
-  import org.kiama.util.{Emitter, Positioned}    
-  import scala.Console.{YELLOW, RED, RESET}
+  import scala.collection.mutable.{ ListBuffer, StringBuilder }
+  import scala.util.parsing.input.{ NoPosition, Positional, Position }    
+  import org.kiama.util.{ Emitter, Positioned }    
+  import scala.Console.{ YELLOW, RED, RESET }
   
   /**
    * A message record consisting of a coordinate position `pos` and
@@ -45,16 +45,16 @@ object Messaging {
     def message: String
     val label: String
     
-    override def toString : String =
+    override def toString: String =
       "[%s] %d.%d: %s".format(label, pos.line, pos.column, message)
   }
-  case class Info(pos : Position, message : String) extends Record {
+  case class Info(pos: Position, message: String) extends Record {
     val label = "info"
   }
-  case class Warning(pos : Position, message : String) extends Record {
+  case class Warning(pos: Position, message: String) extends Record {
     val label = YELLOW + "warn" + RESET
   }
-  case class Error(pos : Position, message : String) extends Record {
+  case class Error(pos: Position, message: String) extends Record {
     val label = RED + "error" + RESET
   }
 
@@ -67,60 +67,78 @@ object Messaging {
     'error -> new ListBuffer[Record]()
   )
   
-  def allmessages = 
-    (messages('info) ++ messages('warning) ++ messages('error)).distinct.toList
+  def allmessages =
+    messages.values.reduce(_++_).distinct.toList
   
-  def sortedmessages : Seq[Record] =
+  def sortedmessages: Seq[Record] =
     allmessages.sortWith (_.pos < _.pos)
 
   /**
    * Buffer a new message associated with the given `Positional` value.
    */
-  def message(value : Positional, message : String) {
+  def message(value: Positional, message: String) {
     messages('info) += Info(value.pos, message)
   }
-  
-  def error(value : Positional, message : String) {
-    messages('error) += Error(value.pos, message)
-  }
-  
-  def warning(value : Positional, message : String) {
+
+  def warning(value: Positional, message: String) {
     messages('warning) += Warning(value.pos, message)
   }
+
+  def error(value: Positional, message: String) {
+    messages('error) += Error(value.pos, message)
+  }
+
 
   /**
    * Buffer a new message associated with the given `Positioned` value.
    * The `finish` position is ignored at present.
    */
-  def message(value : Positioned, message : String) {
+  def message(value: Positioned, message: String) {
     messages('info) += Info(value.start, message)
   }
   
-  def error(value : Positioned, message : String) {
-    messages('error) += Error(value.start, message)
-  }
-  
-  def warning(value : Positioned, message : String) {
+  def warning(value: Positioned, message: String) {
     messages('warning) += Warning(value.start, message)
   }
+
+  def error(value: Positioned, message: String) {
+    messages('error) += Error(value.start, message)
+  }
+
+
+  /**
+   * Emit messages without any position
+   */
+  def message(message: String) {
+    messages('info) += Info(NoPosition, message)
+  }
+
+  def warning(message: String) {
+    messages('warning) += Warning(NoPosition, message)
+  }
+
+  def error(message: String) {
+    messages('error) += Error(NoPosition, message)
+  }
+
 
   /**
    * Return the number of messages that are buffered.
    */
-  def messagecount : Int =
+  def messagecount: Int =
     messages('info).size
 
-  def warningcount : Int =
+  def warningcount: Int =
     messages('warning).size
       
-  def errorcount : Int =
+  def errorcount: Int =
     messages('error).size
       
   /**
    * Output the messages in order of position using the given emitter, which
    * defaults to standard output.
    */
-  def report (emitter : Emitter = new Emitter) {
+  def report(emitter: Emitter = new Emitter) {
     for (m <- sortedmessages)
       emitter.emitln (m)
   }
@@ -128,7 +146,7 @@ object Messaging {
   /**
    * Reset the message buffer to empty.
    */
-  def resetmessages () {
+  def resetmessages() {
     messages.foreach {
       case (level, buffer) => (level, buffer.clear)
     }
@@ -157,5 +175,4 @@ object Messaging {
       case _ => None
     }
   }
-
 }

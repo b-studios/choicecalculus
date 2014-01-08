@@ -1,5 +1,5 @@
 package choicecalculus
-package dimensioning
+package phases.dimensionchecker
 
 import scala.collection.mutable
 import utility.Messaging.{ message, error, warning }

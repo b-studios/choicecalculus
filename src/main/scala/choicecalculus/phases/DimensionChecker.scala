@@ -1,20 +1,31 @@
 package choicecalculus
-package dimensioning
+package phases
+
+import dimensionchecker.DimensionGraph
 
 import lang.ASTNode
 import lang.choicecalculus.{ Choice, Alternative, Dimension, Include, PartialConfig, Select, Share, Identifier }
-import semantics.Includes
-
-import namer.Namer
 
 import utility.AttributableRewriter.Term
 import utility.Attribution.attr
 import utility.Messaging.error
 
-trait Dimensioning { self: Includes with Namer =>
+
+trait DimensionChecker { self: Reader with Parser with Namer =>
 
   /**
-   * The type parameters are: [ParamType, NodeType, ResultType]
+   * Decorates the given tree with it's dimensioning
+   * 
+   * Before running the dimension checker please assure that
+   * the [[Namer]] has been run.
+   */
+  def runDimensionChecker(ast: ASTNode): ast.type = {
+    ast->dimensioning
+    ast
+  }
+
+  /**
+   * Computes the dimension graph for a given ASTNode
    */
   val dimensioning: ASTNode => DimensionGraph = attr { (e) => e match {
 
@@ -36,13 +47,8 @@ trait Dimensioning { self: Includes with Namer =>
       case (old, Alternative(tag, body)) => old.merge((body->dimensioning).fromChoice(dim, tag)(e))(e) 
     }
     
-    // gracefully fall back to empty dimension graph
     case id@Identifier(name) => id->bindingInstance match {
       case Some(Share(_, boundExpr, _)) => boundExpr->dimensioning
-      case _ => {
-        error(e, s"Use of unbound choice calculus variable '${name.name}'")
-        DimensionGraph.empty
-      }
     }
     
     case PartialConfig(body, configs) => (configs.foldLeft(body->dimensioning) {
@@ -51,11 +57,11 @@ trait Dimensioning { self: Includes with Namer =>
     
     case Share(name, boundExpr, body) => body->dimensioning
     
-    case inc:Include[_,_] => fileDimensions(inc) 
+    case inc: Include[_,_] => inc->tree->dimensioning
     
     case Term(p, children) => children.flatMap {
-      case n:ASTNode => List(n->dimensioning)
-      case l:Seq[ASTNode] => l.map(dimensioning)
+      case n: ASTNode => List(n->dimensioning)
+      case l: Seq[ASTNode] => l.map(dimensioning)
       case _ => List.empty
     }.foldLeft(DimensionGraph.empty) {
       case (old, dim) => old.merge(dim) (e)

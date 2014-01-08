@@ -1,5 +1,5 @@
 package choicecalculus
-package dimensioning
+package phases.dimensionchecker
 
 import org.kiama.output.ParenPrettyPrinter
 

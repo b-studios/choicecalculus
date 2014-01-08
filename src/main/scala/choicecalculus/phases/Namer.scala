@@ -1,5 +1,5 @@
 package choicecalculus
-package namer
+package phases
 
 import lang.ASTNode
 import lang.choicecalculus.{ Identifier, Share }
@@ -27,10 +27,9 @@ trait Namer {
    *
    * @see [[bindingInstance]]
    */
-  def runNamer(ast: ASTNode): ast.type = { 
-    initTree(ast)
+  def runNamer(ast: ASTNode): ast.type = {
     everywheretd (forceNameResolution) (ast);
-    ast 
+    ast
   }
 
   /**
@@ -47,18 +46,18 @@ trait Namer {
    * @return the some share expression that binds the `Identifier` it is called on
    *         or `None` if the `Identifier` is not bound.
    */
-  val bindingInstance: Identifier[ASTNode] => Option[Share[_,_]] = attr { 
+  lazy val bindingInstance: Identifier[ASTNode] => Option[Share[_,_]] = attr { 
     case p => p->bindingInstanceOf(p)
   }
 
-  private val forceNameResolution = query { 
+  private lazy val forceNameResolution = query { 
     case id: Identifier[ASTNode] => id->bindingInstance match {
       case None => error(id, s"Use of unbound choice calculus variable '${id.name.name}'")
       case _ =>
     }
   }
 
-  private val bindingInstanceOf: Identifier[ASTNode] => ASTNode => Option[Share[_,_]] = paramAttr {
+  private lazy val bindingInstanceOf: Identifier[ASTNode] => ASTNode => Option[Share[_,_]] = paramAttr {
     case id@Identifier(name) => {
       case s@Share(`name`, _, _) => Some(s)
       case node if node.isRoot => None

@@ -1,18 +1,23 @@
 package choicecalculus
-package semantics
+package phases.evaluator
 
 import lang.ASTNode
-import lang.choicecalculus.{ Choice, Alternative, Dimension, Include, PartialConfig, Select, Share, Identifier }
-import utility.DebugRewriter.{ all, attr2attrFix, bottomup, congruence, debug, fail, reduce, rewrite, rule, sometd, topdown }
+import lang.choicecalculus.{ Choice, Alternative, Dimension, Include, 
+                             PartialConfig, Select, Share, Identifier }
+
+import utility.DebugRewriter.{ all, attr2attrFix, bottomup, congruence, debug, 
+                               fail, reduce, rewrite, rule, sometd, topdown }
+                               
 import org.kiama.rewriting.Strategy;
 
-trait Selecting { self: Choosing => 
+trait Selection {
   
   lazy val select: Strategy = rule("selectRelation", {
     
     // Don't select dependent dimensions!
+    // This is ruled out by the dimension checker...
     case Select(_, _, c:Choice[_]) => c
-    
+
     case Select(dim, tag, Dimension(name, tags, body)) if name == dim =>
       rewrite (choose(dim, tag)) (body)
   
@@ -37,20 +42,16 @@ trait Selecting { self: Choosing =>
       case lit => lit
     })) (t)
   })
-}
 
 
-/**
- * In this relation we use function definition instead of syntactic representation to omit introduction of yet
- * another syntactic element (e.g. "pushing down" `Chosen('A, 'a, body)`. Can easily be rewritten.
- * 
- * Since the congruence rules match completely kiama's default behavior we can use `sometd(rule {...})` instead
- * of implementing all congruences by ourselves. `sometd` will try to continue on subtrees until it successfully 
- * matches a rule. Then it will stop processing this subtree.
- */
-trait Choosing {
- 
-  def choose(dim: Symbol, tag: Symbol) = sometd ( rule("chooseStep", {
+  /**
+   * In this relation we use function definition instead of syntactic representation to omit introduction of yet
+   * another syntactic element (e.g. "pushing down" `Chosen('A, 'a, body)`. Can easily be rewritten.
+   * 
+   * `sometd` will try to continue on subtrees until it successfully matches a rule. Then 
+   * it will stop processing this subtree.
+   */
+  def choose(dim: Symbol, tag: Symbol) = sometd ( rule("choose", {
     
     // select expressions shadow other ones, with the same dimension
     case e@Select(d, _, _) if d == dim => e
@@ -58,11 +59,10 @@ trait Choosing {
     // selection stops at dimensions with the same name
     case e@Dimension(d, _, _) if d == dim => e
     
-    // actual choosing 
+    // actual choosing of an alternative
     case Choice(d, alts) if d == dim => alts.collect {
       case Alternative(t, body) if t == tag => body
     }.head
     
   }))
- 
 }
