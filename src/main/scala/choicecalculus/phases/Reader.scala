@@ -1,12 +1,9 @@
 package choicecalculus
 package phases
 
-import utility.Attribution.initTree
-import utility.AttributableRewriter.Term
-import utility.Attribution.{ attr }
-import utility.Attribution.initTree
-import utility.DebugRewriter.{ everywheretd, query }
-import utility.ParserUtils
+import org.kiama.attribution.Attribution.{ attr, initTree }
+import org.kiama.rewriting.Rewriter.{ everywheretd, query }
+import org.kiama.util.IO
 
 import lang.ASTNode
 import lang.choicecalculus.Include
@@ -15,7 +12,6 @@ import scala.collection.mutable
 
 import java.io.File
 import java.io.BufferedReader
-import org.kiama.util.IO
 
 /**
  * <h1>The Reader phase

@@ -5,6 +5,9 @@ import lang.ASTNode
 
 import scala.util.parsing.combinator.RegexParsers
 
+/**
+ * Parser is not actually a phase and can eventually be merged into Reader
+ */
 trait Parser {
 
   val parsers: ParsersAPI

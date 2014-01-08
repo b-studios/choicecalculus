@@ -5,8 +5,8 @@ package evaluator
 import lang.ASTNode
 import lang.choicecalculus.{ Include, PartialConfig, Select, Share, Identifier }
 
-import utility.DebugRewriter.{ named, rewrite, rule, strategyf, test }
-import utility.Attribution.{ paramAttr } 
+import org.kiama.rewriting.Rewriter.{ rewrite, rule, strategyf, test }
+import org.kiama.attribution.Attribution.{ paramAttr } 
 
 
 /**
@@ -18,9 +18,8 @@ import utility.Attribution.{ paramAttr }
 trait Substitution { self: Reader with Namer with DimensionChecker  =>
 
   // We only substitute variables, if they are fully configured
-  lazy val substitute = named("substitute",
+  lazy val substitute =
     test(isFullyConfigured) <* (substIdExpr + substIncludeExpr + (substPartialConfig <* desugarPartialConfig))
-  )
 
   // TODO also check whether exp is an Identifier, a PartialConfig or an Include
   lazy val isFullyConfigured = strategyf("isFullyConfigured", {

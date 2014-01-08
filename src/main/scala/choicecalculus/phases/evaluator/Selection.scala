@@ -5,10 +5,9 @@ import lang.ASTNode
 import lang.choicecalculus.{ Choice, Alternative, Dimension, Include, 
                              PartialConfig, Select, Share, Identifier }
 
-import utility.DebugRewriter.{ all, attr2attrFix, bottomup, congruence, debug, 
-                               fail, reduce, rewrite, rule, sometd, topdown }
-                               
-import org.kiama.rewriting.Strategy;
+import org.kiama.rewriting.Rewriter.{ all, sometd, rewrite, rule }
+
+import org.kiama.rewriting.Strategy
 
 trait Selection {
   

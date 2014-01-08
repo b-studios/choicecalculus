@@ -4,14 +4,14 @@ package phases
 import lang.ASTNode
 import lang.choicecalculus.{ Identifier, Share }
 
+import org.kiama.attribution.Attribution.{ attr, paramAttr }
+import org.kiama.rewriting.Rewriter.{ everywheretd, query }
+
 import utility.Messaging.error
-import utility.AttributableRewriter.Term
-import utility.Attribution.{ attr, paramAttr }
-import utility.Attribution.initTree
-import utility.DebugRewriter.{ everywheretd, query }
+
 
 /**
- * The `Namer` phase
+ * <h1> The Namer phase
  */
 trait Namer {
 

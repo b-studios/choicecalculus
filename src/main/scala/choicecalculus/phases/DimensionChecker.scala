@@ -4,14 +4,18 @@ package phases
 import dimensionchecker.DimensionGraph
 
 import lang.ASTNode
-import lang.choicecalculus.{ Choice, Alternative, Dimension, Include, PartialConfig, Select, Share, Identifier }
+import lang.choicecalculus.{ Choice, Alternative, Dimension, Include, 
+                             PartialConfig, Select, Share, Identifier }
 
-import utility.AttributableRewriter.Term
-import utility.Attribution.attr
+import org.kiama.rewriting.Rewriter.Term
+import org.kiama.attribution.Attribution.attr
+
 import utility.Messaging.error
 
-
-trait DimensionChecker { self: Reader with Parser with Namer =>
+/**
+ * <h1> The DimensionChecker phase
+ */
+trait DimensionChecker { self: Reader with Namer =>
 
   /**
    * Decorates the given tree with it's dimensioning

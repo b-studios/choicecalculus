@@ -4,11 +4,13 @@ package phases
 import evaluator.{ Selection, Substitution }
 import lang.ASTNode
 
-import utility.DebugRewriter.{ oncebu, rewrite, repeat }
+import org.kiama.rewriting.Rewriter.{ oncebu, rewrite, repeat }
 
 import org.kiama.rewriting.Strategy
 
-
+/**
+ * <h1> The Evaluator phase
+ */
 trait Evaluator extends Selection with Substitution { 
   self: Reader with Namer with DimensionChecker =>
 
