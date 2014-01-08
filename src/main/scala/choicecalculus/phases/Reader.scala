@@ -14,7 +14,7 @@ import java.io.File
 import java.io.BufferedReader
 
 /**
- * <h1>The Reader phase
+ * <h2>The Reader phase
  * 
  * The reader phase takes a given filename and reads it's contents
  * using a parser.

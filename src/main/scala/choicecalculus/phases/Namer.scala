@@ -11,7 +11,7 @@ import utility.Messaging.error
 
 
 /**
- * <h1> The Namer phase
+ * <h2> The Namer phase
  */
 trait Namer {
 

@@ -13,7 +13,7 @@ import org.kiama.attribution.Attribution.attr
 import utility.Messaging.error
 
 /**
- * <h1> The DimensionChecker phase
+ * <h2> The DimensionChecker phase
  */
 trait DimensionChecker { self: Reader with Namer =>
 
