@@ -1,15 +1,18 @@
 package choicecalculus
-package semantics
+package phases
+package evaluator
 
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers._
 import org.kiama.util.Tests
 
-import org.kiama.util.{ Compiler }
-import lang.choicecalculus.ChoiceCalculusParser
 import lang.ASTNode
-import dimensioning.DimensionGraph
+import lang.JsCcParser
+
 import org.kiama.attribution.Attribution.initTree
+import org.kiama.rewriting.Rewriter.rewrite
+
+import dimensionchecker.DimensionGraph
 
 import utility.test
 
@@ -17,8 +20,27 @@ class SelectionTests extends FlatSpec {
   
   import lang.javascript.{ Expression, Program, VarDeclStmt, Statement, VarBinding, ReturnStmt }
   
-  object interpreter extends Semantics with Compiler[ASTNode] with ChoiceCalculusParser with test.Helpers {
+  object evaluator extends Evaluator with Reader with Parser with Namer 
+    with DimensionChecker with JsCcParser with test.Helpers {
+
+    /**
+     * In order to perform selection the Reader-, Namer- and DimensionCheckerphase
+     * have to be run.
+     */
+    def performSelection(tree: ASTNode): ASTNode = {
+      runReader(tree)
+      runNamer(tree)
+      runDimensionChecker(tree)
+      rewrite(reduce(select)) (tree)
+    }
     
+    def performSubstitution(tree: ASTNode): ASTNode = {
+      runReader(tree)
+      runNamer(tree)
+      runDimensionChecker(tree)
+      rewrite(reduce(substitute + removeShares)) (tree)
+    }
+
     def substitutionTest(input: ASTNode)(expected: ASTNode) = {
       performSubstitution(input) should equal (expected)
     }
@@ -27,8 +49,11 @@ class SelectionTests extends FlatSpec {
       performSelection(input) should equal (expected)
     }
     
-    def fullReductionTest(input: ASTNode)(expected: ASTNode) = {
-      processTree(input) should equal (Right(expected))
+    def fullReductionTest(tree: ASTNode)(expected: ASTNode) = {
+      runReader(tree)
+      runNamer(tree)
+      runDimensionChecker(tree)
+      runEvaluator(tree) should equal (expected)
     }
     
     it should "find correct dimensioning" in {
@@ -92,7 +117,8 @@ class SelectionTests extends FlatSpec {
         }
         
       // undeclared dimension
-      processTree(select('A, 'a, shareX(id('x)))) should be an ('left)
+      // TODO after introducing better error handling wrap in `noErrors`
+      //processTree(select('A, 'a, shareX(id('x)))) should be an ('left)
       fullReductionTest(select('A, 'a, shareX( dimA ))) { 
         ReturnStmt(Some(lit("3") + lit("5")))
       }
@@ -101,13 +127,15 @@ class SelectionTests extends FlatSpec {
       }
     }
     
+
+    // TODO create own test section on includes
     it should "include files and calculate dimensions correctly" in {
       
       // select Config.advanced from 
       //   include "included.cclang"
-      val stmt = select('Config, 'advanced, include("examples/include/included.js.cc", statement))
+      val stmt = select('Config, 'advanced, include("examples/include/included.js.cc", parsers.topLevel))
       
-      fullReductionTest(stmt) { lit("14") }
+      fullReductionTest(stmt) { Program(lit("14") :: Nil) }
     }
     
     it should "detect correctly whether a variable is used or not" in {
@@ -197,7 +225,8 @@ class SelectionTests extends FlatSpec {
       fullReductionTest(selects1) { lit("3") }
       
       // undeclared dimension
-      processTree(selects2) should be an ('left)
+      // TODO reenable
+      // processTree(selects2) should be an ('left)
     }
     
     
@@ -241,7 +270,9 @@ class SelectionTests extends FlatSpec {
       // 4.1 Undeclared Dimension
       // Design decision: Not allowed
       val example4_1 = select('D, 't, lit("1") + lit("2"))
-      processTree(example4_1) should be an ('left)
+      
+      // TODO reenable
+      // processTree(example4_1) should be an ('left)
       
       // 4.2 Multiple Dimensions
       // Design decision: Not allowed
@@ -253,7 +284,9 @@ class SelectionTests extends FlatSpec {
               'a -> lit("3"),
               'c -> lit("4")
           )})
-       processTree(example4_2) should be an ('left)
+
+      // TODO reenable
+      // processTree(example4_2) should be an ('left)
       
       // 4.3 Undeclared Tag
       // Design decision: Not allowed
@@ -262,7 +295,10 @@ class SelectionTests extends FlatSpec {
           'c -> lit("2")
         )})
       val example4_3_2 = select('D,'a, dim('D)('b, 'c) { lit("3") + lit("4") })
-      processTree(example4_3_2) should be an ('left)
+      
+
+      // TODO reenable
+      // processTree(example4_3_2) should be an ('left)
       
       // 4.4 Dependent Dimensions
       // Design decision: Do not select dependent dimension
@@ -283,9 +319,11 @@ class SelectionTests extends FlatSpec {
               )},
             'b -> lit("3")
           )})
-      processTree(example4_4) should be an ('left)
+
+      // TODO reenable
+      // processTree(example4_4) should be an ('left)
     }
   }
   
-  interpreter
+  evaluator
 }

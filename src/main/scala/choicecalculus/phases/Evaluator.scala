@@ -19,6 +19,6 @@ trait Evaluator extends Selection with Substitution {
 
   // Our reduction strategy
   // top down traversal breaks attribution links to parents, so lookup of bindings cannot be performed
-  private def reduce(s: Strategy): Strategy = repeat(oncebu(s))
-  
+  private[phases] def reduce(s: Strategy): Strategy = repeat(oncebu(s))
+
 }

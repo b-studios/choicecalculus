@@ -41,6 +41,12 @@ trait Reader { self: Parser =>
     (source, tree->collectSourceFiles)
   }
 
+  // XXX
+  def runReader(tree: ASTNode): List[SourceFile] = {
+    initTree(tree)
+    tree->collectSourceFiles
+  }
+
   /**
    * Returns the tree that will be included
    */
