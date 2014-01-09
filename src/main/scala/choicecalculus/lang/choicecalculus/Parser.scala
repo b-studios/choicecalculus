@@ -68,24 +68,19 @@ trait ChoiceCalculusParser extends JavaScriptParser {
       case name => Identifier(name)
     }
    
+
+  private lazy val cc_expression = cc_node(expression)
+  private lazy val cc_statement  = cc_node(statement)
+
   // wiring of cc parser and hostlanguage parser
-  override def _expression = 
-    ( cc_node(expression)
-    | super._expression
-    )
-    
-  override def _assignExpr = 
-    ( cc_node(expression)
-    | super._assignExpr
-    )
   
   override def _primExpr = 
-    ( cc_node(expression)
+    ( cc_expression
     | super._primExpr
     )
     
   override def _statement = 
-    ( cc_node(statement)
+    ( cc_statement
     | super._statement
     )
     
@@ -93,7 +88,7 @@ trait ChoiceCalculusParser extends JavaScriptParser {
   // eliminates the need of wrapping the body of expressions multiple times
   // TODO open bug for that
   override def _idLiteral =
-    ( "[[" ~> cc_node(expression) <~ "]]"
+    ( "[[" ~> cc_expression <~ "]]"
     | super._idLiteral
     )
 }

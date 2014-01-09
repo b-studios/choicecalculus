@@ -10,7 +10,9 @@ import lang.javascript.implicits._
 
 class ParserTests extends FlatSpec with test.Helpers {
 
-  import lang.javascript.{ BlockStmt, CallExpr, FunctionDecl, GroupExpr, Program, NameAccessExpr, SequenceExpr, ReturnStmt }
+  import lang.javascript.{ BlockStmt, CallExpr, FunctionDecl, GroupExpr, Program, 
+                           NameAccessExpr, SequenceExpr, ReturnStmt, VarDeclStmt,
+                           VarBinding, EmptyStmt }
   
   object parser extends ChoiceCalculusParser with RegexParserTests {
     
@@ -110,7 +112,112 @@ class ParserTests extends FlatSpec with test.Helpers {
       assertParseOk("dim A(a) 4     ", strippedPhrase(expression), expected)
       assertParseOk("     dim A(a) 4   ", strippedPhrase(expression), expected)
     }
+
+    it should "parse choicecalculus terms in expression position" in {
+
+      locally {
+        val expected = Program(List(
+          dim('A)('a, 'b) {
+            FunctionDecl(lit("Foo"),List(),BlockStmt(List(
+              ReturnStmt(Some(
+                choice('A)(
+                  'a -> lit("3"),
+                  'b -> lit("4")))))))
+          }))
+
+        assertParseOk("""
+          dim A(a,b) in
+          function Foo() {
+            return choice A { 
+              case a => 3
+              case b => 4 
+            }
+          }
+        """, topLevel, expected)
+      }
+
+      assertParseOk("#x + #x", expression, id('x) + id('x))
+      assertParseOk("#y + #y", assignExpr, id('y) + id('y))
+      assertParseOk("(#z + #z)", primExpr, GroupExpr(id('z) + id('z)))
+
+      assertParseOk("#x, #x", expression, SequenceExpr(id('x) :: id('x) :: Nil))
+      assertParseOk("var x = #x", declaration, 
+        VarDeclStmt(VarBinding(lit("x"),id('x)) :: Nil))
+    }
+
+    it should "parse choicecalculus terms in statement position" in {
+
+      val sc = EmptyStmt
+
+      assertParseOk("""#x""", declaration, id('x))
+      assertParseOk("""#y""", statement, id('y))
+      assertParseOk("""{#x;#y;#z}""", statement, 
+        BlockStmt(List(id('x), sc, id('y), sc, id('z))))
+
+      assertParseOk("""dim A(a,b) {
+        var x = 42
+      }""", declaration, dim('A)('a,'b) { 
+        BlockStmt(VarDeclStmt(VarBinding(lit("x"),lit("42")) :: Nil) :: Nil)
+      })
+    }
+
+    it should "parse mixed nested choicecalculus terms and javascript terms" in {
+
+      assertParseOk("""dim A(a,b) {
+        var x = #z
+      }""", declaration, dim('A)('a,'b) { 
+        BlockStmt(VarDeclStmt(VarBinding(lit("x"),id('z)) :: Nil) :: Nil)
+      })
+
+      assertParseOk("""function Foo() {
+        dim A(a,b) {
+          var x = #z
+        }
+      }""", declaration, FunctionDecl(lit("Foo"),List(),BlockStmt(List(
+        dim('A)('a,'b) {
+          BlockStmt(VarDeclStmt(
+            VarBinding(lit("x"), id('z)) :: Nil) :: Nil)
+        }
+      ))))
+
+    }
+
+    it should "parse multiple nested dimension declarations" in {
+        
+      val expected = dim('A)('a,'b) { 
+        dim('B)('a,'b) {
+          dim('C)('a,'b) {
+            GroupExpr(choice('A)(
+              'a -> lit("1"),
+              'b -> lit("2")
+            ) + choice('B)(
+              'a -> lit("3"),
+              'b -> lit("4")
+            ))
+          }
+        }
+      }
+
+      assertParseOk("""
+         dim A(a, b) in
+         dim B(a, b) in
+         dim C(a, b) in
+           (choice A {
+             case a => 1
+             case b => 2
+           } + choice B {
+             case a => 3
+             case b => 4
+           })""", strippedPhrase(expression), expected)
+    }
     
+    // TODO implement after adding sensible error handling
+    ignore("print pretty error messages") {
+
+      // should yield "[1.18] failure: `(' expected but `*' found"
+      assertParseOk("""dim A(a,b) in (3+*4)""", topLevel, Program(Nil))
+
+    }
   }
   
   parser

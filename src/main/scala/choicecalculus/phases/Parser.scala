@@ -3,7 +3,7 @@ package phases
 
 import lang.ASTNode
 
-import scala.util.parsing.combinator.RegexParsers
+import scala.util.parsing.combinator.Parsers
 
 /**
  * Parser is not actually a phase and can eventually be merged into Reader
@@ -12,7 +12,7 @@ trait Parser {
 
   val parsers: ParsersAPI
 
-  trait ParsersAPI { self: RegexParsers => 
+  trait ParsersAPI { self: Parsers => 
 
     type TreeParser = Parser[ASTNode]
 
@@ -20,7 +20,7 @@ trait Parser {
      * The toplevel parser which is applied in order to parse complete
      * files
      */
-    def topLevel: TreeParser
+    val topLevel: TreeParser
 
     /**
      * Should apply parser `p` as a phrase, consuming whitespaces

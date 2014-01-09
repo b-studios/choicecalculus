@@ -13,7 +13,7 @@ trait ParserUtils extends PositionedParserUtilities {
   
   lazy val spaces = rep(space)
   
-  def strippedPhrase[T](body: PackratParser[T]): PackratParser[T] = 
+  def strippedPhrase[T](body: Parser[T]): Parser[T] = 
     phrase(spaces ~> body <~ spaces)
   
   case class WSParserWrapper[T](parser: Parser[T]) {

@@ -130,7 +130,9 @@ trait JavaScriptParser extends JavaScriptLexer {
 
   // Program
   // -------
-  def _topLevel: PackratParser[ASTNode] = 
+  // annotating the topLevel parser with type PackratParser[ASTNode]
+  // prevents nice error messages ("[1.1] failure: Base Failure")
+  def _topLevel: Parser[ASTNode] =
     strippedPhrase( multiple (declaration) ) ^^ Program
 
   def _declaration: PackratParser[Statement] = 
