@@ -10,19 +10,19 @@ trait Helpers {
   /**
    * Constructor helpers
    */
-  def dim[T <: ASTNode](name: Symbol, tags: List[Symbol], body: T) = Dimension(name, tags, body)
-  def dim[T <: ASTNode](name: Symbol)(tags: Symbol*)(body: T) = Dimension(name, tags.toList, body)
+  def dim[T <: ASTNode](name: Symbol, tags: List[Symbol], body: T) = Dimension[T](name, tags, body)
+  def dim[T <: ASTNode](name: Symbol)(tags: Symbol*)(body: T) = Dimension[T](name, tags.toList, body)
   def choice[T <: ASTNode](dim: Symbol, alts: List[Alternative[T]]) = Choice[T](dim, alts)
   def choice[T <: ASTNode](dim: Symbol)(alts: (Symbol, T)*) = Choice[T](dim, alts.map {
     case (tag, body) => Alternative(tag, body)
   }.toList)
-  def alternative[T <: ASTNode](tag: Symbol, body: T) = Alternative(tag, body)
-  def select[T <: ASTNode](dim: Symbol, tag: Symbol, body: T) = Select(dim, tag, body)
+  def alternative[T <: ASTNode](tag: Symbol, body: T) = Alternative[T](tag, body)
+  def select[T <: ASTNode](dim: Symbol, tag: Symbol, body: T) = Select[T](dim, tag, body)
   //def select[T <: ASTNode](dim: Symbol, tag: Symbol)(body: T) = Select(dim, tag, body)
-  def share[S <: ASTNode, T <: ASTNode](name: Symbol, exp: S, body: T) = Share(name, exp, body)
-  def id[T <: ASTNode](name: Symbol) = Identifier(name)
-  def include[T <: ASTNode, P](filename: String, context: P) = Include(filename, context)
-  def partialConfig[T <: ASTNode](selects: (Symbol, Symbol)*)(body: T) = PartialConfig(body, selects.toList)
+  def share[S <: ASTNode, T <: ASTNode](name: Symbol, exp: S, body: T) = Share[S, T](name, exp, body)
+  def id[T <: ASTNode](name: Symbol) = Identifier[ASTNode](name)
+  def include[T <: ASTNode, P](filename: String, context: P) = Include[T, P](filename, context)
+  def partialConfig[T <: ASTNode](selects: (Symbol, Symbol)*)(body: T) = PartialConfig[T](body, selects.toList)
   
   
   def lit(name: String) = AtomLit(name)

@@ -15,12 +15,12 @@ import org.kiama.rewriting.Rewriter.rewrite
 import dimensionchecker.DimensionGraph
 
 import utility.test
-import utility.messages._ //{ mute, resetMessages, hasBeenReported, FatalPhaseError, 
-                         // Level }
+import utility.messages._
 
-class SelectionTests extends FlatSpec with matchers.ShouldMatchers {
+class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
 
-  import lang.javascript.{ Expression, Program, VarDeclStmt, Statement, VarBinding, ReturnStmt }
+  import lang.javascript.{ Expression, Program, VarDeclStmt, Statement, 
+                           VarBinding, ReturnStmt }
 
   /**
    * this is called `evaluating` in scala test 1.9
@@ -65,6 +65,16 @@ class SelectionTests extends FlatSpec with matchers.ShouldMatchers {
       msg.level == Level.Warn &&
       (msg.message contains "vacuous")
     }
+
+    def dimensionCheckerError[T](block: => T): FatalPhaseError =
+      running {
+        block
+      } should produce [FatalPhaseError] match {
+        case error => {
+          error.phase should equal ('dimensionchecker)
+          error
+        }
+      }
 
     it should "find correct dimensioning" in {
 
@@ -325,11 +335,7 @@ class SelectionTests extends FlatSpec with matchers.ShouldMatchers {
               'c -> lit("4")
           )})
 
-      running {
-        evaluating(example4_2)
-      } should produce [FatalPhaseError] match {
-        case error => error.phase should equal ('dimensionchecker)
-      }
+      dimensionCheckerError { evaluating(example4_2) }
 
       // 4.3 Undeclared Tag
       // Design decision: Not allowed
@@ -339,17 +345,8 @@ class SelectionTests extends FlatSpec with matchers.ShouldMatchers {
         )})
       val example4_3_2 = select('D,'a, dim('D)('b, 'd) { lit("3") + lit("4") })
 
-      running {
-        evaluating(example4_3)
-      } should produce [FatalPhaseError] match {
-        case error => error.phase should equal ('dimensionchecker)
-      }
-
-      running {
-        evaluating(example4_3_2)
-      } should produce [FatalPhaseError] match {
-        case error => error.phase should equal ('dimensionchecker)
-      }
+      dimensionCheckerError { evaluating(example4_3) }
+      dimensionCheckerError { evaluating(example4_3_2) }
 
       // 4.4 Dependent Dimensions
       // Design decision: Do not select dependent dimension
