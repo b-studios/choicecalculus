@@ -3,7 +3,7 @@ package choicecalculus
 import lang.ASTNode
 import phases.{ Parser, Reader, Namer, DimensionChecker, Evaluator }
 
-import utility.Messaging.report
+import utility.messages._
 
 trait Compiler extends Parser with Reader with Namer 
   with DimensionChecker with Evaluator {
@@ -20,26 +20,29 @@ trait Compiler extends Parser with Reader with Namer
     processfiles(args)
   }
 
-  def processfiles(filenames: Seq[String]) {
+  def processfiles(filenames: Seq[String]): Unit = try {
     for (filename <- filenames) {
-        processfile(filename)
+      processfile(filename)
     }
+  } catch {
+    case err: FatalPhaseError => err.report
+  } finally {
+    report
   }
 
   /**
    * Processes a given file by running the reader phase
    */
-  def processfile(filename: String): Unit = try {
+  def processfile(filename: String): Unit = messageScope(filename = filename) {
 
     // I. Reader phase - always necessary to collect all
     //    dependencies
     val (source, dependencies) = runReader(filename)
 
     // other phases for dependencies
-    for {
-      dependency <- dependencies
-      tree <- dependency.trees
-    } processDependency(dependency.filename, tree)
+    for (dependency <- dependencies; tree <- dependency.trees) {
+      processDependency(dependency.filename, tree)
+    }
 
     // Usually, there should only be one tree for the main source
     // but we are playing it save here
@@ -51,9 +54,6 @@ trait Compiler extends Parser with Reader with Namer
 
     // Last Phase: Generator
     // runGenerator
-
-  } finally {
-    report()
   }
 
   /**
@@ -63,15 +63,17 @@ trait Compiler extends Parser with Reader with Namer
    * 1. Namer
    * 2. DimensionChecker
    */
-  def processDependency(filename: String, ast: ASTNode) {
-    runNamer(ast)
-    runDimensionChecker(ast)
-  }
+  def processDependency(filename: String, ast: ASTNode): Unit = 
+    messageScope(filename = filename) {
+      runNamer(ast)
+      runDimensionChecker(ast)
+    }
 
-  def process(filename: String, ast: ASTNode): ASTNode = {
-    runNamer(ast)
-    runDimensionChecker(ast)
-    runEvaluator(ast)
-  }
-
+  def process(filename: String, ast: ASTNode): ASTNode = 
+    messageScope(filename = filename) {
+      runNamer(ast)
+      runDimensionChecker(ast)
+      runEvaluator(ast)
+    }
+    
 }

@@ -7,7 +7,7 @@ import lang.choicecalculus.{ Identifier, Share }
 import org.kiama.attribution.Attribution.{ attr, paramAttr }
 import org.kiama.rewriting.Rewriter.{ everywheretd, query }
 
-import utility.Messaging.error
+import utility.messages._
 
 
 /**
@@ -27,7 +27,7 @@ trait Namer {
    *
    * @see [[bindingInstance]]
    */
-  def runNamer(ast: ASTNode): ast.type = {
+  def runNamer(ast: ASTNode): ASTNode = messageScope(phase = 'namer) {
     everywheretd (forceNameResolution) (ast);
     ast
   }
@@ -52,7 +52,7 @@ trait Namer {
 
   private lazy val forceNameResolution = query { 
     case id: Identifier[ASTNode] => id->bindingInstance match {
-      case None => error(id, s"Use of unbound choice calculus variable '${id.name.name}'")
+      case None => raise(s"Use of unbound choice calculus variable '${id.name.name}'", position = id)
       case _ =>
     }
   }

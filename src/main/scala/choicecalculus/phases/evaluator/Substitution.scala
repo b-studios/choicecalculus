@@ -8,6 +8,8 @@ import lang.choicecalculus.{ Include, PartialConfig, Select, Share, Identifier }
 import org.kiama.rewriting.Rewriter.{ rewrite, rule, strategyf, test }
 import org.kiama.attribution.Attribution.{ paramAttr } 
 
+import utility.messages._
+
 
 /**
  * 2. Step - Substitution
@@ -22,8 +24,9 @@ trait Substitution { self: Reader with Namer with DimensionChecker  =>
     test(isFullyConfigured) <* (substIdExpr + substIncludeExpr + (substPartialConfig <* desugarPartialConfig))
 
   // TODO also check whether exp is an Identifier, a PartialConfig or an Include
+  // dimensioning is performed muted in order to avoid redundant messages
   lazy val isFullyConfigured = strategyf("isFullyConfigured", {
-    case exp: ASTNode if (exp->dimensioning).fullyConfigured => Some(exp)
+    case exp: ASTNode if (mute { exp->dimensioning }).fullyConfigured => Some(exp)
     case _ => None
   })
   
@@ -32,7 +35,7 @@ trait Substitution { self: Reader with Namer with DimensionChecker  =>
   lazy val substIdExpr = rule("substIdExpr", {
     case id@Identifier(name) => id->bindingInstance match {
       case Some(Share(_, binding, _)) => binding
-      case other => sys error "cannot substitute binding for %s, got %s".format(name, other)
+      case other => raise(s"cannot substitute binding for $name, got $other", position = id)
     }
   })
   

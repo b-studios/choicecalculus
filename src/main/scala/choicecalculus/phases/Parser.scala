@@ -31,7 +31,7 @@ trait Parser {
      *
      * @see scala.util.parsing.combinator.RegexParsers#phrase
      */
-    def parseFile(p: TreeParser, name: String, in: java.io.Reader): ASTNode
+    def parseFile(p: TreeParser, in: java.io.Reader): ASTNode
 
   }
 

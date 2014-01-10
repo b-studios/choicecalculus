@@ -10,8 +10,9 @@ import lang.choicecalculus.Include
 
 import scala.collection.mutable
 
-import java.io.File
-import java.io.BufferedReader
+import utility.messages._
+
+import java.io.{ File, BufferedReader, FileNotFoundException }
 
 /**
  * <h2>The Reader phase
@@ -34,18 +35,26 @@ trait Reader { self: Parser =>
    *
    * The dependencies are presented in topological order
    */
-  def runReader(input: String): (SourceFile, List[SourceFile]) = {
-    val source = lookupSourceFile(input)
-    val tree = source readWith parsers.topLevel
+  def runReader(input: String): (SourceFile, List[SourceFile]) = 
+    messageScope(phase = 'reader) {
+      val source = lookupSourceFile(input)
+      val tree = source readWith parsers.topLevel
 
-    (source, tree->collectSourceFiles)
-  }
+      (source, tree->collectSourceFiles)
+    }
 
-  // XXX
-  def runReader(tree: ASTNode): List[SourceFile] = {
-    initTree(tree)
-    tree->collectSourceFiles
-  }
+  /**
+   * Returns the sourcefile for `tree` and it's dependencies as a pair.
+   *
+   * The dependencies are presented in topological order. This overloaded
+   * version of `runReader` creates a virtual file for the given tree instead
+   * of parsing a source file.
+   */
+  def runReader(tree: ASTNode): (SourceFile, List[SourceFile]) =
+    messageScope(phase = 'reader) {
+      val source = VirtualFile(tree)
+      (source, tree->collectSourceFiles)
+    }
 
   /**
    * Returns the tree that will be included
@@ -61,9 +70,8 @@ trait Reader { self: Parser =>
    */
   def lookupSourceFile(filename: String): SourceFile = {
     val file = new File(filename)
-    _cache getOrElseUpdate(file.getCanonicalPath, SourceFile(file))
+    _cache getOrElseUpdate(file.getCanonicalPath, RealFile(file))
   }
-
 
   /**
    * Represents source files that have been parsed
@@ -77,7 +85,7 @@ trait Reader { self: Parser =>
    * This seems like a slight misconception since a sourcefile
    * can only have one output.
    */
-  case class SourceFile(file: File) {
+  trait SourceFile {
 
     /**
      * The parsed trees.
@@ -86,33 +94,64 @@ trait Reader { self: Parser =>
      * context of include the file can be parsed with different
      * parsers.
      */
-    def trees: Seq[ASTNode] = _parsers.values.toSeq
+    def trees: Seq[ASTNode]
 
     /**
      * The canonical name of the file
      */
-    def filename: String = file.getCanonicalPath
-
-    /**
-     * The textual contents of the file
-     */
-    def contents: BufferedReader = IO.filereader(filename)
+    def filename: String
 
     /**
      * Reads the file the given parser
      */
-    def readWith(p: TreeParser): ASTNode = 
-      _parsers getOrElseUpdate(p, {
-        val tree = parsers.parseFile(p, filename, contents)
-        initTree(tree)
-        tree;
-      })
+    def readWith(p: TreeParser): ASTNode
+  }
 
+  private case class RealFile(file: File) extends SourceFile {
+
+    def trees: Seq[ASTNode] = _parsers.values.toSeq
+
+    def filename: String = file.getCanonicalPath
+
+    def readWith(p: TreeParser): ASTNode = 
+      messageScope(filename = filename) {
+        _parsers getOrElseUpdate(p, {
+          val tree = parsers.parseFile(p, contents)
+          initTree(tree)
+          tree;
+        })
+      }
+
+    /**
+     * The textual contents of the file
+     */
+    private def contents: BufferedReader = try {
+      IO.filereader(filename)
+    } catch {
+      case _: FileNotFoundException | _: IO.FileNotFoundException => 
+        raise(s"File not found: $filename")
+    }
     
     private val _parsers = mutable.Map[TreeParser, ASTNode]()
   }
 
-  private val Dummy = SourceFile(new File("$$DUMMY$$"))
+  private case class VirtualFile(tree: ASTNode) extends SourceFile {
+
+    initTree(tree)
+
+    val trees: Seq[ASTNode] = Seq(tree)
+
+    // Generate a random filename for this virtual file
+    lazy val filename: String = "virtual-" + java.util.UUID.randomUUID().toString()
+
+    def readWith(p: TreeParser): ASTNode = tree
+  }
+
+  private case object DummyFile extends SourceFile {
+    val trees = null
+    val filename = "DummyFile"
+    def readWith(p: TreeParser): ASTNode = ???
+  }
 
   // map from canonical path to sourcefile
   private var _cache = mutable.HashMap[String, SourceFile]()
@@ -156,9 +195,9 @@ trait Reader { self: Parser =>
 
         dependencies = dependencies ++ (_cache get(path) match {
 
-          // Someone else put a `Dummy` into the cache and did not finish
+          // Someone else put a `DummyFile` into the cache and did not finish
           // computation => cycle
-          case Some(`Dummy`) => sys error (s"Cyclic dependency at ${inc}")
+          case Some(DummyFile) => raise(s"Cyclic dependency", position=inc)
 
           // Already processed, so it's dependencies are already resolved 
           // Still requires processing of the possibly new tree
@@ -171,8 +210,8 @@ trait Reader { self: Parser =>
           // the cache
           case None => {
             
-            _cache update(path, Dummy)
-            val source = SourceFile(file)
+            _cache update(path, DummyFile)
+            val source = RealFile(file)
             val deps = (source readWith parser)->collectSourceFiles
             _cache update(path, source)
 

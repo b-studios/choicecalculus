@@ -2,9 +2,10 @@ package choicecalculus
 package phases.dimensionchecker
 
 import scala.collection.mutable
-import utility.Messaging.{ message, error, warning }
 import lang.ASTNode
 import GraphPrettyPrinter.pretty_graph
+
+import utility.messages._
 
 abstract class GraphNode {
   
@@ -82,13 +83,13 @@ case class DimensionGraph(nodes: Set[GraphNode]) {
       
     // nothing needs to be done
     case Nil => {
-      message(ast, "Your declared dimension %s is never used. Maybe remove it?".format(name.name))
-      return this
+      warn(s"Your declared dimension ${name.name} is never used. Maybe remove it?", position = ast)
+      val newDim = new DimensionNode(name, tags, tags.map { (_, Set.empty[GraphNode]) }.toMap)
+      DimensionGraph(nodes + newDim)
     }
     
     case choices if choices.size > 1 => {
-      error(ast, "Nested choices of the same dimension are not supported! (%s)".format(name.name))
-      return this       
+      raise(s"Nested choices of the same dimension are not supported! (${name.name})", position = ast)
     }
     
     // use `new` here to create different dimension nodes every time
@@ -96,7 +97,7 @@ case class DimensionGraph(nodes: Set[GraphNode]) {
       
       choice.edges.collect {
         case (tag, _) if !(tags contains tag) => 
-          error(ast, "The used tag '%s' is not declared in this dimension".format(tag.name))
+          raise(s"The used tag '${tag.name}' is not declared in this dimension", position = ast)
       }
       
       DimensionGraph(nodes - choice + new DimensionNode(name, tags, choice.edges))
@@ -104,56 +105,55 @@ case class DimensionGraph(nodes: Set[GraphNode]) {
   }
   
   
-  def fromChoice(dim: Symbol, tag: Symbol)(ast: ASTNode): DimensionGraph = getChoiceNodes(dim) match {  
-    
-    case Nil => {
-      // the choices get merged later on by ++
-      val choice = new ChoiceNode(dim, 
-    
-        Map(tag -> nodes.flatMap {            
-          // 1. All dimension nodes located at root
-          case dim:DimensionNode => Set(dim)
+  def fromChoice(dim: Symbol, tag: Symbol)(ast: ASTNode): DimensionGraph = 
+    getChoiceNodes(dim) match {  
       
-          // 2. All dimension nodes nested inside of Choicenodes
-          case ChoiceNode(_, edges) => edges.map(_._2).flatten
-        })          
-      )
+      case Nil => {
+        // the choices get merged later on by ++
+        val choice = new ChoiceNode(dim, 
+      
+          Map(tag -> nodes.flatMap {            
+            // 1. All dimension nodes located at root
+            case dim: DimensionNode => Set(dim)
+        
+            // 2. All dimension nodes nested inside of Choicenodes
+            case ChoiceNode(_, edges) => edges.map(_._2).flatten
+          })          
+        )
 
-      DimensionGraph(nodes.filter { _.isInstanceOf[ChoiceNode] } + choice)
+        DimensionGraph(nodes.filter { _.isInstanceOf[ChoiceNode] } + choice)
+      }
+      
+      case _ =>
+        raise(s"Nested choices of the same dimension are not supported! ($dim)", position = ast)
     }
-    
-    case _ => {
-      error(ast, "Nested choices of the same dimension are not supported! (%s)".format(dim.name))
-      return this
-    }
-  }
       
   
   def select(dim: Symbol, tag: Symbol)(ast: ASTNode): DimensionGraph = getDimensionNodes(dim) match {
   
     // TODO see whether it could select an dependent dimension and add this information to the message
     case Nil => {
-      error(ast, "Your selection %s.%s is vacuous %s)".format(dim.name, tag.name, pretty_graph(this)))
-      return this
+      warn(s"Your selection ${dim.name}.${tag.name} is vacuous: $this)", position = ast)
+      this
     }
   
     case dimension :: _ => {
-              
+
       if (!(dimension.tags contains tag))
-        error(ast, "Cannot select %s.%s because this tag is not declared".format(dim.name, tag.name))
+        raise(s"Cannot select ${dim.name}.${tag.name} because this tag is not declared", position = ast)
     
       if (!(dimension.edges contains tag))
-        error(ast, "Cannot select %s.%s because the choice for this tag is missing".format(dim.name, tag.name))         
+        raise(s"Cannot select ${dim.name}.${tag.name} because the choice for this tag is missing", position = ast)
         
       val newNodes = nodes - dimension
         
       // here only those dimensions are added, which are not dependent anymore
       // we gracefully fall back to Set(), if the tag is not found
-      DimensionGraph(newNodes ++ dimension.edges.getOrElse(tag, Set()).filterNot( isDependent(newNodes, _) ))    
+      DimensionGraph(newNodes ++ dimension.edges.getOrElse(tag, Set()).filterNot( isDependent(newNodes, _) ))
     }
   }
-  
-  
+
+
   /**
    * 1. We have to assure, that merging
    * 
@@ -169,10 +169,8 @@ case class DimensionGraph(nodes: Set[GraphNode]) {
       //    otherwise add dimension to the set of nodes
       case dim@DimensionNode(name, _, _) => getDimensionNodes(name) match {
         case Nil => dim
-        case _ => {
-          error(ast, "Multiple dimension declarations at one level: %s".format(dim))
-          dim
-        }
+        case _ =>
+          raise(s"Multiple dimension declarations at one level: $dim", position = ast)
       }
         
       // 2. If two ChoiceNodes with the same name are declared -> Merge their edges 
