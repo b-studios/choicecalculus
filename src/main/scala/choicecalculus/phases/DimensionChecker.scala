@@ -55,8 +55,7 @@ trait DimensionChecker { self: Reader with Namer =>
         }
         
         case id@Identifier(name) => id->bindingInstance match {
-          case Some(Share(_, boundExpr, _)) => boundExpr->dimensioning
-          case _ => raise("Reference to unbound identifier $name.", position = id)
+          case Share(_, boundExpr, _) => boundExpr->dimensioning
         }
         
         case PartialConfig(body, configs) => (configs.foldLeft(body->dimensioning) {

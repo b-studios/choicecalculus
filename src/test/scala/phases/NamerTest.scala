@@ -36,7 +36,7 @@ class NamerTest extends FlatSpec with matchers.ShouldMatchers {
       val bindingShare = share('v, lit("3") + lit("4"), id('v) + v)
 
       naming(bindingShare)
-      v->bindingInstance should be (Some(bindingShare))
+      v->bindingInstance should be (bindingShare)
     }
 
     it should "bind identifiers with shadowed shares" in {
@@ -48,8 +48,8 @@ class NamerTest extends FlatSpec with matchers.ShouldMatchers {
       val bindingShare1 = share('v, lit("1"), v1 + bindingShare2)
 
       naming(bindingShare1)
-      v1->bindingInstance should be (Some(bindingShare1))
-      v2->bindingInstance should be (Some(bindingShare2))
+      v1->bindingInstance should be (bindingShare1)
+      v2->bindingInstance should be (bindingShare2)
     }
 
     it should "fail binding unbound identifiers" in {
@@ -68,8 +68,8 @@ class NamerTest extends FlatSpec with matchers.ShouldMatchers {
       val bindingShare1 = share('v, lit("3") + lit("4"), bindingShare2)
 
       naming(bindingShare1)
-      v1->bindingInstance should be (Some(bindingShare1))
-      v2->bindingInstance should be (Some(bindingShare2))
+      v1->bindingInstance should be (bindingShare1)
+      v2->bindingInstance should be (bindingShare2)
     }
 
   }

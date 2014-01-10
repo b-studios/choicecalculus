@@ -43,33 +43,33 @@ trait Namer {
    * }}}
    *
    * @param identifier to resolve the binding from
-   * @return the some share expression that binds the `Identifier` it is called on
-   *         or `None` if the `Identifier` is not bound.
+   * @return the share expression that binds the `Identifier` it is called on
+   *         or a FatalPhaseError if the identifier is unbound
    */
-  lazy val bindingInstance: Identifier[ASTNode] => Option[Share[_,_]] = attr { 
+  lazy val bindingInstance: Identifier[ASTNode] => Share[ASTNode, ASTNode] = attr { 
     case p => p->bindingInstanceOf(p)
   }
 
   private lazy val forceNameResolution = query { 
-    case id: Identifier[ASTNode] => id->bindingInstance match {
-      case None => raise(s"Use of unbound choice calculus variable '${id.name.name}'", position = id)
-      case _ =>
-    }
+    case id: Identifier[ASTNode] => id->bindingInstance
   }
 
-  private lazy val bindingInstanceOf: Identifier[ASTNode] => ASTNode => Option[Share[_,_]] = paramAttr {
-    case id@Identifier(name) => {
-      case s@Share(`name`, _, _) => Some(s)
-      case node if node.isRoot => None
-      
-      // If the parent is a share expression we have to check whether we are in the binding branch
-      // of the share. Otherwise this would create circular bindings, much like a letrec.
-      case node => node.parent match {
-        case p@Share(_, `node`, _) => p.parent[ASTNode]->bindingInstanceOf(id)
-        case otherParent: ASTNode => otherParent->bindingInstanceOf(id)
-        case _ => None
+  private def unbound(id: Identifier[_]): Nothing =
+    raise(s"Use of unbound choice calculus variable '${id.name.name}'", position = id)
+
+  private lazy val bindingInstanceOf: Identifier[ASTNode] => ASTNode => Share[ASTNode,ASTNode] = 
+    paramAttr {
+      case id@Identifier(name) => {
+        case s@Share(`name`, _, _) => s
+        case node if node.isRoot => unbound(id)
+        
+        // If the parent is a share expression we have to check whether we are in the binding branch
+        // of the share. Otherwise this would create circular bindings, much like a letrec.
+        case node => node.parent match {
+          case p@Share(_, `node`, _) => p.parent[ASTNode]->bindingInstanceOf(id)
+          case otherParent: ASTNode => otherParent->bindingInstanceOf(id)
+          case _ => unbound(id)
+        }
       }
     }
-  }
-
 }

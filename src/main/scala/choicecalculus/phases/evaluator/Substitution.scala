@@ -34,8 +34,7 @@ trait Substitution { self: Reader with Namer with DimensionChecker  =>
   // i. It's an id
   lazy val substIdExpr = rule("substIdExpr", {
     case id@Identifier(name) => id->bindingInstance match {
-      case Some(Share(_, binding, _)) => binding
-      case other => raise(s"cannot substitute binding for $name, got $other", position = id)
+      case Share(_, binding, _) => binding
     }
   })
   
