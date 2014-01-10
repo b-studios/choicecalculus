@@ -5,6 +5,8 @@ import lang.ASTNode
 import lang.choicecalculus.{ Alternative, Choice, Dimension, Include, PartialConfig, Select, Share, Identifier }
 import lang.javascript.{ AtomLit, BinaryOpExpr, Expression }
 
+import utility.messages.{ hasBeenReported, Level }
+
 trait Helpers {
   
   /**
@@ -31,6 +33,12 @@ trait Helpers {
   case class BinOpConstructor(lhs: Expression) {
     def +(rhs: Expression) = BinaryOpExpr(lhs, "+", rhs)
     def *(rhs: Expression) = BinaryOpExpr(lhs, "*", rhs)
+  }
+
+  def vacuousWarning = hasBeenReported { msg => 
+    msg.phase == 'dimensionchecker && 
+    msg.level == Level.Warn &&
+    (msg.message contains "vacuous")
   }
   
   implicit def exp2binOp(e: Expression): BinOpConstructor = BinOpConstructor(e)

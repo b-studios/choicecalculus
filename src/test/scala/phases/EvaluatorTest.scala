@@ -4,8 +4,6 @@ package evaluator
 
 import org.scalatest._
 
-import org.kiama.util.Tests
-
 import lang.ASTNode
 import lang.JsCcParser
 
@@ -59,22 +57,6 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
       runDimensionChecker(tree)
       runEvaluator(tree)
     }
-
-    def vacuousWarning = hasBeenReported { msg => 
-      msg.phase == 'dimensionchecker && 
-      msg.level == Level.Warn &&
-      (msg.message contains "vacuous")
-    }
-
-    def dimensionCheckerError[T](block: => T): FatalPhaseError =
-      running {
-        block
-      } should produce [FatalPhaseError] match {
-        case error => {
-          error.phase should equal ('dimensionchecker)
-          error
-        }
-      }
 
     it should "find correct dimensioning" in {
 
@@ -314,62 +296,6 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
 
       evaluating(example3_1_sel1) should equal { lit("2") }
       evaluating(example3_1_sel2) should equal { lit("3") }
-
-      // Section 4: Open Questions
-
-      // 4.1 Undeclared Dimension
-      // Design decision: Not allowed
-      val example4_1 = select('D, 't, lit("1") + lit("2"))
-
-      evaluating(example4_1)
-      vacuousWarning should be (true)
-
-      // 4.2 Multiple Dimensions
-      // Design decision: Not allowed
-      val example4_2 = select('D, 'a,
-          dim('D)('a, 'b) { choice('D) (
-              'a -> lit("1"),
-              'b -> lit("2")
-          )} + dim('D)('a, 'c) { choice('D) (
-              'a -> lit("3"),
-              'c -> lit("4")
-          )})
-
-      dimensionCheckerError { evaluating(example4_2) }
-
-      // 4.3 Undeclared Tag
-      // Design decision: Not allowed
-      val example4_3 = select('D,'a, dim('D)('b, 'c) { choice('D) (
-          'b -> lit("1"),
-          'c -> lit("2")
-        )})
-      val example4_3_2 = select('D,'a, dim('D)('b, 'd) { lit("3") + lit("4") })
-
-      dimensionCheckerError { evaluating(example4_3) }
-      dimensionCheckerError { evaluating(example4_3_2) }
-
-      // 4.4 Dependent Dimensions
-      // Design decision: Do not select dependent dimension
-      //select B.c from
-      //  dim A(a,b) in
-      //   choice A {
-      //     case a => dim B(c,d) in choice B {
-      //       case c => 1
-      //       case d => 2
-      //     }
-      //     case b => 3
-      //   }
-      val example4_4 = select('B, 'c, dim('A)('a, 'b) {
-          choice('A) (
-            'a -> dim('B)('c, 'd) { choice('B) (
-              'c -> lit("1"),
-              'd -> lit("2")
-              )},
-            'b -> lit("3")
-          )})
-
-      evaluating(example4_4)
-      vacuousWarning should be (true)
     }
   }
 

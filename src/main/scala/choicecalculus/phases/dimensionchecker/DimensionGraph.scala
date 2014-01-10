@@ -176,7 +176,7 @@ case class DimensionGraph(nodes: Set[GraphNode]) {
       // 2. If two ChoiceNodes with the same name are declared -> Merge their edges 
       case choice@ChoiceNode(name, edges) => getChoiceNodes(name) match {
         case Nil => choice
-        case (otherChoice:ChoiceNode) :: Nil => new ChoiceNode(name, choice.edges ++ otherChoice.edges.collect {
+        case (otherChoice:ChoiceNode) :: _ => new ChoiceNode(name, choice.edges ++ otherChoice.edges.collect {
           case (tag, targets) if choice.edges contains tag => (tag, choice.edges(tag) ++ targets)
           case other => other
         })
