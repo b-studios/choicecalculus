@@ -57,6 +57,11 @@ trait Reader { self: Parser =>
     }
 
   /**
+   * Resets the file cache
+   */
+  def resetReader() { _cache.clear() }
+
+  /**
    * Returns the tree that will be included
    */
   lazy val tree: Include[_,_] => ASTNode = attr {
@@ -147,14 +152,15 @@ trait Reader { self: Parser =>
     def readWith(p: TreeParser): ASTNode = tree
   }
 
-  private case object DummyFile extends SourceFile {
-    val trees = null
-    val filename = "DummyFile"
-    def readWith(p: TreeParser): ASTNode = ???
+  private case class DummyFile(pos: ASTNode) extends SourceFile {
+    private def cyclic: Nothing = raise(s"Cyclic dependency", position = pos)
+    def trees = cyclic
+    def filename = cyclic
+    def readWith(p: TreeParser): ASTNode = cyclic
   }
 
   // map from canonical path to sourcefile
-  private var _cache = mutable.HashMap[String, SourceFile]()
+  private val _cache = mutable.HashMap[String, SourceFile]()
 
 
   /**
@@ -195,10 +201,6 @@ trait Reader { self: Parser =>
 
         dependencies = dependencies ++ (_cache get(path) match {
 
-          // Someone else put a `DummyFile` into the cache and did not finish
-          // computation => cycle
-          case Some(DummyFile) => raise(s"Cyclic dependency", position=inc)
-
           // Already processed, so it's dependencies are already resolved 
           // Still requires processing of the possibly new tree
           // (This is due to the fact, that `SourceFile`s can have
@@ -210,7 +212,7 @@ trait Reader { self: Parser =>
           // the cache
           case None => {
             
-            _cache update(path, DummyFile)
+            _cache update(path, DummyFile(inc))
             val source = RealFile(file)
             val deps = (source readWith parser)->collectSourceFiles
             _cache update(path, source)
