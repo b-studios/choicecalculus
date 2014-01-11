@@ -30,7 +30,7 @@ class ReaderTest extends FlatSpec with matchers.ShouldMatchers {
       ))))
     }
 
-    def reading(filename: String): (SourceFile, List[SourceFile]) = 
+    def reading(filename: String): (SourceFile, List[SourceFile]) =
       runReader(pathPrefix + filename)
   }
 
@@ -89,7 +89,7 @@ class ReaderTest extends FlatSpec with matchers.ShouldMatchers {
     val test03tree = src3.trees.collectFirst {
       case d: Dimension[_] => d
     }.get
- 
+
     (src4.trees.head: @unchecked) match {
       case Program(List(Dimension(_, _, BlockStmt(List(
           Select(_, _, inc1: Include[_, _]), EmptyStmt,

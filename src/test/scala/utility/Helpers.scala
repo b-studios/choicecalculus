@@ -8,7 +8,7 @@ import lang.javascript.{ AtomLit, BinaryOpExpr, Expression }
 import utility.messages.{ hasBeenReported, Level }
 
 trait Helpers {
-  
+
   /**
    * Constructor helpers
    */
@@ -25,22 +25,22 @@ trait Helpers {
   def id[T <: ASTNode](name: Symbol) = Identifier[ASTNode](name)
   def include[T <: ASTNode, P](filename: String, context: P) = Include[T, P](filename, context)
   def partialConfig[T <: ASTNode](selects: (Symbol, Symbol)*)(body: T) = PartialConfig[T](body, selects.toList)
-  
-  
+
+
   def lit(name: String) = AtomLit(name)
-  
-  
+
+
   case class BinOpConstructor(lhs: Expression) {
     def +(rhs: Expression) = BinaryOpExpr(lhs, "+", rhs)
     def *(rhs: Expression) = BinaryOpExpr(lhs, "*", rhs)
   }
 
-  def vacuousWarning = hasBeenReported { msg => 
-    msg.phase == 'dimensionchecker && 
+  def vacuousWarning = hasBeenReported { msg =>
+    msg.phase == 'dimensionchecker &&
     msg.level == Level.Warn &&
     (msg.message contains "vacuous")
   }
-  
+
   implicit def exp2binOp(e: Expression): BinOpConstructor = BinOpConstructor(e)
   implicit def intToLit(n: Int): AtomLit = AtomLit(n.toString)
 }

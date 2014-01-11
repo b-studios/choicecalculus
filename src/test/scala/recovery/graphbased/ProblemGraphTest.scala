@@ -22,12 +22,12 @@ class ProblemGraphTest extends FlatSpec {
   }
 
   val table2 = new Table[Symbol, Int]('w, 'x, 'y) {
-      | (1) | (1) | (1) |;
-      | (2) | (1) | (1) |;
-      | (2) | (2) | (2) |;
-      | (2) | (3) | (3) |;
-    }
- 
+    | (1) | (1) | (1) |;
+    | (2) | (1) | (1) |;
+    | (2) | (2) | (2) |;
+    | (2) | (3) | (3) |;
+  }
+
   it should "create the problem graph with the correct structure" in {
 
     val ProblemGraph(vs, es) = build(table1)
@@ -38,7 +38,7 @@ class ProblemGraphTest extends FlatSpec {
   }
 
   it should "create correct graph for minimality counter example" in {
-      
+
     val ProblemGraph(vs, es) = build(table2)
 
     vs.size should be (3)
@@ -47,5 +47,5 @@ class ProblemGraphTest extends FlatSpec {
       .map { case (k, v) =>  (k, v.size) } should be (Map(2 -> 1, 3 -> 2))
     es.size should be (20)
   }
-  
+
 }

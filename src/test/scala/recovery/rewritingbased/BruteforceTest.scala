@@ -18,7 +18,7 @@ class BruteforceTest extends FlatSpec with utility.test.Helpers with BruteforceS
 
   // A<1, B<2,3>>
   val ex1 = BinaryChoice('A, 1, BinaryChoice('B, 2, 3))
-  
+
   // B<1, A<2,3>>
   val ex2 = BinaryChoice('B, 1, BinaryChoice('A, 2, 3))
   val ex2reordered = BinaryChoice('A, BinaryChoice('B, 1, 2), BinaryChoice('B, 1, 3))
