@@ -27,7 +27,7 @@ class DimensionCheckerTest extends FlatSpec with matchers.ShouldMatchers {
     }
 
   trait Context extends Reader with Parser with Namer with DimensionChecker
-    with JsCcParser with test.Helpers {
+      with JsCcParser with test.Helpers {
 
     def dimensionChecking(tree: ASTNode): ASTNode = {
       resetMessages()
@@ -66,22 +66,22 @@ class DimensionCheckerTest extends FlatSpec with matchers.ShouldMatchers {
 
   it should "4.2 not allow multiple, parallel dimension declarations" in new Context {
     val example4_2 = select('D, 'a,
-        dim('D)('a, 'b) { choice('D) (
-            'a -> lit("1"),
-            'b -> lit("2")
-        )} + dim('D)('a, 'c) { choice('D) (
-            'a -> lit("3"),
-            'c -> lit("4")
-        )})
+      dim('D)('a, 'b) { choice('D) (
+        'a -> lit("1"),
+        'b -> lit("2")
+      )} + dim('D)('a, 'c) { choice('D) (
+        'a -> lit("3"),
+        'c -> lit("4")
+      )})
 
     dimensionCheckerError { dimensionChecking(example4_2) }
   }
 
   it should "4.3 not allow undeclared tag selection" in new Context {
     val example4_3 = select('D,'a, dim('D)('b, 'c) { choice('D) (
-        'b -> lit("1"),
-        'c -> lit("2")
-      )})
+      'b -> lit("1"),
+      'c -> lit("2")
+    )})
     val example4_3_2 = select('D,'a, dim('D)('b, 'd) { lit("3") + lit("4") })
 
     dimensionCheckerError { dimensionChecking(example4_3) }
@@ -100,13 +100,13 @@ class DimensionCheckerTest extends FlatSpec with matchers.ShouldMatchers {
     //     case b => 3
     //   }
     val example4_4 = select('B, 'c, dim('A)('a, 'b) {
-        choice('A) (
-          'a -> dim('B)('c, 'd) { choice('B) (
-            'c -> lit("1"),
-            'd -> lit("2")
-            )},
-          'b -> lit("3")
-        )})
+      choice('A) (
+        'a -> dim('B)('c, 'd) { choice('B) (
+          'c -> lit("1"),
+          'd -> lit("2")
+        )},
+        'b -> lit("3")
+      )})
 
     dimensionChecking(example4_4)
     vacuousWarning should be (true)

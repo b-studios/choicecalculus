@@ -55,8 +55,6 @@ case class ObjectExpr(bindings: List[PropertyBinding]) extends Expression
 case class GroupExpr(content: Expression) extends Expression
 case class SequenceExpr(contents: List[Expression]) extends Expression
 
-
-
 abstract class Binding extends HostLanguageNode {
   def name: Literal
 }

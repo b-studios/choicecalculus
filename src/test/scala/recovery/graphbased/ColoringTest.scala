@@ -34,7 +34,7 @@ class ColoringTest extends FlatSpec {
       case (_, _) => false
     }
 
-    val input = Set(1,2,3,4,5)
+    val input = Set(1, 2, 3, 4, 5)
     val solution = solve(input)
     solution.size should equal (4)
     solution.flatten should equal (input)

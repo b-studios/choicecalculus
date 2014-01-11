@@ -25,9 +25,9 @@ object messages {
     type Level = LogLevel
 
     case class LogLevel(
-      private val _i: Int, 
-      private val _name: String, 
-      color: String) extends Val(_i, _name) {
+        private val _i: Int, 
+        private val _name: String, 
+        color: String) extends Val(_i, _name) {
 
       def label: String = color + _name  + RESET
     }
@@ -41,11 +41,11 @@ object messages {
   import Level._
 
   case class Message(
-    level: Level, 
-    phase: Symbol,
-    filename: String,
-    position: Position,
-    message: String) {
+      level: Level, 
+      phase: Symbol,
+      filename: String,
+      position: Position,
+      message: String) {
 
     /**
      * Allows throwing this message as [[FatalPhaseError]]
@@ -58,10 +58,10 @@ object messages {
 
 
   case class FatalPhaseError(
-    phase: Symbol, 
-    filename: String,
-    position: Position, 
-    message: String) extends ControlThrowable {
+      phase: Symbol, 
+      filename: String,
+      position: Position, 
+      message: String) extends ControlThrowable {
 
     /**
      * Allows reporting this error in the message queue
@@ -76,30 +76,30 @@ object messages {
   }
 
   private def formatMessage(
-    level: Level, 
-    phase: Symbol,
-    filename: String,
-    position: Position,
-    message: String): String = {
+      level: Level, 
+      phase: Symbol,
+      filename: String,
+      position: Position,
+      message: String): String = {
 
-      val levelStr = s"[${level.label}]"
-      val fileStr = (filename, phase) match {
-        case (NoFilename, NoPhase) => ""
-        case (NoFilename, _) => phase.name
-        case (_, NoPhase) => shortenPath(filename)
-        case _ => s"${phase.name} - ${shortenPath(filename)}"
-      }
+    val levelStr = s"[${level.label}]"
+    val fileStr = (filename, phase) match {
+      case (NoFilename, NoPhase) => ""
+      case (NoFilename, _) => phase.name
+      case (_, NoPhase) => shortenPath(filename)
+      case _ => s"${phase.name} - ${shortenPath(filename)}"
+    }
 
-      val posStr = position match {
-        case `NoPosition` => ""
-        case _ => " (%d.%d)".format(position.line, position.column)
-      }
+    val posStr = position match {
+      case `NoPosition` => ""
+      case _ => " (%d.%d)".format(position.line, position.column)
+    }
 
-      (fileStr, posStr) match {
-        case ("", "") => s"$levelStr $message"
-        case _ => s"$levelStr ${fileStr}${posStr}: $message"
-      }
-  }
+    (fileStr, posStr) match {
+      case ("", "") => s"$levelStr $message"
+      case _ => s"$levelStr ${fileStr}${posStr}: $message"
+    }
+}
 
   val NoPhase = Symbol("NOPHASE")
   val NoFilename = ""
@@ -147,8 +147,8 @@ object messages {
    * }}}
    */
   def messageScope[T](
-    filename: String = currentFilename, 
-    phase: Symbol = currentPhase)(block: => T): T = {
+      filename: String = currentFilename, 
+      phase: Symbol = currentPhase)(block: => T): T = {
 
     val filenameBefore = currentFilename
     val phaseBefore = currentPhase
@@ -189,11 +189,11 @@ object messages {
    * @group message buffering
    */
   def message(
-    msg: String,
-    level: Level = Info,
-    phase: Symbol = currentPhase,
-    filename: String = currentFilename,
-    position: Position = NoPosition) {
+      msg: String,
+      level: Level = Info,
+      phase: Symbol = currentPhase,
+      filename: String = currentFilename,
+      position: Position = NoPosition) {
 
     if (!isMuted) {
       messages += Message(level, phase, filename, position, msg)
@@ -204,10 +204,10 @@ object messages {
    * @group message buffering
    */
   def debug(
-    msg: String,
-    phase: Symbol = currentPhase,
-    filename: String = currentFilename,
-    position: Position = NoPosition) {
+      msg: String,
+      phase: Symbol = currentPhase,
+      filename: String = currentFilename,
+      position: Position = NoPosition) {
     message(msg, Debug, phase, filename, position)
   }
 
@@ -215,10 +215,10 @@ object messages {
    * @group message buffering
    */
   def info(
-    msg: String,
-    phase: Symbol = currentPhase,
-    filename: String = currentFilename,
-    position: Position = NoPosition) { 
+      msg: String,
+      phase: Symbol = currentPhase,
+      filename: String = currentFilename,
+      position: Position = NoPosition) { 
     message(msg, Info, phase, filename, position)
   }
 
@@ -226,10 +226,10 @@ object messages {
    * @group message buffering
    */
   def warn(
-    msg: String,
-    phase: Symbol = currentPhase,
-    filename: String = currentFilename,
-    position: Position = NoPosition) { 
+      msg: String,
+      phase: Symbol = currentPhase,
+      filename: String = currentFilename,
+      position: Position = NoPosition) { 
     message(msg, Warn, phase, filename, position)
   }
 
@@ -237,10 +237,10 @@ object messages {
    * @group message buffering
    */
   def error(
-    msg: String,
-    phase: Symbol = currentPhase,
-    filename: String = currentFilename,
-    position: Position = NoPosition) { 
+      msg: String,
+      phase: Symbol = currentPhase,
+      filename: String = currentFilename,
+      position: Position = NoPosition) { 
     message(msg, Error, phase, filename, position)
   }
 
@@ -248,10 +248,10 @@ object messages {
    * @group message buffering
    */
   def raise(
-    msg: String,
-    phase: Symbol = currentPhase,
-    filename: String = currentFilename,
-    position: Position = NoPosition): Nothing = {
+      msg: String,
+      phase: Symbol = currentPhase,
+      filename: String = currentFilename,
+      position: Position = NoPosition): Nothing = {
     throw FatalPhaseError(phase, filename, position, msg)
   }
 

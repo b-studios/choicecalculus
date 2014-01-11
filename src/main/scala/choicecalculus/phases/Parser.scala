@@ -12,7 +12,7 @@ trait Parser {
 
   val parsers: ParsersAPI
 
-  trait ParsersAPI { self: Parsers => 
+  trait ParsersAPI { self: Parsers =>
 
     type TreeParser = Parser[ASTNode]
 

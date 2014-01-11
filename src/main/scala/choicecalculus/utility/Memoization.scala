@@ -22,9 +22,9 @@ package object memoization {
    * }}}
    */
   def memoized[K, V](impl: K => V): K => V = new Memoizer[K, V](impl)
-  
+
   private class Memoizer[K, V](impl: K => V) extends Function1[K, V] {
     lazy val store = new mutable.HashMap[K, V]
-    def apply(k: K): V = store getOrElseUpdate(k, impl(k))
+    def apply(k: K): V = store getOrElseUpdate (k, impl(k))
   }
 }

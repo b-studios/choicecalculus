@@ -16,12 +16,12 @@ import java.io.{ File, BufferedReader, FileNotFoundException }
 
 /**
  * <h2>The Reader phase
- * 
+ *
  * The reader phase takes a given filename and reads it's contents
  * using a parser.
  *
  * The reader phase is not part of the ast pipeline since it works
- * on multiple asts at the same time. It is part of the driver 
+ * on multiple asts at the same time. It is part of the driver
  * managing the overall processing. This way it is also possible to
  * maintain a global cache of processed files when dealing with
  * multiple inputs.
@@ -35,7 +35,7 @@ trait Reader { self: Parser =>
    *
    * The dependencies are presented in topological order
    */
-  def runReader(input: String): (SourceFile, List[SourceFile]) = 
+  def runReader(input: String): (SourceFile, List[SourceFile]) =
     messageScope(phase = 'reader) {
       val source = lookupSourceFile(input)
       val tree = source readWith parsers.topLevel
@@ -64,8 +64,8 @@ trait Reader { self: Parser =>
   /**
    * Returns the tree that will be included
    */
-  lazy val tree: Include[_,_] => ASTNode = attr {
-    case inc@Include(filename, parser: TreeParser) => lookupSourceFile(filename) readWith parser
+  lazy val tree: Include[_, _] => ASTNode = attr {
+    case inc @ Include(filename, parser: TreeParser) => lookupSourceFile(filename) readWith parser
   }
 
   /**
@@ -75,7 +75,7 @@ trait Reader { self: Parser =>
    */
   def lookupSourceFile(filename: String): SourceFile = {
     val file = new File(filename)
-    _cache getOrElseUpdate(file.getCanonicalPath, RealFile(file))
+    _cache getOrElseUpdate (file.getCanonicalPath, RealFile(file))
   }
 
   /**
@@ -118,9 +118,9 @@ trait Reader { self: Parser =>
 
     def filename: String = file.getCanonicalPath
 
-    def readWith(p: TreeParser): ASTNode = 
+    def readWith(p: TreeParser): ASTNode =
       messageScope(filename = filename) {
-        _parsers getOrElseUpdate(p, {
+        _parsers getOrElseUpdate (p, {
           val tree = parsers.parseFile(p, contents)
           initTree(tree)
           tree;
@@ -133,10 +133,10 @@ trait Reader { self: Parser =>
     private def contents: BufferedReader = try {
       IO.filereader(filename)
     } catch {
-      case _: FileNotFoundException | _: IO.FileNotFoundException => 
+      case _: FileNotFoundException | _: IO.FileNotFoundException =>
         raise(s"File not found: $filename")
     }
-    
+
     private val _parsers = mutable.Map[TreeParser, ASTNode]()
   }
 
@@ -162,7 +162,6 @@ trait Reader { self: Parser =>
   // map from canonical path to sourcefile
   private val _cache = mutable.HashMap[String, SourceFile]()
 
-
   /**
    * attr to collect source files and trigger parsing of these
    *
@@ -182,50 +181,51 @@ trait Reader { self: Parser =>
    * }}}
    *
    *
-   * kiama's `collectall` is not released, yet. So we have to use 
+   * kiama's `collectall` is not released, yet. So we have to use
    * attributes and queries.
    *
    * @return a topological order of dependencies
    */
-  private lazy val collectSourceFiles: ASTNode => List[SourceFile] = attr { case node =>
+  private lazy val collectSourceFiles: ASTNode => List[SourceFile] = attr {
+    case node =>
 
-    var dependencies = List.empty[SourceFile]
+      var dependencies = List.empty[SourceFile]
 
-    // strategy to collect dependencies
-    val collect = query {
+      // strategy to collect dependencies
+      val collect = query {
 
-      case inc @ Include(filename, parser: TreeParser) => {
+        case inc @ Include(filename, parser: TreeParser) => {
 
-        val file = new File(filename)
-        val path = file.getCanonicalPath
+          val file = new File(filename)
+          val path = file.getCanonicalPath
 
-        dependencies = dependencies ++ (_cache get(path) match {
+          dependencies = dependencies ++ (_cache get (path) match {
 
-          // Already processed, so it's dependencies are already resolved 
-          // Still requires processing of the possibly new tree
-          // (This is due to the fact, that `SourceFile`s can have
-          // multiple trees, depending on the used parser)
-          case Some(source) => (source readWith parser)->collectSourceFiles
-          
-          // Put a dummy if SourceFile hasn't been processed, yet.
-          // Then resolve dependencies of `source` before updating
-          // the cache
-          case None => {
-            
-            _cache update(path, DummyFile(inc))
-            val source = RealFile(file)
-            val deps = (source readWith parser)->collectSourceFiles
-            _cache update(path, source)
+            // Already processed, so it's dependencies are already resolved 
+            // Still requires processing of the possibly new tree
+            // (This is due to the fact, that `SourceFile`s can have
+            // multiple trees, depending on the used parser)
+            case Some(source) => (source readWith parser)->collectSourceFiles
 
-            deps :+ source
-          }
-        })
+            // Put a dummy if SourceFile hasn't been processed, yet.
+            // Then resolve dependencies of `source` before updating
+            // the cache
+            case None => {
+
+              _cache update (path, DummyFile(inc))
+              val source = RealFile(file)
+              val deps = (source readWith parser)->collectSourceFiles
+              _cache update (path, source)
+
+              deps :+ source
+            }
+          })
+        }
       }
-    }
 
-    everywheretd (collect) (node)
+      everywheretd(collect)(node)
 
-    dependencies.distinct
+      dependencies.distinct
   }
 
 }

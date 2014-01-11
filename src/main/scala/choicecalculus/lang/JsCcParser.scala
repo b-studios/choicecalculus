@@ -15,7 +15,7 @@ trait JsCcParser extends phases.Parser {
       val parser: TreeParser = if (p == topLevel) p else strippedPhrase(p)
 
       parseAll(parser, in) match {
-        case Success(ast,_) => ast
+        case Success(ast, _) => ast
         case f => raise(f.toString, phase = 'parser)
       }
     }

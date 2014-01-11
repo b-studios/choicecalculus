@@ -29,7 +29,7 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
   def running[T](block: => T) = evaluating(block)
 
   trait Context extends Evaluator with Reader with Parser with Namer
-    with DimensionChecker with JsCcParser with test.Helpers {
+      with DimensionChecker with JsCcParser with test.Helpers {
 
     /**
      * In order to perform selection the Reader-, Namer- and DimensionCheckerphase
@@ -127,11 +127,11 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
     //  }
     // }
     val dimA = dim('A)('a, 'b) {
-        choice('A) (
-          'a -> ReturnStmt(Some(id('x))),
-          'b -> ReturnStmt(Some(lit("2") * id('x)))
-        )
-      }
+      choice('A) (
+        'a -> ReturnStmt(Some(id('x))),
+        'b -> ReturnStmt(Some(lit("2") * id('x)))
+      )
+    }
 
     // undeclared dimension
     evaluating(select('A, 'a, shareX(id('x))))
@@ -215,12 +215,12 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
   it should "perform selections on renamed dimensions" in new Context {
 
     val first_dim = dim('A)('a) {
-        choice('A) ('a -> lit("1")) + choice('A) ('a -> lit("1"))
-      }
+      choice('A) ('a -> lit("1")) + choice('A) ('a -> lit("1"))
+    }
 
     val second_dim = dim('B)('b) {
-        lit("4") * choice('B) ('b -> select('A, 'a, id('x)))
-      }
+      lit("4") * choice('B) ('b -> select('A, 'a, id('x)))
+    }
 
     val shared = share('x, first_dim, share('y, second_dim, select('B, 'b, id('y))))
 
@@ -269,10 +269,10 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
     // select D.a from
     //   dim D<a,b> in D<1,2>
     val example3_0 = select('D, 'a,
-        dim('D)('a, 'b) { choice('D) (
-          'a -> lit("1"),
-          'b -> lit("2")
-        )})
+      dim('D)('a, 'b) { choice('D) (
+        'a -> lit("1"),
+        'b -> lit("2")
+      )})
 
     evaluating(example3_0) should equal { lit("1") }
   }

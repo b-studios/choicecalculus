@@ -19,17 +19,17 @@ class ParserTests extends FlatSpec with test.Helpers {
   it should "not parse identifiers as keywords" in new Context {
 
     assertParseOk("selector.charAt(0)", expression,
-        CallExpr(NameAccessExpr("selector", "charAt"), List(lit("0"))))
+      CallExpr(NameAccessExpr("selector", "charAt"), List(lit("0"))))
 
     assertParseOk("dimension(a) +  4", expression,
-        CallExpr("dimension",List(lit("a"))) + lit("4"))
+      CallExpr("dimension",List(lit("a"))) + lit("4"))
 
   }
 
   it should "parse choice calculus expressions without parenthesis" in new Context {
 
     assertParseOk("3 + dim A(a) in (4 + 4)", expression,
-        lit("3") + dim('A)('a) { GroupExpr(lit("4") + lit("4")) })
+      lit("3") + dim('A)('a) { GroupExpr(lit("4") + lit("4")) })
 
     val expected = lit("3") + select('A, 'a, dim('A)('a) { choice('A) ('a -> (lit("4") + lit("5"))) })
 
@@ -44,9 +44,9 @@ class ParserTests extends FlatSpec with test.Helpers {
   it should "parse statements as declaration bodies" in new Context {
 
     assertParseOk("dim A(a) { function Foo() { return 3 } }", statement,
-        dim('A)('a) { BlockStmt(List(
-          FunctionDecl(lit("Foo"),List(),BlockStmt(List(ReturnStmt(Some(lit("3"))))))))
-        })
+      dim('A)('a) { BlockStmt(List(
+        FunctionDecl(lit("Foo"),List(),BlockStmt(List(ReturnStmt(Some(lit("3"))))))))
+      })
 
   }
 
@@ -74,9 +74,9 @@ class ParserTests extends FlatSpec with test.Helpers {
       })
 
     assertParseOk("(dim A(a) 4), dim B(b) 5", expression,
-        SequenceExpr(List(GroupExpr(
-          dim('A)('a) { lit("4") }),
-            dim('B)('b) { lit("5") })))
+      SequenceExpr(List(GroupExpr(
+        dim('A)('a) { lit("4") }),
+          dim('B)('b) { lit("5") })))
   }
 
   it should "ignore leading and trailing whitespacess when using strippedPhrase" in new Context {
@@ -184,18 +184,17 @@ class ParserTests extends FlatSpec with test.Helpers {
     }
 
     assertParseOk("""
-       dim A(a, b) in
-       dim B(a, b) in
-       dim C(a, b) in
-         (choice A {
-           case a => 1
-           case b => 2
-         } + choice B {
-           case a => 3
-           case b => 4
-         })""", strippedPhrase(expression), expected)
+      dim A(a, b) in
+      dim B(a, b) in
+      dim C(a, b) in
+        (choice A {
+          case a => 1
+          case b => 2
+        } + choice B {
+          case a => 3
+          case b => 4
+        })""", strippedPhrase(expression), expected)
   }
-
 
   it should "print pretty error messages" in new Context {
     // should yield "[1.18] failure: `(' expected but `*' found"

@@ -14,7 +14,6 @@ class ProblemGraphTest extends FlatSpec {
     builder.createFromTable(table)
   }
 
-
   object table1 extends Table[Symbol, Int]('x, 'y) {
     | (1) | (1) |;
     | (2) | (1) |;
