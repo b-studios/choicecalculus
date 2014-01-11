@@ -109,6 +109,6 @@ class DimensionCheckerTest extends FlatSpec with matchers.ShouldMatchers {
       )})
 
     dimensionChecking(example4_4)
-    vacuousWarning should be (true)
+    dependentWarning should be (true)
   }
 }

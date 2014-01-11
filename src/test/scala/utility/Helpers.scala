@@ -58,6 +58,12 @@ trait Helpers {
       (msg.message contains "vacuous")
   }
 
+  def dependentWarning = hasBeenReported { msg =>
+    msg.phase == 'dimensionchecker &&
+      msg.level == Level.Warn &&
+      (msg.message contains "dependent")
+  }
+
   implicit def exp2binOp(e: Expression): BinOpConstructor = BinOpConstructor(e)
   implicit def intToLit(n: Int): AtomLit = AtomLit(n.toString)
 }

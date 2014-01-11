@@ -63,8 +63,29 @@ case class DimensionGraph(nodes: Set[GraphNode]) {
     case node @ ChoiceNode(d, _) if d == dim => node
   }.toList
 
+  /**
+   * For a given dimension name find the choice path that enables
+   * selecting the dimension
+   */
+  protected def getPathsToDependentDimension(name: Symbol): Set[List[(Symbol, Symbol)]] = {
+
+    if (!getDimensionNodes(name).isEmpty)
+      Set(Nil)
+
+    else 
+      nodes.map {
+        case DimensionNode(dim, _, edges) => (dim, edges)
+        case ChoiceNode(dim, edges) => (dim, edges)
+      }.flatMap {
+        case (dim, edges) => edges.flatMap {
+          case (tag, dependentNodes) => DimensionGraph(dependentNodes)
+            .getPathsToDependentDimension(name)
+            .map(foundPath => (dim, tag) :: foundPath)
+        }
+      }
+  }
+
   def canSelect(dim: Symbol) = {
-    //printf("Calling 'canSelect(%s)'=%s on graph: %s node: %s\n", dim,getDimensionNodes(dim).size == 1, this, e)
     this.getDimensionNodes(dim).size == 1
   }
 
@@ -128,9 +149,23 @@ case class DimensionGraph(nodes: Set[GraphNode]) {
 
   def select(dim: Symbol, tag: Symbol)(ast: ASTNode): DimensionGraph = getDimensionNodes(dim) match {
 
-    // TODO see whether it could select an dependent dimension and add this information to the message
     case Nil => {
-      warn(s"Your selection ${dim.name}.${tag.name} is vacuous: $this)", position = ast)
+
+      val paths = getPathsToDependentDimension(dim)
+
+      val pathsStrings = paths.map { path =>
+        path.map { case (dim, tag) =>
+          s"${dim.name}.${tag.name}"
+        } mkString " → "
+      }
+
+      if (paths.isEmpty) {
+        warn(s"Your selection ${dim.name}.${tag.name} is vacuous: $this)", position = ast)
+      } else {
+        warn(s"""You are trying to select a dependent dimension "${dim.name}". Try 
+                |selecting the enclosing dimensions first, on which "${dim.name}" depends:
+                |  $pathsStrings""".stripMargin, position = ast)
+      }
       this
     }
 
