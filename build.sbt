@@ -18,9 +18,12 @@ libraryDependencies in ThisBuild ++= Seq (
 
 scalacOptions in (Compile,doc) := Seq("-groups", "-implicits")
 
+// Has to be false, since multiple tests use global state messaging system
+parallelExecution in Test := false
+
 logLevel in ThisBuild := Level.Info
 
-mainClass in ThisBuild := Some("choicecalculus.interpreter.CommandLine")
+mainClass in ThisBuild := Some("choicecalculus.JsCcCompiler")
 
 /**
  * sbt shell prompt
