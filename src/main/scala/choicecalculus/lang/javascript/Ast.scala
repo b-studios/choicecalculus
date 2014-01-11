@@ -59,7 +59,6 @@ abstract class Binding extends HostLanguageNode {
   def name: Literal
 }
 case class PropertyBinding(name: Literal, value: Expression) extends Binding
-//case class AccessMethodBinding(accessType: String, name: String, )
 
 case class FunctionDecl(name: Literal, args: List[Literal], body: BlockStmt) extends Expression
 case class FunctionExpr(args: List[Literal], body: BlockStmt) extends Expression

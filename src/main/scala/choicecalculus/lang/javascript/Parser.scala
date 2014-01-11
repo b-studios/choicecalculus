@@ -5,19 +5,6 @@ package javascript
 import org.kiama.util.PositionedParserUtilities
 import utility.ParserUtils
 
-/**
- * Test to write:
- *
- * return typeof this === 'function'
- * var foo = "abcd"
- * this.bar
- * core_pnum = /[+-]?(?:\d*\.|)\d+(?:[eE][+-]?\d+|)/.source
- * for(;;) do_it();
- * return;
- * foo, bar, baz
- * var foo = "bar\"baz"
- */
-
 // This Lexer is just approximate! Does not follow the spec, yet!
 trait JavaScriptLexer extends PositionedParserUtilities with ParserUtils {
 
@@ -29,7 +16,6 @@ trait JavaScriptLexer extends PositionedParserUtilities with ParserUtils {
     'void,'while,'with
   )
 
-
   /**
    * Whitespace Handling
    */
@@ -39,11 +25,9 @@ trait JavaScriptLexer extends PositionedParserUtilities with ParserUtils {
   lazy val multiline: PackratParser[Any] = "/*" ~ (not ("*/") ~ any).* ~ "*/"
   lazy val eos                           = """\z""".r | failure("Expected end of stream")
 
-  lazy val comment: PackratParser[Any] =
-    singleline | multiline
+  lazy val comment: PackratParser[Any] = singleline | multiline
 
-  lazy val space: PackratParser[Any] =
-    whitespace | linebreak | comment
+  lazy val space: PackratParser[Any] = whitespace | linebreak | comment
 
   lazy val spacesNoNl: PackratParser[Any] = (not (linebreak) ~ space).*
 
@@ -189,7 +173,6 @@ trait JavaScriptParser extends JavaScriptLexer {
         case body ~ fb => TryStmt(body, None, Some(FinallyBlock(fb)))
       }
 
-    // TODO Check whether the whitespace handling here is correct!
     | 'return ~> (spacesNoNl ~> expression.? <~ sc) ^^ ReturnStmt
 
     | 'with ␣> ("(" ␣> expression <␣ ")") ␣ statement ^^ WithStmt
@@ -353,9 +336,10 @@ trait JavaScriptParser extends JavaScriptLexer {
     )
 
   // 11.1.4 Array Literals
-  // TODO run tests, to check whether this encoding of elision works
   def _arrayLiteral: PackratParser[Expression] =
-    "[" ␣> listOf(arrayEl, ",") <␣ "]" ^^ ArrayExpr
+    ( "[" ␣ "]" ^^^ ArrayExpr(Nil)
+    | "[" ␣> listOf(arrayEl, ",") <␣ "]" ^^ ArrayExpr
+    )
 
   def _arrayEl: PackratParser[Expression] =
     ( assignExpr
