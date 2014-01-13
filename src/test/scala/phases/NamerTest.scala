@@ -14,7 +14,10 @@ import utility.messages._
 
 class NamerTest extends FlatSpec with matchers.ShouldMatchers {
 
-  trait Context extends Namer with test.Helpers {
+  trait Context extends Namer with test.Helpers with namer.SymbolPreservingRewriter {
+
+    // equal is already defined in rewriter ...
+    import org.scalatest.matchers.ShouldMatchers.{ equal => equal_ }
 
     def naming(tree: ASTNode): ASTNode = {
       initTree(tree);
@@ -24,7 +27,7 @@ class NamerTest extends FlatSpec with matchers.ShouldMatchers {
     def unboundError[T](block: => T): FatalPhaseError = {
       evaluating { block } should produce [FatalPhaseError] match {
         case err => {
-          err.phase should equal ('namer)
+          err.phase should equal_('namer)
           err.message.contains("unbound") should be (true)
           err
         }
@@ -37,7 +40,7 @@ class NamerTest extends FlatSpec with matchers.ShouldMatchers {
     val bindingShare = share('v, lit("3") + lit("4"), id('v) + v)
 
     naming(bindingShare)
-    v->bindingInstance should be (bindingShare)
+    (v->symbol).definition should be (bindingShare)
   }
 
   it should "bind identifiers with shadowed shares" in new Context {
@@ -49,8 +52,8 @@ class NamerTest extends FlatSpec with matchers.ShouldMatchers {
     val bindingShare1 = share('v, lit("1"), v1 + bindingShare2)
 
     naming(bindingShare1)
-    v1->bindingInstance should be (bindingShare1)
-    v2->bindingInstance should be (bindingShare2)
+    (v1->symbol).definition should be (bindingShare1)
+    (v2->symbol).definition should be (bindingShare2)
   }
 
   it should "fail binding unbound identifiers" in new Context {
@@ -69,7 +72,7 @@ class NamerTest extends FlatSpec with matchers.ShouldMatchers {
     val bindingShare1 = share('v, lit("3") + lit("4"), bindingShare2)
 
     naming(bindingShare1)
-    v1->bindingInstance should be (bindingShare1)
-    v2->bindingInstance should be (bindingShare2)
+    (v1->symbol).definition should be (bindingShare1)
+    (v2->symbol).definition should be (bindingShare2)
   }
 }

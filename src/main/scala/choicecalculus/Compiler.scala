@@ -6,7 +6,7 @@ import phases.{ Parser, Reader, Namer, DimensionChecker, Evaluator }
 import utility.messages._
 
 trait Compiler extends Parser with Reader with Namer
-  with DimensionChecker with Evaluator {
+  with DimensionChecker with Evaluator with phases.namer.SymbolPreservingRewriter {
 
   def main(args: Array[String]) {
     driver(args.toIndexedSeq)

@@ -1,13 +1,11 @@
 package choicecalculus
 package phases
 
-import dimensionchecker.DimensionGraph
-
 import lang.ASTNode
-import lang.choicecalculus.{ Choice, Alternative, Dimension, Include, 
+import lang.choicecalculus.{ Choice, Alternative, Dimension, Include,
                              PartialConfig, Select, Share, Identifier }
 
-import org.kiama.rewriting.Rewriter.Term
+import org.kiama.rewriting.Rewriter
 import org.kiama.attribution.Attribution.attr
 
 import utility.messages._
@@ -15,7 +13,7 @@ import utility.messages._
 /**
  * <h2> The DimensionChecker phase
  */
-trait DimensionChecker { self: Reader with Namer =>
+trait DimensionChecker { self: Reader with Namer with Rewriter =>
 
   /**
    * Decorates the given tree with it's dimensioning
@@ -30,55 +28,222 @@ trait DimensionChecker { self: Reader with Namer =>
     }
 
   /**
-   * Computes the dimension graph for a given ASTNode
+   * Computes the dimension dependency graph for a given ASTNode
    */
-  val dimensioning: ASTNode => DimensionGraph =
+  val dimensioning: ASTNode => DependencyGraph =
     messageScope(phase = 'dimensionchecker) {
-      attr { (e) =>
-        e match {
+      attr {
 
-          /**
-           * (A) --a--> B<> --b--> C<>
-           *    \--b--> D<>
-           *
-           * becomes
-           *
-           * A<> --a--> B<> --b--> C<>
-           *    \--b--> D<>
-           */
-          case Dimension(name, tags, body) => (body->dimensioning).declareDimension(name, tags)(e)
-
-          // only toplevel dimensions, which are not dependent can be selected
-          case Select(dim, tag, body) => (body->dimensioning).select(dim, tag)(e)
-
-          case Choice(dim, alts) => alts.foldLeft(DimensionGraph.empty) {
-            case (old, Alternative(tag, body)) => 
-              old.merge((body->dimensioning).fromChoice(dim, tag)(e))(e)
-          }
-
-          case id @ Identifier(name) => id->bindingInstance match {
-            case Share(_, boundExpr, _) => boundExpr->dimensioning
-          }
-
-          case PartialConfig(body, configs) => (configs.foldLeft(body->dimensioning) {
-            case (old, (dim, tag)) => old.select(dim, tag)(e)
-          })
-
-          case Share(name, boundExpr, body) => body->dimensioning
-
-          case inc: Include[_, _] => inc->tree->dimensioning
-
-          case Term(p, children) => children.flatMap {
-            case n: ASTNode => List(n->dimensioning)
-            case l: Seq[ASTNode] => l.map(dimensioning)
-            case _ => List.empty
-          }.foldLeft(DimensionGraph.empty) {
-            case (old, dim) => old.merge(dim)(e)
-          }
-
-          case _ => DimensionGraph.empty
+        case c @ Choice(dim, alts) => alts.foldLeft(DependencyGraph.empty) {
+          case (acc, Alternative(tag, body)) =>
+            acc.merge((body->dimensioning).fromAlternative(c, tag), c)
         }
+
+        case d @ Dimension(name, tags, body) => (body->dimensioning).fromDimension(d)
+
+        case s @ Select(dim, tag, body) => (body->dimensioning).select(dim, tag, s)
+
+        case id @ Identifier(name) => (id->symbol).definition match {
+          case Share(_, boundExpr, _) => boundExpr->dimensioning
+        }
+
+        case p @ PartialConfig(body, configs) => (configs.foldLeft(body->dimensioning) {
+          case (old, (dim, tag)) => old.select(dim, tag, p)
+        })
+
+        case Share(name, boundExpr, body) => body->dimensioning
+
+        case inc: Include[_, _] => inc->tree->dimensioning
+
+        case t @ Term(p, children) => children.flatMap {
+          case n: ASTNode => List(n->dimensioning)
+          case l: Seq[ASTNode] => l.map(dimensioning)
+          case o: Option[ASTNode] => o.map(dimensioning)
+          case _ => List.empty
+        }.foldLeft(DependencyGraph.empty) {
+          case (old, other) => old.merge(other, t)
+        }
+
+        case _ => DependencyGraph.empty
       }
     }
 
+
+  /**
+   * Represents the dependencies between dimensions
+   *
+   * As opposed to the previous approaches, this representation is centered
+   * around the dependent dimension rather then the other way around.
+   *
+   * Since choices are now bound during the [[Namer]] phase free choices are not
+   * part of this representation.
+   *
+   * <strong>Advantages</strong>:
+   * <ul>
+   *   <li> Dependencies can be determined directly (No queries necessary to
+   *        find a dimension in the graph)
+   *   <li> Dimensions with different dependencies are treated not as same
+   *   <li> Since it is ast based (as opposed to name based) bindings of
+   *        identifiers and choices can be resolved by using symbols (if those
+   *        are preserved during rewriting)
+   * </ul>
+   *
+   * <strong>Disadvantages</strong>:
+   * <ul>
+   *   <li> it cannot be determined whether the dimension is actually used. In
+   *        former encodings explicitly listing unbound choices, it could be
+   *        determined that at least one choice for a given dimension exists.
+   *        (Of course this could still be done using symbols)
+   *   <li> implementation of selection on the dependency graph is a little bit
+   *        more involved.
+   * </ul>
+   */
+  case class DependencyGraph(val dims: Set[DependentDimension]) {
+
+    def fullyConfigured = dims.isEmpty
+
+    def fromDimension(dim: Dimension[ASTNode]): DependencyGraph =
+      DependencyGraph(dims + DependentDimension(dim))
+
+    def fromAlternative(choice: Choice[ASTNode], tag: Symbol): DependencyGraph =
+      (choice->symbol).definition match {
+        case dim: Dimension[ASTNode] => {
+
+          // check whether all alternatives are handled
+          val coveredTags = choice.alternatives.map(_.tag).toSet
+          val requiredTags = dim.tags.toSet
+          val missingTags = requiredTags -- coveredTags
+          val superfluousTags = coveredTags -- requiredTags
+
+          if (!missingTags.isEmpty) {
+            errors.tagsMissing(dim.name, missingTags, choice)
+          } else if (!superfluousTags.isEmpty) {
+            warnings.superfluousTags(superfluousTags, choice)
+          }
+
+          DependencyGraph(dims.map {
+            case DependentDimension(d, deps) =>
+              DependentDimension(d, deps + Dependency(dim, tag))
+          })
+        }
+        case _ => errors.noBindingDimension(choice)
+      }
+
+    def select(selDim: Symbol, selTag: Symbol, at: ASTNode): DependencyGraph = selectionCandidates(selDim) match {
+
+      case candidates if candidates.isEmpty => {
+        val dependentDims = dimsWithName(selDim)
+
+        if (dependentDims.isEmpty) {
+          warnings.vacuousSelection(selDim, selTag, at)
+        } else {
+          warnings.dependentSelection(selDim, dependentDims, at)
+        }
+        this
+      }
+
+      case candidates => {
+
+        // check whether the selected tag is present. If not raise error
+        val selected = candidates.collect {
+          case DependentDimension(dim, _) if !(dim.tags contains selTag) =>
+            errors.cannotSelectTag(selDim, selTag, at)
+
+          case DependentDimension(dim, _) => Dependency(dim, selTag)
+        }
+
+        DependencyGraph(selected.foldLeft(dims -- candidates) {
+          case (remaining, sel) => remaining.flatMap { _.resolveDependency(sel) }
+        })
+      }
+    }
+
+    def merge(that: DependencyGraph, at: ASTNode): DependencyGraph = {
+
+      // we compare dims by name, not ast
+      val thisDims = this.dims.map { dep => (dep.dim.name, dep.dependsOn) }
+      val thatDims = that.dims.map { dep => (dep.dim.name, dep.dependsOn) }
+
+      val intersection = thisDims intersect thatDims
+
+      // parallel definition of dimensions is not allowed
+      if (!intersection.isEmpty) {
+        errors.multipleDimensions(intersection, at)
+      }
+
+      DependencyGraph(this.dims ++ that.dims)
+    }
+
+    private def selectionCandidates(dimName: Symbol): Set[DependentDimension] =
+      dimsWithName(dimName).filter { _.dependsOn == Set.empty }
+
+    private def dimsWithName(dimName: Symbol): Set[DependentDimension] =
+      dims.filter { _.dim.name == dimName }
+
+    override def toString = dims mkString "\n"
+
+    private object warnings {
+      def vacuousSelection(dim: Symbol, tag: Symbol, pos: ASTNode) {
+        warn(s"Your selection ${dim.name}.${tag.name} is vacuous.", position = pos)
+      }
+
+      def dependentSelection(dim: Symbol, deps: Set[DependentDimension], pos: ASTNode) {
+        warn(s"""You are trying to select a dependent dimension "${dim.name}". Try
+                |selecting the enclosing dimensions first, on which "${dim.name}" depends:
+                |  $deps""".stripMargin, position = pos)
+      }
+
+      def superfluousTags(tags: Set[Symbol], pos: ASTNode) {
+        val formattedTags = tags.map { _.name } mkString ", "
+        val alternatives = if (tags.size > 1) "Alternatives" else "Alternative"
+        val are = if (tags.size > 1) "are" else "is"
+        warn(s"""$alternatives $formattedTags $are not declared in binding dimension""", position = pos)
+      }
+    }
+
+    private object errors {
+      def tagsMissing(dim: Symbol, tags: Set[Symbol], pos: ASTNode): Nothing = {
+        val formattedTags = tags.map { t => s"${dim.name}.${t.name}" } mkString ", "
+        raise(s"""Missing alternatives: $formattedTags""", position = pos)
+      }
+
+      def cannotSelectTag(dim: Symbol, tag: Symbol, pos: ASTNode): Nothing =
+        raise(s"Cannot select ${dim.name}.${tag.name} because this tag is not declared", position = pos)
+
+      def noBindingDimension(pos: ASTNode): Nothing =
+        raise(s"Could not resolve binding dimension for choice", position = pos)
+
+      def multipleDimensions(conflicting: Set[(Symbol, Set[Dependency])], pos: ASTNode): Nothing =
+        raise(s"Multiple dimension declarations at one level: $conflicting", position = pos)
+    }
+  }
+
+  object DependencyGraph {
+    def empty = new DependencyGraph(Set.empty)
+  }
+
+  case class DependentDimension(
+      dim: Dimension[ASTNode],
+      dependsOn: Set[Dependency] = Set.empty) {
+
+    /**
+     * Some dependency might have been selected
+     */
+    def resolveDependency(dep: Dependency): Option[DependentDimension] = dep match {
+      case Dependency(selDim, selTag) =>
+        // If this dimension depends on a different tag => no way to be selected
+        if (dependsOn.exists { d => d.dim == selDim && d.tag != selTag }) {
+          None
+        } else {
+          Some(DependentDimension(dim, dependsOn.filterNot { _.dim == selDim }))
+        }
+    }
+
+    override def toString =
+      s"""${dim.name.name} --> {${dependsOn mkString ", "}}"""
+  }
+
+  case class Dependency(dim: Dimension[ASTNode], tag: Symbol) {
+    override def toString = s"${dim.name.name}.$tag"
+  }
 }

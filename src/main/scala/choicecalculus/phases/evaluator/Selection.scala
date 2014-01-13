@@ -1,16 +1,15 @@
 package choicecalculus
-package phases.evaluator
+package phases
+package evaluator
 
 import lang.ASTNode
 
 import lang.choicecalculus.{ Choice, Alternative, Dimension, Include, 
                              PartialConfig, Select, Share, Identifier }
 
-import org.kiama.rewriting.Rewriter.{ all, sometd, rewrite, rule }
+import org.kiama.rewriting.{ Rewriter, Strategy }
 
-import org.kiama.rewriting.Strategy
-
-trait Selection {
+trait Selection { self: Namer with Rewriter =>
 
   lazy val select: Strategy = rule("selectRelation", {
 
@@ -28,11 +27,11 @@ trait Selection {
     case Select(dim, tag, PartialConfig(body, configs)) => 
       PartialConfig(body, configs ++ List((dim, tag)))
 
-    case Select(dim, tag, Share(name, expr, body)) =>
-      Share(name, expr, Select(dim, tag, body))
+    case Select(dim, tag, old @ Share(name, expr, body)) =>
+      Share(name, expr, Select(dim, tag, body))->moveSymbolFrom(old)
 
-    case Select(dim, tag, Dimension(name, tags, body)) if name != dim =>
-      Dimension(name, tags, Select(dim, tag, body))
+    case Select(dim, tag, old @ Dimension(name, tags, body)) if name != dim =>
+      Dimension(name, tags, Select(dim, tag, body))->moveSymbolFrom(old)
 
     // Hostlanguage constructs - wrap every child into selectexpressions and 
     // reconstruct node the instanceOf check is to prevent one select "jumping" 
@@ -40,8 +39,15 @@ trait Selection {
     //     case SelectExpr(_, _, SelectExpr(_, _, _)) => SKIP
     case s @ Select(dim, tag, t) if !t.isInstanceOf[Select[_]] => rewrite(all(rule {
       case n: ASTNode => Select(dim, tag, n)
-      case l: Seq[ASTNode] => l.map(Select(dim, tag, _))
-      case lit => lit
+      case l: Seq[_] => l.map {
+        case node: ASTNode => Select(dim, tag, node)
+        case other => other
+      }
+      case o: Option[_] => o.map { 
+        case node: ASTNode => Select(dim, tag, node)
+        case other => other
+      }
+      case other => other
     }))(t)
   })
 

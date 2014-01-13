@@ -6,28 +6,30 @@ import org.scalatest._
 
 import lang.ASTNode
 import lang.JsCcParser
+import lang.choicecalculus.{ Dimension }
 
 import utility.test
 import utility.messages._
 
 class DimensionCheckerTest extends FlatSpec with matchers.ShouldMatchers {
 
-  import lang.javascript.BlockStmt
+  // equal is already defined in rewriter ...
+  import org.scalatest.matchers.ShouldMatchers.{ equal => equal_ }
 
-  def plain: Set[GraphNode] = Set.empty
+  import lang.javascript.BlockStmt
 
   def dimensionCheckerError[T](block: => T): FatalPhaseError =
     evaluating {
       block
     } should produce [FatalPhaseError] match {
       case error => {
-        error.phase should equal ('dimensionchecker)
+        error.phase should equal_('dimensionchecker)
         error
       }
     }
 
   trait Context extends Reader with Parser with Namer with DimensionChecker
-      with JsCcParser with test.Helpers {
+      with JsCcParser with test.Helpers with namer.SymbolPreservingRewriter {
 
     def dimensionChecking(tree: ASTNode): ASTNode = {
       resetMessages()
@@ -38,9 +40,9 @@ class DimensionCheckerTest extends FlatSpec with matchers.ShouldMatchers {
 
   }
 
-  it should "merge the choices of multiple subtrees correclty" in new Context {
+  it should "merge the choices of multiple subtrees correctly" in new Context {
 
-    val ast = dim('A)('a,'b) {
+    val ast: Dimension[ASTNode] = dim('A)('a,'b) {
       BlockStmt(List(
         choice('A)('a -> lit("1"), 'b -> lit("2")),
         choice('A)('a -> lit("3"), 'b -> lit("4")),
@@ -48,12 +50,37 @@ class DimensionCheckerTest extends FlatSpec with matchers.ShouldMatchers {
       ))
     }
 
-    val dimGraph = DimensionGraph(Set(
-      DimensionNode('A, 'a :: 'b :: Nil, Map('a -> plain, 'b -> plain))
-    ))
+    val dimGraph = DependencyGraph(Set(DependentDimension(ast)))
 
-    dimensionChecking(ast)->dimensioning should equal (dimGraph)
+    (dimensionChecking(ast)->dimensioning) should be (dimGraph)
+  }
 
+  // dim A(a, b) in {
+  //   share #x: Expression as choice A {
+  //       case a => 42
+  //       case b => 48
+  //     }
+  //   within
+  //     dim A(c, d) in #x
+  // }
+  it should "bind shared choices to the outer dimension (#7)" in new Context {
+    val ticket7 = dim('A)('a,'b) {
+      share('x, choice('A)(
+        'a -> lit("42"),
+        'b -> lit("48")
+      ), dim ('A)('c,'d) { id('x) })
+    }
+
+    dimensionChecking(ticket7)
+  }
+
+  it should "not allow declaring choices with missing alternatives" in new Context {
+
+    val ast = dim('A)('a,'b) {
+      choice('A)('a -> lit("42"))
+    }
+
+    dimensionCheckerError { dimensionChecking(ast) }
   }
 
   "Open questions from vamos 2013" should

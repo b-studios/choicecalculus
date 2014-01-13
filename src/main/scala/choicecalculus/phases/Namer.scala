@@ -2,17 +2,21 @@ package choicecalculus
 package phases
 
 import lang.ASTNode
-import lang.choicecalculus.{ Identifier, Share }
+import lang.choicecalculus.{ Identifier, Share, Choice, Dimension }
 
 import org.kiama.attribution.Attribution.{ attr, paramAttr }
-import org.kiama.rewriting.Rewriter.{ everywheretd, query }
+import org.kiama.rewriting.Rewriter
+
+import scala.collection.mutable
 
 import utility.messages._
+
+import utility.IdentityHashMap
 
 /**
  * <h2> The Namer phase
  */
-trait Namer {
+trait Namer { self: Rewriter =>
 
   /**
    * Decorates the given tree with references from variables to their
@@ -45,30 +49,77 @@ trait Namer {
    * @return the share expression that binds the `Identifier` it is called on
    *         or a FatalPhaseError if the identifier is unbound
    */
-  lazy val bindingInstance: Identifier[ASTNode] => Share[ASTNode, ASTNode] = attr {
-    case p => p->bindingInstanceOf(p)
+  lazy val symbol: ASTNode => Sym = { node =>
+    symbolTable getOrElseUpdate(node, node match {
+      case (_:Dimension[_] | _:Share[_,_]) =>
+        symbolTable getOrElseUpdate(node, Sym(node))
+      case _ => node->symbolFor(node)
+    })
   }
+
+  lazy val copySymbol: ASTNode => ASTNode => ASTNode  = { to => from =>
+    // println(s"copy symbol called \n  $from \n  $to")
+    symbolTable get(from) map { symbolTable update(to, _) }
+    to
+  }
+
+  lazy val moveSymbolTo: ASTNode => ASTNode => ASTNode  = { to => from =>
+    // println(s"move symbol called \n$from \n $to")
+    symbolTable get(from) map { sym =>
+      sym.definition = to
+      symbolTable update(to, sym)
+    }
+    to
+  }
+
+  lazy val moveSymbolFrom: ASTNode => ASTNode => ASTNode  = { from => to =>
+    from->moveSymbolTo(to)
+    to
+  }
+
+  /**
+   * Called Sym since otherwise interfers with scala builtin Symbol
+   */
+  case class Sym(var definition: ASTNode)
+
+  private val symbolTable: mutable.Map[ASTNode, Sym] =
+    new IdentityHashMap[ASTNode, Sym]
+
 
   private lazy val forceNameResolution = query {
-    case id: Identifier[ASTNode] => id->bindingInstance
+    case id: Identifier[ASTNode] => id->symbol
+    case choice: Choice[ASTNode] => choice->symbol
   }
 
-  private def unbound(id: Identifier[_]): Nothing =
-    raise(s"Use of unbound choice calculus variable '${id.name.name}'", position = id)
+  private def unbound(node: ASTNode): Nothing = node match {
+    case id: Identifier[_] =>
+      raise(s"Use of unbound choice calculus variable '${id.name.name}'", position = id)
+    case choice: Choice[_] =>
+      raise(s"Choice is not bound by a surrounding dimension '${choice.dim.name}'", position = choice)
+  }
 
-  private lazy val bindingInstanceOf: Identifier[ASTNode] => ASTNode => Share[ASTNode, ASTNode] =
+  private lazy val symbolFor: ASTNode => ASTNode => Sym =
     paramAttr {
+      // scoping rules for `share`
       case id @ Identifier(name) => {
-        case s @ Share(`name`, _, _) => s
+        case s @ Share(`name`, _, _) => symbolTable getOrElseUpdate(s, Sym(s))
         case node if node.isRoot => unbound(id)
 
-        // If the parent is a share expression we have to check whether we are in the binding branch
-        // of the share. Otherwise this would create circular bindings, much like a letrec.
         case node => node.parent match {
-          case p @ Share(_, `node`, _) => p.parent[ASTNode]->bindingInstanceOf(id)
-          case otherParent: ASTNode => otherParent->bindingInstanceOf(id)
+          case p @ Share(_, `node`, _) => p.parent[ASTNode]->symbolFor(id)
+          case otherParent: ASTNode => otherParent->symbolFor(id)
           case _ => unbound(id)
         }
       }
+
+      // scoping rules for `dim`
+      case choice @ Choice(dim, _) => {
+        case d @ Dimension(`dim`, _, _) => symbolTable getOrElseUpdate(d, Sym(d))
+        case node if node.isRoot => unbound(choice)
+        case node => node.parent[ASTNode]->symbolFor(choice)
+      }
+
+      // else: fail
+      case other => raise(s"Cannot get symbol for: $other", position = other)
     }
 }
