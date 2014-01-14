@@ -5,20 +5,6 @@ package javascript
 import org.kiama.util.PositionedParserUtilities
 import utility.ParserUtils
 
-/**
- * Test to write:
- *
- * return typeof this === 'function'
- * var foo = "abcd"
- * this.bar
- * core_pnum = /[+-]?(?:\d*\.|)\d+(?:[eE][+-]?\d+|)/.source
- * for(;;) do_it();
- * return;
- * foo, bar, baz
- * var foo = "bar\"baz"
- */
-
-
 // This Lexer is just approximate! Does not follow the spec, yet!
 trait JavaScriptLexer extends PositionedParserUtilities with ParserUtils {
 
@@ -30,7 +16,6 @@ trait JavaScriptLexer extends PositionedParserUtilities with ParserUtils {
     'void,'while,'with
   )
 
-
   /**
    * Whitespace Handling
    */
@@ -38,20 +23,17 @@ trait JavaScriptLexer extends PositionedParserUtilities with ParserUtils {
   lazy val linebreak                     = """(\r\n|\n)""".r
   lazy val singleline                    = """//[^\n]*\n""".r
   lazy val multiline: PackratParser[Any] = "/*" ~ (not ("*/") ~ any).* ~ "*/"
-  lazy val eos                           = """\z""".r | failure ("Expected end of stream")
+  lazy val eos                           = """\z""".r | failure("Expected end of stream")
 
-  lazy val comment: PackratParser[Any] =
-    singleline | multiline
+  lazy val comment: PackratParser[Any] = singleline | multiline
 
-  lazy val space: PackratParser[Any] =
-    whitespace | linebreak | comment
+  lazy val space: PackratParser[Any] = whitespace | linebreak | comment
 
   lazy val spacesNoNl: PackratParser[Any] = (not (linebreak) ~ space).*
 
-
   // "automatic semicolon insertion"
   lazy val sc: PackratParser[Any] =
-    (spacesNoNl ~ (linebreak | guard("}") | eos ) //| EOS)
+    ( spacesNoNl ~ (linebreak | guard("}") | eos ) //| EOS)
     | ";"
     )
 
@@ -64,14 +46,14 @@ trait JavaScriptLexer extends PositionedParserUtilities with ParserUtils {
 
   lazy val name: PackratParser[String] =
     consumed(identifier) into {
-      case name if keywords contains Symbol(name) => failure ("This is a protected keyword!")
+      case name if keywords contains Symbol(name) => failure("This is a protected keyword!")
       case name => success(name)
     }
 
   def keyword(name: Symbol): PackratParser[String] =
     consumed(identifier) >> {
       case s if Symbol(s) == name => success(s)
-      case s => failure ("Not the expected keyword '%s' got '%s'".format(name.name, s))
+      case s => failure("Not the expected keyword '%s' got '%s'".format(name.name, s))
     }
 
   /**
@@ -105,7 +87,7 @@ trait JavaScriptLexer extends PositionedParserUtilities with ParserUtils {
    * 15.10 Regular expressions
    */
   lazy val regexp: PackratParser[String]=
-    consumed("/" ~ reBody ~ "/" ~ "[a-zA-Z]*".r)
+    consumed ("/" ~ reBody ~ "/" ~ "[a-zA-Z]*".r)
 
   lazy val reBody: PackratParser[Any] = reFirst ~ reChar.*
   lazy val reChar: PackratParser[Any] = reFirst | "*"
@@ -123,6 +105,7 @@ trait JavaScriptLexer extends PositionedParserUtilities with ParserUtils {
 
 }
 
+
 /**
  * `parser1 ␣ parser2` combines Parsers while consuming any whitespaces between the two
  */
@@ -130,15 +113,17 @@ trait JavaScriptParser extends JavaScriptLexer {
 
   // Program
   // -------
-  def _topLevel: PackratParser[ASTNode] = 
-    strippedPhrase( multiple (declaration) ) ^^ Program
+  // annotating the topLevel parser with type PackratParser[ASTNode]
+  // prevents nice error messages ("[1.1] failure: Base Failure")
+  def _topLevel: Parser[ASTNode] =
+    strippedPhrase (multiple (declaration)) ^^ Program
 
-  def _declaration: PackratParser[Statement] = 
+  def _declaration: PackratParser[Statement] =
     funcDecl | statement
 
   // Statements
   // ----------
-  def _block: PackratParser[BlockStmt] = 
+  def _block: PackratParser[BlockStmt] =
     "{" ␣> multiple (declaration) <␣ "}" ^^ BlockStmt
 
   def _statement: PackratParser[Statement] =
@@ -177,16 +162,17 @@ trait JavaScriptParser extends JavaScriptLexer {
 
 
     // catch is optional, if finally is provided
-    | 'try ␣> block ␣ ( 'catch ␣> "(" ␣> idLiteral <␣ ")") ␣ block ␣
-                      ( 'finally ␣> block ).? ^^ {
-        case body ~ cn ~ cb ~ Some(fb) => TryStmt(body, Some(CatchBlock(cn, cb)), Some(FinallyBlock(fb)))
-        case body ~ cn ~ cb ~ None => TryStmt(body, Some(CatchBlock(cn, cb)), None)
+    | 'try ␣> block ␣ ('catch ␣> "(" ␣> idLiteral <␣ ")") ␣ block ␣
+                      ('finally ␣> block).? ^^ {
+        case body ~ cn ~ cb ~ Some(fb) => 
+          TryStmt(body, Some(CatchBlock(cn, cb)), Some(FinallyBlock(fb)))
+        case body ~ cn ~ cb ~ None => 
+          TryStmt(body, Some(CatchBlock(cn, cb)), None)
       }
     | 'try ␣> block ␣ ('finally ␣> block) ^^ {
         case body ~ fb => TryStmt(body, None, Some(FinallyBlock(fb)))
       }
 
-    // TODO Check whether the whitespace handling here is correct!
     | 'return ~> (spacesNoNl ~> expression.? <~ sc) ^^ ReturnStmt
 
     | 'with ␣> ("(" ␣> expression <␣ ")") ␣ statement ^^ WithStmt
@@ -206,7 +192,7 @@ trait JavaScriptParser extends JavaScriptLexer {
     // to firstly consume all whitespaces and
     // then match `not sc`
 
-    | spaces ~> ( not ("{" | 'function | sc) ~> expression) <~ sc
+    | spaces ~> (not ("{" | 'function | sc) ~> expression) <~ sc
 
     | block
     )
@@ -229,7 +215,7 @@ trait JavaScriptParser extends JavaScriptLexer {
 
   // ternary operators
   def _condExpr: PackratParser[Expression] =
-    ( orExpr ␣ ( "?" ␣> assignExpr <␣ ":") ␣ assignExpr ^^ TernaryExpr
+    ( orExpr ␣ ("?" ␣> assignExpr <␣ ":") ␣ assignExpr ^^ TernaryExpr
     | orExpr
     )
 
@@ -260,27 +246,27 @@ trait JavaScriptParser extends JavaScriptLexer {
     )
 
   def _eqExpr: PackratParser[Expression] =
-    ( eqExpr ␣ ( "===" | "==" | "!==" | "!=") ␣ relExpr ^^ BinaryOpExpr
+    ( eqExpr ␣ ("===" | "==" | "!==" | "!=") ␣ relExpr ^^ BinaryOpExpr
     | relExpr
     )
 
   def _relExpr: PackratParser[Expression] =
-    ( relExpr ␣ ( ">=" | ">" | "<=" | "<" | 'instanceof | 'in) ␣ shiftExpr ^^ BinaryOpExpr
+    ( relExpr ␣ (">=" | ">" | "<=" | "<" | 'instanceof | 'in) ␣ shiftExpr ^^ BinaryOpExpr
     | shiftExpr
     )
 
   def _shiftExpr: PackratParser[Expression] =
-    ( shiftExpr ␣ ( ">>>" | ">>" | "<<" ) ␣ addExpr ^^ BinaryOpExpr
+    ( shiftExpr ␣ (">>>" | ">>" | "<<") ␣ addExpr ^^ BinaryOpExpr
     | addExpr
     )
 
   def _addExpr: PackratParser[Expression] =
-    ( addExpr ␣ ( "+" | "-" ) ␣ mulExpr ^^ BinaryOpExpr
+    ( addExpr ␣ ("+" | "-") ␣ mulExpr ^^ BinaryOpExpr
     | mulExpr
     )
 
   def _mulExpr: PackratParser[Expression] =
-    ( mulExpr ␣ ( "*" | "/" | "%" ) ␣ prefixExpr ^^ BinaryOpExpr
+    ( mulExpr ␣ ("*" | "/" | "%") ␣ prefixExpr ^^ BinaryOpExpr
     | prefixExpr
     )
 
@@ -291,7 +277,7 @@ trait JavaScriptParser extends JavaScriptLexer {
     )
 
   def _unaryExpr: PackratParser[Expression] =
-    ( ( "!" | "~" | "+" | "-" | 'void | 'delete | 'typeof) ␣ prefixExpr ^^ PrefixExpr
+    ( ("!" | "~" | "+" | "-" | 'void | 'delete | 'typeof) ␣ prefixExpr ^^ PrefixExpr
     | postfixExpr
     )
 
@@ -332,39 +318,40 @@ trait JavaScriptParser extends JavaScriptLexer {
 
   // Literals
   // --------
-  def _idLiteral: PackratParser[Literal] = 
+  def _idLiteral: PackratParser[Literal] =
     name ^^ AtomLit
 
-  def _accessLiteral: PackratParser[Literal] = 
+  def _accessLiteral: PackratParser[Literal] =
     ( (string | number) ^^ AtomLit
     | idLiteral
     )
 
   def _literal: PackratParser[Expression] =
-    ( idLiteral 
-    | accessLiteral 
-    | regexp ^^ AtomLit 
-    | arrayLiteral 
+    ( idLiteral
+    | accessLiteral
+    | regexp ^^ AtomLit
+    | arrayLiteral
     | objectLiteral
     | 'this ^^^ AtomLit("this")
-    )  
+    )
 
   // 11.1.4 Array Literals
-  // TODO run tests, to check whether this encoding of elision works
-  def _arrayLiteral: PackratParser[Expression] = 
-    "[" ␣> listOf(arrayEl, ",") <␣ "]" ^^ ArrayExpr
+  def _arrayLiteral: PackratParser[Expression] =
+    ( "[" ␣ "]" ^^^ ArrayExpr(Nil)
+    | "[" ␣> listOf(arrayEl, ",") <␣ "]" ^^ ArrayExpr
+    )
 
-  def _arrayEl: PackratParser[Expression] = 
-    ( assignExpr 
-    | result (AtomLit("undefined")) 
+  def _arrayEl: PackratParser[Expression] =
+    ( assignExpr
+    | result (AtomLit("undefined"))
     )
 
   // 11.1.5 Object Literals
   // TODO include getters and setters here
-  def _objectLiteral: PackratParser[Expression] = 
+  def _objectLiteral: PackratParser[Expression] =
     "{" ␣> listOf(objBinding, ",") <␣ "}" ^^ ObjectExpr
 
-  def _objBinding: PackratParser[PropertyBinding] = 
+  def _objBinding: PackratParser[PropertyBinding] =
     (accessLiteral <␣ ":") ␣ assignExpr ^^ PropertyBinding
 
   // Functions
