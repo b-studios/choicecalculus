@@ -1,7 +1,7 @@
 package choicecalculus
 package phases
 
-import lang.ASTNode
+import lang.trees.Tree
 
 import scala.util.parsing.combinator.Parsers
 
@@ -14,7 +14,7 @@ trait Parser {
 
   trait ParsersAPI { self: Parsers =>
 
-    type TreeParser = Parser[ASTNode]
+    type TreeParser = Parser[Tree]
 
     /**
      * The toplevel parser which is applied in order to parse complete
@@ -27,11 +27,11 @@ trait Parser {
      * before and after applying `p`.
      *
      * Should raise an error if `in` cannot be parsed using the
-     * parser `p`. Otherwise return the parsed `ASTNode`.
+     * parser `p`. Otherwise return the parsed `Tree`.
      *
      * @see scala.util.parsing.combinator.RegexParsers#phrase
      */
-    def parseFile(p: TreeParser, in: java.io.Reader): ASTNode
+    def parseFile(p: TreeParser, in: java.io.Reader): Tree
 
   }
 

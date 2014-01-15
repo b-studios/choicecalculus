@@ -7,9 +7,6 @@ import org.scalatest.matchers.ShouldMatchers._
 
 import org.kiama.rewriting.Strategy;
 
-import lang.ASTNode
-import lang.javascript.AtomLit
-
 class BruteforceTest extends FlatSpec with utility.test.Helpers with BruteforceSolver {
 
   val cnf = CNF(List('A,'B,'C))

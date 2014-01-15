@@ -1,9 +1,7 @@
 package choicecalculus
 package phases
 
-import lang.ASTNode
-import lang.choicecalculus.{ Choice, Alternative, Dimension, Include,
-                             PartialConfig, Select, Share, Identifier }
+import lang.trees._
 
 import org.kiama.rewriting.Rewriter
 import org.kiama.attribution.Attribution.attr
@@ -21,16 +19,16 @@ trait DimensionChecker { self: Reader with Namer with Rewriter =>
    * Before running the dimension checker please assure that
    * the [[Namer]] has been run.
    */
-  def runDimensionChecker(ast: ASTNode): ASTNode =
+  def runDimensionChecker(ast: Tree): Tree =
     messageScope(phase = 'dimensionchecker) {
       ast->dimensioning
       ast
     }
 
   /**
-   * Computes the dimension dependency graph for a given ASTNode
+   * Computes the dimension dependency graph for a given Tree
    */
-  val dimensioning: ASTNode => DependencyGraph =
+  val dimensioning: Tree => DependencyGraph =
     messageScope(phase = 'dimensionchecker) {
       attr {
 
@@ -53,12 +51,12 @@ trait DimensionChecker { self: Reader with Namer with Rewriter =>
 
         case Share(name, boundExpr, body) => body->dimensioning
 
-        case inc: Include[_, _] => inc->tree->dimensioning
+        case inc: Include => inc->tree->dimensioning
 
         case t @ Term(p, children) => children.flatMap {
-          case n: ASTNode => List(n->dimensioning)
-          case l: Seq[ASTNode] => l.map(dimensioning)
-          case o: Option[ASTNode] => o.map(dimensioning)
+          case n: Tree => List(n->dimensioning)
+          case l: Seq[Tree] => l.map(dimensioning)
+          case o: Option[Tree] => o.map(dimensioning)
           case _ => List.empty
         }.foldLeft(DependencyGraph.empty) {
           case (old, other) => old.merge(other, t)
@@ -102,12 +100,12 @@ trait DimensionChecker { self: Reader with Namer with Rewriter =>
 
     def fullyConfigured = dims.isEmpty
 
-    def fromDimension(dim: Dimension[ASTNode]): DependencyGraph =
+    def fromDimension(dim: Dimension): DependencyGraph =
       DependencyGraph(dims + DependentDimension(dim))
 
-    def fromAlternative(choice: Choice[ASTNode], tag: Symbol): DependencyGraph =
+    def fromAlternative(choice: Choice, tag: Symbol): DependencyGraph =
       (choice->symbol).definition match {
-        case dim: Dimension[ASTNode] => {
+        case dim: Dimension => {
 
           // check whether all alternatives are handled
           val coveredTags = choice.alternatives.map(_.tag).toSet
@@ -129,7 +127,7 @@ trait DimensionChecker { self: Reader with Namer with Rewriter =>
         case _ => errors.noBindingDimension(choice)
       }
 
-    def select(selDim: Symbol, selTag: Symbol, at: ASTNode): DependencyGraph = selectionCandidates(selDim) match {
+    def select(selDim: Symbol, selTag: Symbol, at: Tree): DependencyGraph = selectionCandidates(selDim) match {
 
       case candidates if candidates.isEmpty => {
         val dependentDims = dimsWithName(selDim)
@@ -158,7 +156,7 @@ trait DimensionChecker { self: Reader with Namer with Rewriter =>
       }
     }
 
-    def merge(that: DependencyGraph, at: ASTNode): DependencyGraph = {
+    def merge(that: DependencyGraph, at: Tree): DependencyGraph = {
 
       // we compare dims by name, not ast
       val thisDims = this.dims.map { dep => (dep.dim.name, dep.dependsOn) }
@@ -183,17 +181,17 @@ trait DimensionChecker { self: Reader with Namer with Rewriter =>
     override def toString = dims mkString "\n"
 
     private object warnings {
-      def vacuousSelection(dim: Symbol, tag: Symbol, pos: ASTNode) {
+      def vacuousSelection(dim: Symbol, tag: Symbol, pos: Tree) {
         warn(s"Your selection ${dim.name}.${tag.name} is vacuous.", position = pos)
       }
 
-      def dependentSelection(dim: Symbol, deps: Set[DependentDimension], pos: ASTNode) {
+      def dependentSelection(dim: Symbol, deps: Set[DependentDimension], pos: Tree) {
         warn(s"""You are trying to select a dependent dimension "${dim.name}". Try
                 |selecting the enclosing dimensions first, on which "${dim.name}" depends:
                 |  $deps""".stripMargin, position = pos)
       }
 
-      def superfluousTags(tags: Set[Symbol], pos: ASTNode) {
+      def superfluousTags(tags: Set[Symbol], pos: Tree) {
         val formattedTags = tags.map { _.name } mkString ", "
         val alternatives = if (tags.size > 1) "Alternatives" else "Alternative"
         val are = if (tags.size > 1) "are" else "is"
@@ -202,18 +200,18 @@ trait DimensionChecker { self: Reader with Namer with Rewriter =>
     }
 
     private object errors {
-      def tagsMissing(dim: Symbol, tags: Set[Symbol], pos: ASTNode): Nothing = {
+      def tagsMissing(dim: Symbol, tags: Set[Symbol], pos: Tree): Nothing = {
         val formattedTags = tags.map { t => s"${dim.name}.${t.name}" } mkString ", "
         raise(s"""Missing alternatives: $formattedTags""", position = pos)
       }
 
-      def cannotSelectTag(dim: Symbol, tag: Symbol, pos: ASTNode): Nothing =
+      def cannotSelectTag(dim: Symbol, tag: Symbol, pos: Tree): Nothing =
         raise(s"Cannot select ${dim.name}.${tag.name} because this tag is not declared", position = pos)
 
-      def noBindingDimension(pos: ASTNode): Nothing =
+      def noBindingDimension(pos: Tree): Nothing =
         raise(s"Could not resolve binding dimension for choice", position = pos)
 
-      def multipleDimensions(conflicting: Set[(Symbol, Set[Dependency])], pos: ASTNode): Nothing =
+      def multipleDimensions(conflicting: Set[(Symbol, Set[Dependency])], pos: Tree): Nothing =
         raise(s"Multiple dimension declarations at one level: $conflicting", position = pos)
     }
   }
@@ -223,7 +221,7 @@ trait DimensionChecker { self: Reader with Namer with Rewriter =>
   }
 
   case class DependentDimension(
-      dim: Dimension[ASTNode],
+      dim: Dimension,
       dependsOn: Set[Dependency] = Set.empty) {
 
     /**
@@ -243,7 +241,7 @@ trait DimensionChecker { self: Reader with Namer with Rewriter =>
       s"""${dim.name.name} --> {${dependsOn mkString ", "}}"""
   }
 
-  case class Dependency(dim: Dimension[ASTNode], tag: Symbol) {
+  case class Dependency(dim: Dimension, tag: Symbol) {
     override def toString = s"${dim.name.name}.$tag"
   }
 }

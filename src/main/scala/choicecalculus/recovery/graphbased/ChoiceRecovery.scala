@@ -2,8 +2,7 @@ package choicecalculus
 package recovery
 package graphbased
 
-import lang.ASTNode
-import lang.choicecalculus.{ Choice, Alternative }
+import lang.trees.{ Alternative, Choice, Tree }
 import labeling.{ Path, Label }
 
 private[recovery] trait ChoiceRecovery { self: Dimensions =>
@@ -12,10 +11,10 @@ private[recovery] trait ChoiceRecovery { self: Dimensions =>
 
   /**
    * Returns a choice calculus expression, that represents all
-   * labeled ASTNodes provided as input.
+   * labeled Trees provided as input.
    *
    */
-  def toCC(labels: Labeled[ASTNode]): Option[ASTNode] = labels.size match {
+  def toCC(labels: Labeled[Tree]): Option[Tree] = labels.size match {
     case 0 => sys error ""
     case 1 => Some(labels.head._1)
     case _ =>
@@ -29,11 +28,11 @@ private[recovery] trait ChoiceRecovery { self: Dimensions =>
 
       for {
         (dim, _, ls) <- cheapestDim
-      } yield Choice[ASTNode](dim, splitNodes(ls, dim))
+      } yield Choice(dim, splitNodes(ls, dim))
   }
 
   // split nodes into cases according to the labels
-  def splitNodes(labels: Labeled[ASTNode], dim: Symbol): List[Alternative[ASTNode]] =
+def splitNodes(labels: Labeled[Tree], dim: Symbol): List[Alternative] =
     (for {
       tag <- dimensions(dim)
       ls = for {
@@ -46,7 +45,7 @@ private[recovery] trait ChoiceRecovery { self: Dimensions =>
     } yield Alternative(tag, ccexpr)).toList
 
   // All tags must be present (Only call with expanded labels)
-  def canChoose(dim: Symbol, labels: Labeled[ASTNode]): Boolean =
+  def canChoose(dim: Symbol, labels: Labeled[Tree]): Boolean =
     dimensions(dim).forall { tag =>
       labels.exists {
         case (_, l) => l.contains((dim, tag))
@@ -59,11 +58,11 @@ private[recovery] trait ChoiceRecovery { self: Dimensions =>
     case p => dimensions(dim).map { tag => p :+ ((dim, tag)) }
   })
 
-  def expansion(dim: Symbol, labels: Labeled[ASTNode]) = labels.map {
+  def expansion(dim: Symbol, labels: Labeled[Tree]) = labels.map {
     case (value, label) => (value, expand(label, dim))
   }
 
-  def size(labels: Labeled[ASTNode]): Int =
+  def size(labels: Labeled[Tree]): Int =
     labels.map { case (_, l) => l.size }.reduce(_ + _)
 
 }

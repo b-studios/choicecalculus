@@ -5,13 +5,12 @@ package graphbased
 import utility.combinatorics._
 import utility.Node
 
-import lang.ASTNode
-import lang.choicecalculus.{ Choice, Alternative }
+import lang.trees.{ Alternative, Choice, Tree }
 import labeling.{ Path, Label }
 
 trait CCRecovery extends PathRecovery with ChoiceRecovery with Dimensions {
 
-  object problemGraph extends ProblemGraphBuilder[ASTNode]
+  object problemGraph extends ProblemGraphBuilder[Tree]
 
   import problemGraph.NamedInstance
 
@@ -21,7 +20,7 @@ trait CCRecovery extends PathRecovery with ChoiceRecovery with Dimensions {
   def graphToLabeledGraph(graph: ProblemGraph): (ProblemGraph, Map[Node, Label]) =
     (graph, recover(graph))
 
-  def labelsToChoices(graph: ProblemGraph, labels: Map[Node, Label]): Map[Symbol, ASTNode] =
+  def labelsToChoices(graph: ProblemGraph, labels: Map[Node, Label]): Map[Symbol, Tree] =
     for {
       (variable, nodes) <- graph.variables
       labelsWithValues = labels.filter { case (n, _) => nodes contains n }
@@ -29,7 +28,7 @@ trait CCRecovery extends PathRecovery with ChoiceRecovery with Dimensions {
       ccexpr <- toCC(labelsWithValues)
     } yield (variable, ccexpr)
 
-  def process(table: CloneInstanceTable): Map[Symbol, ASTNode] =
+  def process(table: CloneInstanceTable): Map[Symbol, Tree] =
     graphToLabeledGraph(tableToGraph(table)) match {
       case (graph, labels) => labelsToChoices(graph, labels)
     }
@@ -39,7 +38,7 @@ trait CCRecovery extends PathRecovery with ChoiceRecovery with Dimensions {
 
   // REWRITE to use selection implementation, then generate all possible
   //  selections and create table after reduction
-  def tableFromChoices(choices: Map[Symbol, ASTNode]): CloneInstanceTable = {
+  def tableFromChoices(choices: Map[Symbol, Tree]): CloneInstanceTable = {
 
     val dims = choices.values.flatMap(collectDims).toMap
 
@@ -67,7 +66,7 @@ trait CCRecovery extends PathRecovery with ChoiceRecovery with Dimensions {
   }
 
   // this is a primitive implementation of choice selection
-  private def select(selection: Map[Symbol, Symbol], expr: ASTNode): ASTNode = expr match {
+  private def select(selection: Map[Symbol, Symbol], expr: Tree): Tree = expr match {
     case Choice(dim, alts) =>
       alts.collectFirst {
         case Alternative(tag, v) if tag == selection(dim) => select(selection, v)
@@ -81,7 +80,7 @@ trait CCRecovery extends PathRecovery with ChoiceRecovery with Dimensions {
       el2 <- second
     } yield el1 ++ el2
 
-  private def collectDims(expr: ASTNode): Map[Symbol, List[Symbol]] = expr match {
+  private def collectDims(expr: Tree): Map[Symbol, List[Symbol]] = expr match {
     case Choice(dim, alts) =>
       Map(dim -> alts.map(_.tag)) ++ alts.flatMap(c => collectDims(c.body))
     case other => Map()

@@ -5,8 +5,7 @@ import org.kiama.attribution.Attribution.{ attr, initTree }
 import org.kiama.rewriting.Rewriter.{ everywheretd, query }
 import org.kiama.util.IO
 
-import lang.ASTNode
-import lang.choicecalculus.Include
+import lang.trees.{ Include, Tree }
 
 import scala.collection.mutable
 
@@ -50,7 +49,7 @@ trait Reader { self: Parser =>
    * version of `runReader` creates a virtual file for the given tree instead
    * of parsing a source file.
    */
-  def runReader(tree: ASTNode): (SourceFile, List[SourceFile]) =
+  def runReader(tree: Tree): (SourceFile, List[SourceFile]) =
     messageScope(phase = 'reader) {
       val source = VirtualFile(tree)
       (source, tree->collectSourceFiles)
@@ -64,7 +63,7 @@ trait Reader { self: Parser =>
   /**
    * Returns the tree that will be included
    */
-  lazy val tree: Include[_, _] => ASTNode = attr {
+  lazy val tree: Include => Tree = attr {
     case inc @ Include(filename, parser: TreeParser) => lookupSourceFile(filename) readWith parser
   }
 
@@ -99,7 +98,7 @@ trait Reader { self: Parser =>
      * context of include the file can be parsed with different
      * parsers.
      */
-    def trees: Seq[ASTNode]
+    def trees: Seq[Tree]
 
     /**
      * The canonical name of the file
@@ -109,16 +108,16 @@ trait Reader { self: Parser =>
     /**
      * Reads the file the given parser
      */
-    def readWith(p: TreeParser): ASTNode
+    def readWith(p: TreeParser): Tree
   }
 
   private case class RealFile(file: File) extends SourceFile {
 
-    def trees: Seq[ASTNode] = _parsers.values.toSeq
+    def trees: Seq[Tree] = _parsers.values.toSeq
 
     def filename: String = file.getCanonicalPath
 
-    def readWith(p: TreeParser): ASTNode =
+    def readWith(p: TreeParser): Tree =
       messageScope(filename = filename) {
         _parsers getOrElseUpdate (p, {
           val tree = parsers.parseFile(p, contents)
@@ -137,26 +136,26 @@ trait Reader { self: Parser =>
         raise(s"File not found: $filename")
     }
 
-    private val _parsers = mutable.Map[TreeParser, ASTNode]()
+    private val _parsers = mutable.Map[TreeParser, Tree]()
   }
 
-  private case class VirtualFile(tree: ASTNode) extends SourceFile {
+  private case class VirtualFile(tree: Tree) extends SourceFile {
 
     initTree(tree)
 
-    val trees: Seq[ASTNode] = Seq(tree)
+    val trees: Seq[Tree] = Seq(tree)
 
     // Generate a random filename for this virtual file
     lazy val filename: String = "virtual-" + java.util.UUID.randomUUID().toString()
 
-    def readWith(p: TreeParser): ASTNode = tree
+    def readWith(p: TreeParser): Tree = tree
   }
 
-  private case class DummyFile(pos: ASTNode) extends SourceFile {
+  private case class DummyFile(pos: Tree) extends SourceFile {
     private def cyclic: Nothing = raise(s"Cyclic dependency", position = pos)
     def trees = cyclic
     def filename = cyclic
-    def readWith(p: TreeParser): ASTNode = cyclic
+    def readWith(p: TreeParser): Tree = cyclic
   }
 
   // map from canonical path to sourcefile
@@ -186,7 +185,7 @@ trait Reader { self: Parser =>
    *
    * @return a topological order of dependencies
    */
-  private lazy val collectSourceFiles: ASTNode => List[SourceFile] = attr {
+  private lazy val collectSourceFiles: Tree => List[SourceFile] = attr {
     case node =>
 
       var dependencies = List.empty[SourceFile]

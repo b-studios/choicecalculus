@@ -2,8 +2,7 @@ package choicecalculus
 package recovery
 package bddbased
 
-import lang.ASTNode
-import lang.choicecalculus.{ Choice, Alternative }
+import lang.trees.{ Alternative, Choice, Tree }
 
 import scala.math.{ ceil, pow, log }
 
@@ -78,7 +77,7 @@ trait BruteforceSolver {
     val rows = table.rows.toList
     val indices = table.columns.indices.toList
 
-    def update(candidate: List[ASTNode]) {
+    def update(candidate: List[Tree]) {
       val sol: Solution = Solution((table.headers zip candidate).toMap)
       smallestSolution = smallestSolution map (sol min _) orElse Some(sol)
     }
@@ -86,7 +85,7 @@ trait BruteforceSolver {
     // The `foreach` could be parallelized, synchronizing around `update`
     rows permutations (nextPower(rows.size)) foreach { perm =>
 
-      val solutionCandidate: List[ASTNode] = indices
+      val solutionCandidate: List[Tree] = indices
         // project on variable
         .map { pi(perm, _) }
         // build tree per variable
@@ -98,25 +97,25 @@ trait BruteforceSolver {
     smallestSolution getOrElse (sys error "Could not find a solution")
   }
 
-  private def leaf(value: ASTNode): ASTNode = value
+  private def leaf(value: Tree): Tree = value
 
   /**
    * we limit ourselves to binary choices for now
    */
-  private def binaryChoice(lvl: Int, lhs: ASTNode, rhs: ASTNode): ASTNode =
+  private def binaryChoice(lvl: Int, lhs: Tree, rhs: Tree): Tree =
     Choice(Symbol(s"D$lvl"), Alternative('a, lhs) :: Alternative('b, rhs) :: Nil)
 
   // reuse definition from Minimality
-  private def numberOfLeafs(sol: ASTNode): Int = sol match {
+  private def numberOfLeafs(sol: Tree): Int = sol match {
     case Choice(_, alts) => alts.map(numberOfLeafs).sum
     case _ => 1
   }
 
-  private def bddBuilder = BDDBuilder.option[ASTNode, ASTNode, ASTNode](leaf, binaryChoice)
+  private def bddBuilder = BDDBuilder.option[Tree, Tree, Tree](leaf, binaryChoice)
 
   private def nextPower(n: Int) = pow(2, ceil(log(n) / log(2))).toInt
 
-  private def pi(rows: List[Option[List[ASTNode]]], idx: Int) = for {
+  private def pi(rows: List[Option[List[Tree]]], idx: Int) = for {
     optRow <- rows
     projection = optRow map (r => r(idx))
   } yield projection

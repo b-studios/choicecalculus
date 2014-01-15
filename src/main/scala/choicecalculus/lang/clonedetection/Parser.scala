@@ -1,11 +1,12 @@
-package choicecalculus.lang
-package clonedetection
+package choicecalculus
+package lang.clonedetection
 
-import javascript.JavaScriptParser
+import lang.trees.Tree
+import lang.clonedetection.trees._
 
-trait CloneDetectionParser extends JavaScriptParser {
+trait Parser extends lang.javascript.Parser {
 
-  lazy val parser: PackratParser[ASTNode] = topLevel
+  lazy val parser: PackratParser[Tree] = topLevel
 
   lazy val clone_id: PackratParser[CloneDetectionNode] =
     "[[#variable" ~> """[a-f0-9]+""".r <~ "]]" ^^ { n =>

@@ -2,8 +2,7 @@ package choicecalculus
 package phases
 package evaluator
 
-import lang.ASTNode
-import lang.choicecalculus.{ Include, PartialConfig, Select, Share, Identifier }
+import lang.trees._
 
 import org.kiama.attribution.Attribution.{ paramAttr }
 import org.kiama.rewriting.Rewriter
@@ -25,7 +24,7 @@ trait Substitution { self: Reader with Namer with DimensionChecker with Rewriter
   // TODO also check whether exp is an Identifier, a PartialConfig or an Include
   // dimensioning is performed muted in order to avoid redundant messages
   lazy val isFullyConfigured = strategyf("isFullyConfigured", {
-    case exp: ASTNode if (mute { exp->dimensioning }).fullyConfigured => Some(exp)
+    case exp: Tree if (mute { exp->dimensioning }).fullyConfigured => Some(exp)
     case _ => None
   })
 
@@ -39,16 +38,15 @@ trait Substitution { self: Reader with Namer with DimensionChecker with Rewriter
 
   // ii. It's an include
   lazy val substIncludeExpr = rule("substIncludeExpr", {
-    case inc: Include[_, _] => inc->tree
+    case inc: Include => inc->tree
   })
 
   // (b) the bound expression is fully configured by delayed selections
-  // TODO use kiama's `congruence` rule for this
   lazy val substPartialConfig = rule("substPartialConfig", {
-    case PartialConfig(body: Identifier[_], configs) =>
+    case PartialConfig(body: Identifier, configs) =>
       PartialConfig(rewrite(substIdExpr)(body), configs)
 
-    case PartialConfig(body: Include[_, _], configs) =>
+    case PartialConfig(body: Include, configs) =>
       PartialConfig(rewrite(substIncludeExpr)(body), configs)
   })
 
@@ -64,13 +62,13 @@ trait Substitution { self: Reader with Namer with DimensionChecker with Rewriter
     case Share(n, _, body) if !(body->variableIsUsed(n)) => body
   })
 
-  lazy val variableIsUsed: Symbol => ASTNode => Boolean = paramAttr {
+  lazy val variableIsUsed: Symbol => Tree => Boolean = paramAttr {
     name => {
       case Identifier(n) => n == name
       // shadowed
       case Share(n, _, _) if n == name => false
       case other => other.children.foldLeft(false) {
-        case (old, node: ASTNode) => old || node->variableIsUsed(name)
+        case (old, node: Tree) => old || node->variableIsUsed(name)
       }
     }
   }

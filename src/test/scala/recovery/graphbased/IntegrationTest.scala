@@ -6,7 +6,7 @@ import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers._
 
 import utility.Table
-import lang.javascript.AtomLit
+import lang.javascript.trees.AtomLit
 
 class IntegrationTest extends FlatSpec {
 

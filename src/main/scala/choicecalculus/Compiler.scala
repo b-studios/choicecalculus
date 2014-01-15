@@ -1,12 +1,13 @@
 package choicecalculus
 
-import lang.ASTNode
 import phases.{ Parser, Reader, Namer, DimensionChecker, Evaluator }
 
 import utility.messages._
 
+import lang.trees.Tree
+
 trait Compiler extends Parser with Reader with Namer
-  with DimensionChecker with Evaluator with phases.namer.SymbolPreservingRewriter {
+    with DimensionChecker with Evaluator with phases.namer.SymbolPreservingRewriter {
 
   def main(args: Array[String]) {
     driver(args.toIndexedSeq)
@@ -63,13 +64,13 @@ trait Compiler extends Parser with Reader with Namer
    * 1. Namer
    * 2. DimensionChecker
    */
-  def processDependency(filename: String, ast: ASTNode): Unit =
+  def processDependency(filename: String, ast: Tree): Unit =
     messageScope(filename = filename) {
       runNamer(ast)
       runDimensionChecker(ast)
     }
 
-  def process(filename: String, ast: ASTNode): ASTNode =
+  def process(filename: String, ast: Tree): Tree =
     messageScope(filename = filename) {
       runNamer(ast)
       runDimensionChecker(ast)

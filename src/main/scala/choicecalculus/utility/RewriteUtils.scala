@@ -72,7 +72,7 @@ trait AttributableRewriter extends org.kiama.rewriting.CallbackRewriter {
   import org.kiama.attribution.Attributable
   import scala.xml._
   import org.kiama.rewriting.Strategy
-  import lang.ASTNode
+  import lang.trees.Tree
 
   def rewriting[T](oldTerm: T, newTerm: T): T = {
     (oldTerm, newTerm) match {

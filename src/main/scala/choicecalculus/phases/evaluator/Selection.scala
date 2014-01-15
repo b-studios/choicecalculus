@@ -2,10 +2,7 @@ package choicecalculus
 package phases
 package evaluator
 
-import lang.ASTNode
-
-import lang.choicecalculus.{ Choice, Alternative, Dimension, Include, 
-                             PartialConfig, Select, Share, Identifier }
+import lang.trees._
 
 import org.kiama.rewriting.{ Rewriter, Strategy }
 
@@ -15,14 +12,14 @@ trait Selection { self: Namer with Rewriter =>
 
     // Don't select dependent dimensions!
     // This is ruled out by the dimension checker...
-    case Select(_, _, c: Choice[_]) => c
+    case Select(_, _, c: Choice) => c
 
     case Select(dim, tag, Dimension(name, tags, body)) if name == dim =>
       rewrite(choose(dim, tag))(body)
 
-    case Select(dim, tag, id: Identifier[_]) => PartialConfig(id, List((dim, tag)))
+    case Select(dim, tag, id: Identifier) => PartialConfig(id, List((dim, tag)))
 
-    case Select(dim, tag, inc: Include[_, _]) => PartialConfig(inc, List((dim, tag)))
+    case Select(dim, tag, inc: Include) => PartialConfig(inc, List((dim, tag)))
 
     case Select(dim, tag, PartialConfig(body, configs)) => 
       PartialConfig(body, configs ++ List((dim, tag)))
@@ -37,14 +34,14 @@ trait Selection { self: Namer with Rewriter =>
     // reconstruct node the instanceOf check is to prevent one select "jumping" 
     // over another - similar to the rule
     //     case SelectExpr(_, _, SelectExpr(_, _, _)) => SKIP
-    case s @ Select(dim, tag, t) if !t.isInstanceOf[Select[_]] => rewrite(all(rule {
-      case n: ASTNode => Select(dim, tag, n)
+    case s @ Select(dim, tag, t) if !t.isInstanceOf[Select] => rewrite(all(rule {
+      case n: Tree => Select(dim, tag, n)
       case l: Seq[_] => l.map {
-        case node: ASTNode => Select(dim, tag, node)
+        case node: Tree => Select(dim, tag, node)
         case other => other
       }
       case o: Option[_] => o.map { 
-        case node: ASTNode => Select(dim, tag, node)
+        case node: Tree => Select(dim, tag, node)
         case other => other
       }
       case other => other

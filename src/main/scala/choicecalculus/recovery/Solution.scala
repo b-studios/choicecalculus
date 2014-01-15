@@ -1,16 +1,15 @@
 package choicecalculus
 package recovery
 
-import lang.ASTNode
-import lang.choicecalculus.{ Choice, Alternative }
-import lang.prettyprinter._
+import lang.trees.{ Alternative, Choice, Tree }
+import lang.jscc.PrettyPrinter._
 
 /**
  * @constructor
  *
  * @param mapping from variable names to choice calculus expressions
  */
-case class Solution(mapping: Map[Symbol, ASTNode]) extends Ordered[Solution] {
+case class Solution(mapping: Map[Symbol, Tree]) extends Ordered[Solution] {
 
   /**
    * Compares the two solutions by their size
@@ -49,7 +48,7 @@ case class Solution(mapping: Map[Symbol, ASTNode]) extends Ordered[Solution] {
     case (_, c) => numberOfLeafs(c)
   }.sum
 
-  private def collectDims(sol: ASTNode): Set[Symbol] = sol match {
+  private def collectDims(sol: Tree): Set[Symbol] = sol match {
     case Choice(dim, alts) => Set(dim) ++ alts.flatMap {
       case Alternative(_, c) => collectDims(c)
     }.toSet
@@ -57,7 +56,7 @@ case class Solution(mapping: Map[Symbol, ASTNode]) extends Ordered[Solution] {
     case _ => Set()
   }
 
-  private def numberOfLeafs(sol: ASTNode): Int = sol match {
+  private def numberOfLeafs(sol: Tree): Int = sol match {
     case Choice(dim, alts) => alts.map {
       case Alternative(_, c) => numberOfLeafs(c)
     }.sum
