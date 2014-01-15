@@ -1,12 +1,13 @@
 package choicecalculus
-package lang
-package javascript
+package lang.javascript
+
+import lang.trees.Tree
+import lang.javascript.trees._
 
 import org.kiama.util.PositionedParserUtilities
 import utility.ParserUtils
 
-// This Lexer is just approximate! Does not follow the spec, yet!
-trait JavaScriptLexer extends PositionedParserUtilities with ParserUtils {
+trait Lexer extends PositionedParserUtilities with ParserUtils {
 
   def keywords = Set(
     'break,'case,'catch,'class,'const,'continue,'debugger,
@@ -109,24 +110,24 @@ trait JavaScriptLexer extends PositionedParserUtilities with ParserUtils {
 /**
  * `parser1 ␣ parser2` combines Parsers while consuming any whitespaces between the two
  */
-trait JavaScriptParser extends JavaScriptLexer {
+trait Parser extends Lexer {
 
   // Program
   // -------
   // annotating the topLevel parser with type PackratParser[ASTNode]
   // prevents nice error messages ("[1.1] failure: Base Failure")
-  def _topLevel: Parser[ASTNode] =
+  def _topLevel: Parser[Tree] =
     strippedPhrase (multiple (declaration)) ^^ Program
 
-  def _declaration: PackratParser[Statement] =
+  def _declaration: PackratParser[Tree] =
     funcDecl | statement
 
   // Statements
   // ----------
-  def _block: PackratParser[BlockStmt] =
+  def _block: PackratParser[Tree] =
     "{" ␣> multiple (declaration) <␣ "}" ^^ BlockStmt
 
-  def _statement: PackratParser[Statement] =
+  def _statement: PackratParser[Tree] =
     ( bindings <~ sc
 
     | 'if ␣> ("(" ␣> expression <␣ ")") ␣ statement ␣ ('else ␣> statement).? ^^ IfStmt
@@ -199,14 +200,14 @@ trait JavaScriptParser extends JavaScriptLexer {
 
   // Expressions
   // -----------
-  def _expression: PackratParser[Expression] =
+  def _expression: PackratParser[Tree] =
   ( assignExpr ␣ ("," ␣> assignExpr ).+ ^^ {
       case first ~ rest => SequenceExpr(first :: rest)
     }
   | assignExpr
   )
 
-  def _assignExpr: PackratParser[Expression] =
+  def _assignExpr: PackratParser[Tree] =
     ( leftExpr ␣ ( ">>>=" | ">>=" | "+="  | "-=" | "*="  | "/=" | "%="   | "<<="
                  | "^=" | "&&=" | "&=" | "||=" | "|=" | "="
                  ) ␣ assignExpr ^^ BinaryOpExpr
@@ -214,85 +215,85 @@ trait JavaScriptParser extends JavaScriptLexer {
     )
 
   // ternary operators
-  def _condExpr: PackratParser[Expression] =
+  def _condExpr: PackratParser[Tree] =
     ( orExpr ␣ ("?" ␣> assignExpr <␣ ":") ␣ assignExpr ^^ TernaryExpr
     | orExpr
     )
 
   // binary operators
-  def _orExpr: PackratParser[Expression] =
+  def _orExpr: PackratParser[Tree] =
     ( orExpr ␣ "||" ␣ andExpr ^^ BinaryOpExpr
     | andExpr
     )
 
-  def _andExpr: PackratParser[Expression] =
+  def _andExpr: PackratParser[Tree] =
     ( andExpr ␣ "&&" ␣ bitOrExpr ^^ BinaryOpExpr
     | bitOrExpr
     )
 
-  def _bitOrExpr: PackratParser[Expression] =
+  def _bitOrExpr: PackratParser[Tree] =
     ( bitOrExpr ␣ "|" ␣ bitXorExpr ^^ BinaryOpExpr
     | bitXorExpr
     )
 
-  def _bitXorExpr: PackratParser[Expression] =
+  def _bitXorExpr: PackratParser[Tree] =
     ( bitXorExpr ␣ "^" ␣ bitAndExpr ^^ BinaryOpExpr
     | bitAndExpr
     )
 
-  def _bitAndExpr: PackratParser[Expression] =
+  def _bitAndExpr: PackratParser[Tree] =
     ( bitAndExpr ␣ "&" ␣ eqExpr ^^ BinaryOpExpr
     | eqExpr
     )
 
-  def _eqExpr: PackratParser[Expression] =
+  def _eqExpr: PackratParser[Tree] =
     ( eqExpr ␣ ("===" | "==" | "!==" | "!=") ␣ relExpr ^^ BinaryOpExpr
     | relExpr
     )
 
-  def _relExpr: PackratParser[Expression] =
+  def _relExpr: PackratParser[Tree] =
     ( relExpr ␣ (">=" | ">" | "<=" | "<" | 'instanceof | 'in) ␣ shiftExpr ^^ BinaryOpExpr
     | shiftExpr
     )
 
-  def _shiftExpr: PackratParser[Expression] =
+  def _shiftExpr: PackratParser[Tree] =
     ( shiftExpr ␣ (">>>" | ">>" | "<<") ␣ addExpr ^^ BinaryOpExpr
     | addExpr
     )
 
-  def _addExpr: PackratParser[Expression] =
+  def _addExpr: PackratParser[Tree] =
     ( addExpr ␣ ("+" | "-") ␣ mulExpr ^^ BinaryOpExpr
     | mulExpr
     )
 
-  def _mulExpr: PackratParser[Expression] =
+  def _mulExpr: PackratParser[Tree] =
     ( mulExpr ␣ ("*" | "/" | "%") ␣ prefixExpr ^^ BinaryOpExpr
     | prefixExpr
     )
 
   // unary operators
-  def _prefixExpr: PackratParser[Expression] =
+  def _prefixExpr: PackratParser[Tree] =
     ( ("++" | "--" ) ~ (spacesNoNl ~> unaryExpr) ^^ PrefixExpr
     | unaryExpr
     )
 
-  def _unaryExpr: PackratParser[Expression] =
+  def _unaryExpr: PackratParser[Tree] =
     ( ("!" | "~" | "+" | "-" | 'void | 'delete | 'typeof) ␣ prefixExpr ^^ PrefixExpr
     | postfixExpr
     )
 
-  def _postfixExpr: PackratParser[Expression] =
+  def _postfixExpr: PackratParser[Tree] =
     ( leftExpr ~ (spacesNoNl ~> ("++" | "--")) ^^ PostfixExpr
     | leftExpr
     )
 
   // different combinations of member-expressions, call expressions and new-expressions
-  def _leftExpr: PackratParser[Expression] =
+  def _leftExpr: PackratParser[Tree] =
     ( 'new ␣> leftExpr ^^ NewExpr
     | accessExpr
     )
 
-  def _accessExpr: PackratParser[Expression] =
+  def _accessExpr: PackratParser[Tree] =
     ( accessExpr ␣ callExpr ^^ CallExpr
     | accessExpr ␣ memberExpr ^^ MemberExpr
     | accessExpr ␣ nameAccessExpr ^^ NameAccessExpr
@@ -300,33 +301,33 @@ trait JavaScriptParser extends JavaScriptLexer {
     | primExpr
     )
 
-  def _callExpr: PackratParser[List[Expression]] =
+  def _callExpr: PackratParser[List[Tree]] =
     "(" ␣> listOf(assignExpr, ",") <␣ ")"
 
-  def _memberExpr: PackratParser[Expression] =
+  def _memberExpr: PackratParser[Tree] =
     "[" ␣> expression <␣ "]"
 
-  def _nameAccessExpr: PackratParser[Literal] =
+  def _nameAccessExpr: PackratParser[Tree] =
     "." ␣> idLiteral
 
 
   // 11.1 Primary Expressions
-  def _primExpr: PackratParser[Expression] =
+  def _primExpr: PackratParser[Tree] =
     ( literal
     | "(" ␣> expression <␣ ")" ^^ GroupExpr
     )
 
   // Literals
   // --------
-  def _idLiteral: PackratParser[Literal] =
+  def _idLiteral: PackratParser[Tree] =
     name ^^ AtomLit
 
-  def _accessLiteral: PackratParser[Literal] =
+  def _accessLiteral: PackratParser[Tree] =
     ( (string | number) ^^ AtomLit
     | idLiteral
     )
 
-  def _literal: PackratParser[Expression] =
+  def _literal: PackratParser[Tree] =
     ( idLiteral
     | accessLiteral
     | regexp ^^ AtomLit
@@ -336,41 +337,41 @@ trait JavaScriptParser extends JavaScriptLexer {
     )
 
   // 11.1.4 Array Literals
-  def _arrayLiteral: PackratParser[Expression] =
+  def _arrayLiteral: PackratParser[Tree] =
     ( "[" ␣ "]" ^^^ ArrayExpr(Nil)
     | "[" ␣> listOf(arrayEl, ",") <␣ "]" ^^ ArrayExpr
     )
 
-  def _arrayEl: PackratParser[Expression] =
+  def _arrayEl: PackratParser[Tree] =
     ( assignExpr
     | result (AtomLit("undefined"))
     )
 
   // 11.1.5 Object Literals
   // TODO include getters and setters here
-  def _objectLiteral: PackratParser[Expression] =
+  def _objectLiteral: PackratParser[Tree] =
     "{" ␣> listOf(objBinding, ",") <␣ "}" ^^ ObjectExpr
 
-  def _objBinding: PackratParser[PropertyBinding] =
+  def _objBinding: PackratParser[Tree] =
     (accessLiteral <␣ ":") ␣ assignExpr ^^ PropertyBinding
 
   // Functions
-  def _funcDecl: PackratParser[Expression] =
+  def _funcDecl: PackratParser[Tree] =
     ('function ␣> idLiteral) ␣ ("(" ␣> funcArgs <␣ ")") ␣ block ^^ FunctionDecl
 
-  def _funcExpr: PackratParser[Expression] =
+  def _funcExpr: PackratParser[Tree] =
     ( 'function ␣> ("(" ␣> funcArgs <␣ ")") ␣ block ^^ FunctionExpr
     | funcDecl
     )
 
-  def _funcArgs: PackratParser[List[Literal]] =
+  def _funcArgs: PackratParser[List[Tree]] =
     listOf(idLiteral, ",")
 
   // Variable Declarations
-  def _bindings: PackratParser[Statement] =
+  def _bindings: PackratParser[Tree] =
     'var ␣> listOf(binding, ",") ^^ VarDeclStmt
 
-  def _binding: PackratParser[VarBinding] =
+  def _binding: PackratParser[Tree] =
     idLiteral ␣ ( "=" ␣> assignExpr
                 | result (AtomLit("undefined"))
                 ) ^^ VarBinding

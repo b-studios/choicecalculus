@@ -3,9 +3,8 @@ package phases
 
 import org.scalatest._
 
-import lang.ASTNode
-import lang.choicecalculus.Identifier
-import lang.JsCcParser
+import lang.trees.{ Identifier, Tree }
+import lang.jscc.JsCcParser
 
 import org.kiama.attribution.Attribution.initTree
 
@@ -19,7 +18,7 @@ class NamerTest extends FlatSpec with matchers.ShouldMatchers {
     // equal is already defined in rewriter ...
     import org.scalatest.matchers.ShouldMatchers.{ equal => equal_ }
 
-    def naming(tree: ASTNode): ASTNode = {
+    def naming(tree: Tree): Tree = {
       initTree(tree);
       runNamer(tree);
     }

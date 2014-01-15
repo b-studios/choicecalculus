@@ -9,7 +9,9 @@ import utility.test
 
 class ParserTests extends FlatSpec with test.Helpers {
 
-  trait Context extends JavaScriptParser with RegexParserTests
+  import lang.javascript.trees._
+
+  trait Context extends Parser with RegexParserTests
 
   it should "parse basic expressions" in new Context {
     assertParseOk("foo", expression, lit("foo"))

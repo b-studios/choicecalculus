@@ -4,8 +4,11 @@ package evaluator
 
 import org.scalatest._
 
-import lang.ASTNode
-import lang.JsCcParser
+import lang.trees.{ Dimension, Tree }
+import lang.javascript.trees.{ Expression, Program, VarDeclStmt, Statement,
+                               VarBinding, ReturnStmt }
+
+import lang.jscc.JsCcParser
 
 import org.kiama.attribution.Attribution.initTree
 
@@ -13,12 +16,6 @@ import utility.test
 import utility.messages._
 
 class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
-
-  import lang.javascript.{ Expression, Program, VarDeclStmt, Statement,
-                           VarBinding, ReturnStmt }
-
-  import lang.choicecalculus.{ Dimension }
-
 
   /**
    * this is called `evaluating` in scala test 1.9
@@ -35,7 +32,7 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
      * In order to perform selection the Reader-, Namer- and DimensionCheckerphase
      * have to be run.
      */
-    def selecting(tree: ASTNode): ASTNode = {
+    def selecting(tree: Tree): Tree = {
       resetMessages()
       runReader(tree)
       runNamer(tree)
@@ -43,7 +40,7 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
       rewrite(reduce(select))(tree)
     }
 
-    def substituting(tree: ASTNode): ASTNode = {
+    def substituting(tree: Tree): Tree = {
       resetMessages()
       runReader(tree)
       runNamer(tree)
@@ -51,7 +48,7 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
       rewrite(reduce(substitute + removeShares))(tree)
     }
 
-    def evaluating(tree: ASTNode): ASTNode = {
+    def evaluating(tree: Tree): Tree = {
       resetMessages()
       runReader(tree)
       runNamer(tree)
@@ -63,9 +60,9 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
   it should "find correct dimensioning" in new Context {
 
     // dim A<a> { A<a: 1> }
-    val test_dim: Dimension[ASTNode] = dim('A)('a) { choice('A) ('a -> lit("1")) }
+    val test_dim: Dimension = dim('A)('a) { choice('A) ('a -> lit("1")) }
     // select A.a from dim A<a> { A<a: 1> }
-    val test_selection = Program( select[Statement]('A, 'a, test_dim ) :: Nil)
+    val test_selection = Program( select('A, 'a, test_dim ) :: Nil)
 
     selecting(test_selection) should be {
       Program(lit("1") :: Nil)
@@ -116,7 +113,7 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
     // select A.a from
     //   share x = 3 + 5 in
     //     body
-    def shareX(body: Statement): Statement =
+    def shareX(body: Tree): Tree =
       share('x, lit("3") + lit("5"), body)
 
     // dim A<a, b> {

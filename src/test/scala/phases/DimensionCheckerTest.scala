@@ -4,9 +4,10 @@ package dimensionchecker
 
 import org.scalatest._
 
-import lang.ASTNode
-import lang.JsCcParser
-import lang.choicecalculus.{ Dimension }
+import lang.trees.{ Dimension, Tree }
+import lang.javascript.trees.BlockStmt
+import lang.jscc.JsCcParser
+
 
 import utility.test
 import utility.messages._
@@ -14,9 +15,7 @@ import utility.messages._
 class DimensionCheckerTest extends FlatSpec with matchers.ShouldMatchers {
 
   // equal is already defined in rewriter ...
-  import org.scalatest.matchers.ShouldMatchers.{ equal => equal_ }
-
-  import lang.javascript.BlockStmt
+  import org.scalatest.matchers.ShouldMatchers.{ equal => equal_ }  
 
   def dimensionCheckerError[T](block: => T): FatalPhaseError =
     evaluating {
@@ -31,7 +30,7 @@ class DimensionCheckerTest extends FlatSpec with matchers.ShouldMatchers {
   trait Context extends Reader with Parser with Namer with DimensionChecker
       with JsCcParser with test.Helpers with namer.SymbolPreservingRewriter {
 
-    def dimensionChecking(tree: ASTNode): ASTNode = {
+    def dimensionChecking(tree: Tree): Tree = {
       resetMessages()
       runReader(tree)
       runNamer(tree)
@@ -42,7 +41,7 @@ class DimensionCheckerTest extends FlatSpec with matchers.ShouldMatchers {
 
   it should "merge the choices of multiple subtrees correctly" in new Context {
 
-    val ast: Dimension[ASTNode] = dim('A)('a,'b) {
+    val ast: Dimension = dim('A)('a,'b) {
       BlockStmt(List(
         choice('A)('a -> lit("1"), 'b -> lit("2")),
         choice('A)('a -> lit("3"), 'b -> lit("4")),

@@ -5,9 +5,6 @@ package bddbased
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers._
 
-import lang.ASTNode
-import lang.javascript.AtomLit
-
 // TODO add expected result to actually test this
 class BruteforceTest extends FlatSpec with utility.test.Helpers with BruteforceSolver {
 

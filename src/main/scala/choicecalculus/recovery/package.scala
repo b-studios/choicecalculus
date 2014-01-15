@@ -1,7 +1,7 @@
 package choicecalculus
 
 import utility.Table
-import lang.ASTNode
+import lang.trees.Tree
 
 package object recovery {
 
@@ -9,7 +9,7 @@ package object recovery {
 
   private[recovery] type CloneInstanceTable = Table[
     Symbol,  // variable name
-    ASTNode  // value / instance
+    Tree     // value / instance
   ]
 
 }

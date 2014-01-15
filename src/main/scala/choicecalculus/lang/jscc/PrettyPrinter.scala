@@ -1,11 +1,18 @@
-package choicecalculus.lang
 package choicecalculus
+package lang.jscc
 
-trait ChoiceCalculusPP extends PrettyPrinter {
+import lang.trees._
+
+import lang.javascript
+
+/**
+ * A pretty printer for the JsCc language
+ */
+trait PrettyPrinter extends javascript.PrettyPrinter {
 
   val cc_prefix = text("#")
 
-  override def toDoc(e: ASTNode): Doc = e match {
+  override def toDoc(e: Tree): Doc = e match {
 
     case Dimension(dim, tags, body) =>
       "dim" <+> text(dim.name) <> parens(fillsep(tags.map((t) => text(t.name)), comma)) <+>
@@ -37,4 +44,7 @@ trait ChoiceCalculusPP extends PrettyPrinter {
 
     case other => super.toDoc(other)
   }
+}
+object PrettyPrinter extends PrettyPrinter {
+  implicit val pp = this
 }

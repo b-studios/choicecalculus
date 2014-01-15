@@ -1,17 +1,20 @@
-package choicecalculus.lang
-package javascript
+package choicecalculus
+package lang.javascript
 
-trait JavaScriptPP extends PrettyPrinter {
+import lang.trees.Tree
+import lang.javascript.trees._
+
+trait PrettyPrinter extends lang.PrettyPrinter {
 
   override val defaultIndent = 2
   override val defaultWidth = 80
 
-  def toDocOrEmpty(e: Option[ASTNode]) = e match {
+  def toDocOrEmpty(e: Option[Tree]) = e match {
     case Some(e) => toDoc(e)
     case None => empty
   }
 
-  def stmtsep(stmts: List[Statement]) = stmts match {
+  def stmtsep(stmts: List[Tree]) = stmts match {
     case Nil => empty
     case stmt :: Nil => toDoc(stmt)
     case many => many.init.foldRight(toDoc(many.last)) {
@@ -20,12 +23,12 @@ trait JavaScriptPP extends PrettyPrinter {
     }
   }
 
-  def nestIfNoBlock(e: ASTNode) = e match {
+  def nestIfNoBlock(e: Tree) = e match {
     case b: BlockStmt => toDoc(b)
     case other => nest(line <> toDoc(other)) <> linebreak
   }
 
-  override def toDoc(e: ASTNode): Doc = e match {
+  override def toDoc(e: Tree): Doc = e match {
 
     case AtomLit(contents) =>
       text(contents)
@@ -154,4 +157,7 @@ trait JavaScriptPP extends PrettyPrinter {
       "function" <> parens(ssep(args.map(toDoc), comma)) <+> toDoc(body)
 
   }
+}
+object PrettyPrinter extends PrettyPrinter {
+  implicit val pp = this
 }

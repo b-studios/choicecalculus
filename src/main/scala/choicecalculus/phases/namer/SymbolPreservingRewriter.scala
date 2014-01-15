@@ -2,25 +2,26 @@ package choicecalculus
 package phases
 package namer
 
-trait SymbolPreservingRewriter extends org.kiama.rewriting.CallbackRewriter { self: Namer => 
+import lang.trees.{ Choice, Dimension, Identifier, Share }
 
-  import lang.choicecalculus.{ Choice, Dimension, Identifier, Share }
+trait SymbolPreservingRewriter extends org.kiama.rewriting.CallbackRewriter { 
+    self: Namer =>
 
   def rewriting[T](oldTerm: T, newTerm: T): T = {
     (oldTerm, newTerm) match {
 
       // Binding instances
-      case (oldDim: Dimension[_], newDim: Dimension[_]) =>
+      case (oldDim: Dimension, newDim: Dimension) =>
         oldDim->moveSymbolTo(newDim)
 
-      case (oldShare: Share[_,_], newShare: Share[_,_]) =>
+      case (oldShare: Share, newShare: Share) =>
         oldShare->moveSymbolTo(newShare)
 
-      // Bound intances
-      case (oldId: Identifier[_], newId: Identifier[_]) =>
+      // Bound instances
+      case (oldId: Identifier, newId: Identifier) =>
         oldId->copySymbol(newId)
 
-      case (oldChoice: Choice[_], newChoice: Choice[_]) =>
+      case (oldChoice: Choice, newChoice: Choice) =>
         oldChoice->copySymbol(newChoice)
 
       case _ =>

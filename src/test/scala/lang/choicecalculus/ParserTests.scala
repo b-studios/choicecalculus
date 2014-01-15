@@ -1,20 +1,22 @@
 package choicecalculus
-package lang.choicecalculus
+package lang.jscc
+
+import lang.javascript
 
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers._
 import org.kiama.util.RegexParserTests
 import utility.test
 
-import lang.javascript.implicits._
-
 class ParserTests extends FlatSpec with test.Helpers {
 
-  import lang.javascript.{ BlockStmt, CallExpr, FunctionDecl, GroupExpr, Program,
-                           NameAccessExpr, SequenceExpr, ReturnStmt, VarDeclStmt,
-                           VarBinding, EmptyStmt }
+  import javascript.trees.{ BlockStmt, CallExpr, FunctionDecl, GroupExpr, Program,
+                            NameAccessExpr, SequenceExpr, ReturnStmt, VarDeclStmt,
+                            VarBinding, EmptyStmt }
 
-  trait Context extends ChoiceCalculusParser with RegexParserTests
+  import lang.trees.Include
+
+  trait Context extends Parser with RegexParserTests
 
   it should "not parse identifiers as keywords" in new Context {
 

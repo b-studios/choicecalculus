@@ -3,16 +3,15 @@ package phases
 
 import org.scalatest._
 
-import lang.JsCcParser
+import lang.jscc.JsCcParser
 
 import utility.test
 import utility.messages._
 
 class ReaderTest extends FlatSpec with matchers.ShouldMatchers {
 
-  import lang.javascript.{ BlockStmt, Program, VarDeclStmt, VarBinding, EmptyStmt }
-
-  import lang.choicecalculus.{ Dimension, Select, Include }
+  import lang.trees.{ Dimension, Select, Include }
+  import lang.javascript.trees.{ BlockStmt, Program, VarDeclStmt, VarBinding, EmptyStmt }
 
   val pathPrefix = "src/test/data/"
 
@@ -65,8 +64,8 @@ class ReaderTest extends FlatSpec with matchers.ShouldMatchers {
 
     (src3.trees.head: @unchecked) match {
       case Program(List(Dimension(_, _, BlockStmt(List(
-          Select(_, _, inc1: Include[_, _]), EmptyStmt,
-          Select(_, _, inc2: Include[_, _]), EmptyStmt
+          Select(_, _, inc1: Include), EmptyStmt,
+          Select(_, _, inc2: Include), EmptyStmt
         ))))) => {
 
         inc1->tree should equal (test01tree)
@@ -87,13 +86,13 @@ class ReaderTest extends FlatSpec with matchers.ShouldMatchers {
 
     // Find the tree that starts with `Dimension` (instead of `Program`)
     val test03tree = src3.trees.collectFirst {
-      case d: Dimension[_] => d
+      case d: Dimension => d
     }.get
 
     (src4.trees.head: @unchecked) match {
       case Program(List(Dimension(_, _, BlockStmt(List(
-          Select(_, _, inc1: Include[_, _]), EmptyStmt,
-          Select(_, _, inc3: Include[_, _]), EmptyStmt
+          Select(_, _, inc1: Include), EmptyStmt,
+          Select(_, _, inc3: Include), EmptyStmt
         ))))) => {
 
         inc1->tree should equal (test01tree)

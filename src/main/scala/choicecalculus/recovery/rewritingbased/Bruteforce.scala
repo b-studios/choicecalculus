@@ -2,13 +2,13 @@ package choicecalculus
 package recovery
 package rewritingbased
 
-import lang.ASTNode
+import lang.trees.Tree
 
 import org.kiama.rewriting.Rewriter.{ attempt, everywherebu, rewrite, rule }
 import org.kiama.rewriting.Strategy
 
 // we limit ourselves to binary choices first
-case class BinaryChoice(dim: Symbol, lhs: ASTNode, rhs: ASTNode) extends ASTNode
+case class BinaryChoice(dim: Symbol, lhs: Tree, rhs: Tree) extends Tree
 
 /**
  * This implementation of the choice normal form factoring is defined on a small subset
@@ -19,7 +19,7 @@ trait CNF {
 
   val ord: Ordering[Symbol]
 
-  def minimize(node: ASTNode): ASTNode = rewrite(attempt(everywherebu(sort)) <* everywherebu(CCIdempLR))(node)
+  def minimize(node: Tree): Tree = rewrite(attempt(everywherebu(sort)) <* everywherebu(CCIdempLR))(node)
 
   lazy val sort: Strategy = CCSwapLR <+ (CCIdempRL <* CCSwapLR)
 
@@ -66,11 +66,11 @@ trait BruteforceSolver {
 
   type Solution = Map[
     Symbol, // Variable name
-    ASTNode // Choice calculus expression
+    Tree // Choice calculus expression
   ]
 
-  implicit object LocalSolutionOrdering extends Ordering[ASTNode] {
-    def compare(a: ASTNode, b: ASTNode) =
+  implicit object LocalSolutionOrdering extends Ordering[Tree] {
+    def compare(a: Tree, b: Tree) =
       (numberOfLeafs(a) compare numberOfLeafs(b)) match {
         case 0 => numberOfDims(a) compare numberOfDims(b)
         case n => n
@@ -88,7 +88,7 @@ trait BruteforceSolver {
   private def numberOfLeafs(sol: Solution): Int =
     sol.map { case (_, c) => numberOfLeafs(c) }.sum
 
-  private def numberOfLeafs(sol: ASTNode): Int = sol match {
+  private def numberOfLeafs(sol: Tree): Int = sol match {
     case BinaryChoice(dim, lhs, rhs) => numberOfLeafs(lhs) + numberOfLeafs(rhs)
     case _ => 1
   }
@@ -98,10 +98,10 @@ trait BruteforceSolver {
       case (_, c) => collectDims(c)
     }.toSet.size
 
-  private def numberOfDims(sol: ASTNode): Int =
+  private def numberOfDims(sol: Tree): Int =
     collectDims(sol).size
 
-  private[recovery] def collectDims(sol: ASTNode): Set[Symbol] = sol match {
+  private[recovery] def collectDims(sol: Tree): Set[Symbol] = sol match {
     case BinaryChoice(dim, lhs, rhs) => Set(dim) ++ collectDims(lhs) ++ collectDims(rhs)
     case _ => Set.empty
   }
@@ -132,11 +132,11 @@ trait BruteforceSolver {
   }
 
   // The actual solver
-  def localSolution(node: ASTNode): ASTNode = collectDims(node).toList.permutations.map { dims =>
+  def localSolution(node: Tree): Tree = collectDims(node).toList.permutations.map { dims =>
     CNF(dims).minimize(node)
   }.min
 
-  private def restoreChoice(part: Partitioning[List[ASTNode]], col: Int, level: Int = 0): ASTNode = part match {
+  private def restoreChoice(part: Partitioning[List[Tree]], col: Int, level: Int = 0): Tree = part match {
     case Elem(row) => row(col)
     case Partition(lhs, rhs) => BinaryChoice(Symbol(s"D$level"),
       restoreChoice(lhs, col, level + 1), restoreChoice(rhs, col, level + 1))
