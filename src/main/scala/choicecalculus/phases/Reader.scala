@@ -11,7 +11,7 @@ import scala.collection.mutable
 
 import utility.messages._
 
-import java.io.{ File, BufferedReader, FileNotFoundException }
+import java.io.{ File, BufferedReader, StringReader, FileNotFoundException }
 
 /**
  * <h2>The Reader phase
@@ -59,6 +59,21 @@ trait Reader { self: Parser =>
    * Resets the file cache
    */
   def resetReader() { _cache.clear() }
+
+  /**
+   * This is used by the REPL. 
+   *
+   * Creates a virtual file using the given contents
+   *
+   * @return the name of the virtual file
+   */
+  def createVirtualFile(contents: String): String = {
+    val tree = parsers.parseFile(parsers.topLevel, new StringReader(contents))
+    val file = VirtualFile(tree)
+    _cache update(file.filename, file)
+    file.filename
+  }
+
 
   /**
    * Returns the tree that will be included
@@ -146,7 +161,8 @@ trait Reader { self: Parser =>
     val trees: Seq[Tree] = Seq(tree)
 
     // Generate a random filename for this virtual file
-    lazy val filename: String = "virtual-" + java.util.UUID.randomUUID().toString()
+    lazy val filename: String =
+      new File("virtual-" + java.util.UUID.randomUUID().toString()).getCanonicalPath
 
     def readWith(p: TreeParser): Tree = tree
   }
