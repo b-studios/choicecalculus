@@ -1,13 +1,14 @@
 package choicecalculus
 
-import phases.{ Parser, Reader, Namer, DimensionChecker, Evaluator }
+import phases.{ Parser, Reader, Namer, DimensionChecker, Evaluator, Generator }
 
 import utility.messages._
 
 import lang.trees.Tree
 
 trait Pipeline extends Parser with Reader with Namer
-    with DimensionChecker with Evaluator with phases.namer.SymbolPreservingRewriter {
+    with DimensionChecker with Evaluator with phases.namer.SymbolPreservingRewriter
+    with Generator {
 
   /**
    * Processes a given file by running the reader phase
@@ -29,10 +30,8 @@ trait Pipeline extends Parser with Reader with Namer
       tree <- source.trees
     } yield process(source.filename, tree)
 
-    println(results)
-
     // Last Phase: Generator
-    // runGenerator
+    println(runGenerator(results.head))
   }
 
   /**
