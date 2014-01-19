@@ -5,29 +5,42 @@ import phases.{ Parser, Reader, Namer, DimensionChecker, Evaluator }
 import utility.messages._
 
 import lang.trees.Tree
+import scala.collection.immutable.Seq
+import org.kiama.util.FileEmitter
 
-trait Compiler extends Pipeline {
+trait Compiler extends Pipeline[CompilerConfig] with Configurable[CompilerConfig] {
 
-  def main(args: Array[String]) {
+  def main(args: Array[String]): Unit = try {
     driver(args.toIndexedSeq)
-  }
-
-  /**
-   * The driver for this compiler. Currently no config is used
-   * so the arguments are directly passed as filenames
-   */
-  def driver(args: Seq[String]) {
-    processfiles(args)
-  }
-
-  def processfiles(filenames: Seq[String]): Unit = try {
-    for (filename <- filenames) {
-      processfile(filename)
-    }
   } catch {
     case err: FatalPhaseError => err.report
   } finally {
-    report
+    reportFiltered
   }
 
+  /**
+   * Processes the arguments, creates configs and triggers `processfiles`
+   */
+  def driver(args: Seq[String]) {
+    conf = new CompilerConfig(args)
+
+    (conf.input(), conf.output()) match {
+      case (in, Nil) => processfiles(in)
+
+      case (in, out) if in.size != out.size => 
+        raise("Please provide equal numbers for inputs and outputs")
+
+      case (in, out) => out.zip(processfiles(in)).foreach {
+        case (out, result) => {
+          val file = new FileEmitter(out)
+          file.emit(result)
+          file.close()
+        }
+      }
+    }
+  }
+
+  def processfiles(filenames: Seq[String]): Seq[String] = 
+    for (filename <- filenames)
+      yield processfile(filename)
 }

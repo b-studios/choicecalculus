@@ -29,7 +29,7 @@ object messages {
         private val _name: String, 
         color: String) extends Val(_i, _name) {
 
-      def label: String = color + _name  + RESET
+      def label: String = color + _name.toLowerCase  + RESET
     }
 
     val Debug = LogLevel(0, "Debug", RESET)
