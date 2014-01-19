@@ -11,11 +11,11 @@ trait Pipeline[C <: Config] extends Parser with Reader with Namer
     with DimensionChecker with Evaluator with phases.namer.SymbolPreservingRewriter
     with Generator { self: Configurable[C] =>
 
-
   /**
    * Processes a given file by running the reader phase
    */
   def processfile(filename: String): String = messageScope(filename = filename) {
+
 
     // I. Reader phase - always necessary to collect all
     //    dependencies
@@ -28,6 +28,7 @@ trait Pipeline[C <: Config] extends Parser with Reader with Namer
 
     // Usually, there should only be one tree for the main source
     // but we are playing it safe here
+
     val results = for {
       tree <- source.trees
     } yield process(source.filename, tree)
