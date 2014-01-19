@@ -2,7 +2,7 @@ name in ThisBuild := "choicecalculus"
 
 organization in ThisBuild := "de.unimarburg.ps"
 
-version in ThisBuild := "0.1-SNAPSHOT"
+version in ThisBuild := "0.2-SNAPSHOT"
 
 scalaVersion in ThisBuild := "2.10.3"
 
