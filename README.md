@@ -15,10 +15,42 @@ dim A(a,b) in
 ```
 Enter sbt and process your file by typing
 ```
-run "test.js.cc"
+run --input test.js.cc
 ```
 
-## The Syntax
+The following screen will appear:
+
+```
+Multiple main classes detected, select one to run:
+
+ [1] choicecalculus.lang.jscc.Compiler
+ [2] choicecalculus.lang.jscc.DebugCompiler
+ [3] choicecalculus.lang.jscc.Repl
+ [4] choicecalculus.lang.lccc.Repl
+```
+
+Choose either the `Compiler` or `DebugCompiler` to process your file. If using the
+DebugCompiler it is recommended to also write the results to a file like:
+
+```
+run --input test.js.cc --output test.html
+```
+
+## The Help Screen
+For further information on the command line usage please consult the help screen
+accessible by:
+
+```
+run --help
+```
+
+## Repl Usage
+You also can use one of the provided Repls by choosing either `jscc.Repl` or `lccc.Repl`.
+The latter one allows entering variational lambda calulus terms with a syntax closer to 
+the original choice calculus syntax.
+
+
+## The Javascript + Choice Calculus Syntax
 To fit into JavaScript the syntax differs a little bit from the one used in [1]. The following examples illustrate the differences.
 
 All choice calculus terms can appear in statement as well as in expression position. Allowing the calculus to be used at different levels in the program. This context then also applies to the `BODY` of a choice calculus term and such rendering `3 + dim A(a) in { f(); g(); }` syntactically incorrect since the context is in expression position whereas the body is a `BlockStatement`.
@@ -56,6 +88,5 @@ Here `CONTEXT` can either be `Expression` or `Statement` and specifies which par
 include "filename"
 ```
 Depending on the context in which `include` appears determines how the file is processed. So using `include` in expression position like `3 + include "foo"` requires the file foo to only contain an expression.
-
 
 [1] Martin Erwig, Klaus Ostermann, Tillmann Rendel, and Eric Walkingshaw. 2013. Adding configuration to the choice calculus. In *Proceedings of the Seventh International Workshop on Variability Modelling of Software-intensive Systems* (VaMoS '13). ACM, New York, NY, USA, , Article 13 , 8 pages. DOI=[10.1145/2430502.2430520](http://doi.acm.org/10.1145/2430502.2430520)
