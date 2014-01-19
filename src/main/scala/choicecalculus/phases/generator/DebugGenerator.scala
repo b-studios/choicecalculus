@@ -25,9 +25,26 @@ trait DebugGenerator extends Generator { self: Namer with DimensionChecker =>
   def runGenerator(tree: Tree): String = {
     val content = prettyprinter.pretty(prettyprinter.toDoc(tree), 140)
     val msgs = new StringEmitter match {
-      case emitter => report(emitter); emitter.result;
+      case emitter => report(emitter); replaceColors(emitter.result);
     }
     template(content.escape.safeUnescape, msgs, dimensionMap(tree))
+  }
+
+  trait DebugPrettyPrinter extends PrettyPrinter {
+
+    private def idAttr(e: Tree): Doc = 
+      text(s"<span data-id='${ref(e)}'>".safe) <> super.toDoc(e) <> text("</span>".safe)
+
+    private def bound(e: Tree): Doc = 
+      text(s"<span data-ref='${ref((e->symbol).definition)}' data-id='${ref(e)}'>".safe) <>
+        super.toDoc(e) <> 
+      text("</span>".safe)
+
+    override def toDoc(e: Tree): Doc = e match {
+      case id: Identifier => bound(id)
+      case choice: Choice => bound(choice)
+      case other => idAttr(other)
+    }
   }
 
   private def dimensionMap(tree: Tree): JSONObject = {
@@ -41,6 +58,9 @@ trait DebugGenerator extends Generator { self: Namer with DimensionChecker =>
           "start" -> t.start.toString,
           "finish" -> t.finish.toString
         ),
+
+        // TODO ask for dimensioning.hasBeenComputedAt(t)
+        // before printing, since we might have skipped the dimensioning phase
         "dimensioning" -> printDimensionGraph(t->dimensioning)
       ))
     }
@@ -54,11 +74,40 @@ trait DebugGenerator extends Generator { self: Namer with DimensionChecker =>
   private def constructorName(p: Product) = 
     s"""${p.productPrefix}(${(0 until p.productArity) map(_ => "…") mkString (", ")})"""
 
-  private def obj(attrs: (String, Any)*): JSONObject = 
+  /**
+   * Helper method to create json objects
+   *
+   * @example {{{
+   *   obj("foo" -> 42).toString()
+   *   //=> { "foo": 42 }
+   * }}}
+   */
+  private def obj(attrs: (String, Any)*): JSONObject =
     new JSONObject(attrs.toMap)
 
+  /**
+   * Helper method to create json arrays
+   *
+   * @example {{{
+   *   arr(1,2,3,4).toString()
+   *   //=> [1, 2 ,3 ,4 ]
+   * }}}
+   */
   private def arr(els: Any*): JSONArray = 
     new JSONArray(els.toList)
+
+  /**
+   * Helper method to replace ANSI colors in string by
+   * a span tag. Can only be used if a color is immediately
+   * followed by a RESET.
+   */
+  private def replaceColors(msgs: String): String =
+    Map(
+      "\\033\\[33m" -> "<span class=\'yellow\'>",
+      "\\033\\[31m" -> "<span class=\'red\'>",
+      "\\033\\[37m" -> "<span class=\'white\'>",
+      "\\033\\[0m"  -> "</span>"
+    ).foldLeft(msgs) { case (str, (color, tag)) => str.replaceAll(color, tag) }
 
   private def printDimensionGraph(g: DependencyGraph): JSONArray = {
     new JSONArray(g.dims.map(printDependentDimension(_)).toList)
@@ -78,25 +127,11 @@ trait DebugGenerator extends Generator { self: Namer with DimensionChecker =>
       "ref" -> ref(d.dim)
     )
 
+  /**
+   * Creates a unique identifier for the given reference
+   */
   private def ref(t: AnyRef): String = 
     s"id-${System.identityHashCode(t).toString}"
-
-  trait DebugPrettyPrinter extends PrettyPrinter {
-
-    private def idAttr(e: Tree): Doc = 
-      text(s"<span data-id='${ref(e)}'>".safe) <> super.toDoc(e) <> text("</span>".safe)
-
-    private def bound(e: Tree): Doc = 
-      text(s"<span data-ref='${ref((e->symbol).definition)}' data-id='${ref(e)}'>".safe) <> 
-        super.toDoc(e) <> 
-      text("</span>".safe)
-
-    override def toDoc(e: Tree): Doc = e match {
-      case id: Identifier => bound(id)
-      case choice: Choice => bound(choice)
-      case other => idAttr(other)
-    }
-  }
 
   private def template(body: String, messages: String, nodeinfo: JSONObject) = s"""
     <!DOCTYPE html>
@@ -104,7 +139,7 @@ trait DebugGenerator extends Generator { self: Namer with DimensionChecker =>
       <head>
         <meta charset="utf-8"/>
         <title>Choice Calculus Explorer</title>
-        <link href='http://fonts.googleapis.com/css?family=Cabin:400,500' rel='stylesheet' type='text/css'> 
+        <link href='http://fonts.googleapis.com/css?family=Cabin:400,500' rel='stylesheet' type='text/css'>
         <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
         <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.9/angular.min.js"></script>
         <script>$jsTemplate</script>
@@ -126,6 +161,7 @@ trait DebugGenerator extends Generator { self: Namer with DimensionChecker =>
             <ul>
               <li ng-repeat="dimension in dimensioning">
                 <span class="ref" ng-click="show(dimension.ref)">{{dimension.name}}</span>
+                <span ng-if="dimension.dependencies.length > 0">depends on</span>
                 <ul>
                   <li ng-repeat="dependency in dimension.dependencies">
                     <span class="ref" ng-click="show(dependency.ref)">{{dependency.selection}}</span>
@@ -207,19 +243,19 @@ trait DebugGenerator extends Generator { self: Namer with DimensionChecker =>
 
   private val cssTemplate = """
     /* RESET >>> */
-    html, body, div, span, applet, object, iframe, h1, h2, h3, h4, h5, h6, p, 
-    blockquote, pre, a, abbr, acronym, address, big, cite, code, del, dfn, em, 
+    html, body, div, span, applet, object, iframe, h1, h2, h3, h4, h5, h6, p,
+    blockquote, pre, a, abbr, acronym, address, big, cite, code, del, dfn, em,
     img, ins, kbd, q, s, samp, small, strike, strong, sub, sup, tt, var, b, u,
-    i, center, dl, dt, dd, ol, ul, li, fieldset, form, label, legend, table, 
-    caption, tbody, tfoot, thead, tr, th, td, article, aside, canvas, details, 
+    i, center, dl, dt, dd, ol, ul, li, fieldset, form, label, legend, table,
+    caption, tbody, tfoot, thead, tr, th, td, article, aside, canvas, details,
     embed, figure, figcaption, footer, header, hgroup, menu, nav, output, ruby,
     section, summary, time, mark, audio, video {
-      margin: 0; padding: 0; border: 0; 
+      margin: 0; padding: 0; border: 0;
       font-size: 100%; font: inherit; vertical-align: baseline;
     }
-    article, aside, details, figcaption, figure, footer, header, hgroup, menu, 
+    article, aside, details, figcaption, figure, footer, header, hgroup, menu,
     nav, section { 
-      display: block; 
+      display: block;
     }
     ol, ul {
       list-style: none;
@@ -333,6 +369,10 @@ trait DebugGenerator extends Generator { self: Namer with DimensionChecker =>
       color: #3f4145;
       border-top: 1px solid #acacac;
       background: rgb(230,230,230);
-    }"""
+    }
+
+    footer .yellow { color: #d9bc00;}
+    footer .red { color: #d90000; }
+    footer .white { color: #ffffff; }"""
 
 }

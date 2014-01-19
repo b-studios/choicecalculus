@@ -2,11 +2,21 @@ package choicecalculus
 package utility
 
 import util.matching.Regex
+import scala.Console.{ BOLD, YELLOW, RED, WHITE, RESET }
 
 package object strings {
 
   implicit class StringOps(text: String) {
 
+    def stripLinebreaks: String = text.stripMargin.replaceAll("\n", "")
+
+    // ANSI Colors
+    def bold: String = BOLD + text + RESET
+    def yellow: String = YELLOW + text + RESET
+    def white: String = WHITE + text + RESET
+    def red: String = RED + text + RESET
+
+    // Escaping / Unescaping
     def safeUnescape: String = 
       safeChars.replaceAllIn(text, { m => safeToUnsafe(m.group(0)) })
 
