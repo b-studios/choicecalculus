@@ -44,11 +44,15 @@ accessible by:
 run --help
 ```
 
-## Repl Usage
-You also can use one of the provided Repls by choosing either `jscc.Repl` or `lccc.Repl`.
-The latter one allows entering variational lambda calulus terms with a syntax closer to 
+## REPL Usage
+You also can use one of the provided REPLs by choosing either `jscc.Repl` or `lccc.Repl`.
+The latter one allows entering variational lambda calculus terms with a syntax closer to 
 the original choice calculus syntax.
 
+```
+> select Name.y from dim Name<x, y> in share #v = Name<x: X, y: Y> in \#v. #v
+\Y.Y
+```
 
 ## The Javascript + Choice Calculus Syntax
 To fit into JavaScript the syntax differs a little bit from the one used in [1]. The following examples illustrate the differences.
