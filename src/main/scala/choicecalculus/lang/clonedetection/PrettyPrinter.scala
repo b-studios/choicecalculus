@@ -1,6 +1,6 @@
-package choicecalculus.lang
-package clonedetection
+package choicecalculus
+package lang.clonedetection
 
-trait CloneDetectionPP extends PrettyPrinter {
-  
+trait PrettyPrinter extends lang.PrettyPrinter {
+
 }

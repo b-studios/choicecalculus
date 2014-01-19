@@ -2,55 +2,52 @@ package choicecalculus
 package recovery
 package rewritingbased
 
-import lang.ASTNode
+import lang.trees.Tree
 
 import org.kiama.rewriting.Rewriter.{ attempt, everywherebu, rewrite, rule }
 import org.kiama.rewriting.Strategy
 
 // we limit ourselves to binary choices first
-case class BinaryChoice(dim: Symbol, lhs: ASTNode, rhs: ASTNode) extends ASTNode
+case class BinaryChoice(dim: Symbol, lhs: Tree, rhs: Tree) extends Tree
 
 /**
- * This implementation of the choice normal form factoring is defined on a small subset 
- * of cc expressions. If necessary it needs to be instantiated to the complete object 
+ * This implementation of the choice normal form factoring is defined on a small subset
+ * of cc expressions. If necessary it needs to be instantiated to the complete object
  * language and all additional CC extensions
  */
 trait CNF {
 
   val ord: Ordering[Symbol]
 
-  def minimize(node: ASTNode): ASTNode = rewrite(attempt(everywherebu(sort)) <* everywherebu(CCIdempLR))(node)
+  def minimize(node: Tree): Tree = rewrite(attempt(everywherebu(sort)) <* everywherebu(CCIdempLR))(node)
 
   lazy val sort: Strategy = CCSwapLR <+ (CCIdempRL <* CCSwapLR)
 
   lazy val CCIdempLR: Strategy = rule {
     case BinaryChoice(_, lhs, rhs) if lhs == rhs => lhs
   }
-  
+
   lazy val CCSwapLR: Strategy = rule {
-    case BinaryChoice(dim1,
-      BinaryChoice(dim2, e1, e2), BinaryChoice(dim3, e3, e4)) if ord.equiv(dim2, dim3) =>
-        BinaryChoice(dim2, BinaryChoice(dim1, e1, e3), BinaryChoice(dim1, e2, e4))
+    case BinaryChoice(dim1, BinaryChoice(dim2, e1, e2), BinaryChoice(dim3, e3, e4)) if ord.equiv(dim2, dim3) =>
+      BinaryChoice(dim2, BinaryChoice(dim1, e1, e3), BinaryChoice(dim1, e2, e4))
   }
-  
+
   lazy val CCIdempRL: Strategy = rule {
     // A<C<1,2>, B<3,4>> --> A<B<C<1,2>, C<1,2>>, B<3,4>>
-    case BinaryChoice(dim1,
-      l@BinaryChoice(dim2, _, _), r@BinaryChoice(dim3, _, _)) 
-        if ord.gt(dim2, dim3) => BinaryChoice(dim1, BinaryChoice(dim3, l, l), r)
-        
+    case BinaryChoice(dim1, l @ BinaryChoice(dim2, _, _), r @ BinaryChoice(dim3, _, _)) if ord.gt(dim2, dim3) => 
+      BinaryChoice(dim1, BinaryChoice(dim3, l, l), r)
+
     // A<B<1,2>,C<3,4>> --> A<B<1,2>, B<C<3,4>,C<3,4>>>
-    case BinaryChoice(dim1,
-      l@BinaryChoice(dim2, _, _), r@BinaryChoice(dim3, _, _)) 
-        if ord.lt(dim2, dim3) => BinaryChoice(dim1, l, BinaryChoice(dim2, r, r))
+    case BinaryChoice(dim1, l @ BinaryChoice(dim2, _, _), r @ BinaryChoice(dim3, _, _)) if ord.lt(dim2, dim3) => 
+      BinaryChoice(dim1, l, BinaryChoice(dim2, r, r))
 
     // A<1, B<3,4>> --> A<B<1,1>, B<3,4>>
-    case BinaryChoice(dim1, l, r@BinaryChoice(dim2, _, _)) 
-      if !l.isInstanceOf[BinaryChoice] && ord.lt(dim2, dim1) => BinaryChoice(dim1, BinaryChoice(dim2, l, l), r)
+    case BinaryChoice(dim1, l, r @ BinaryChoice(dim2, _, _)) if !l.isInstanceOf[BinaryChoice] && ord.lt(dim2, dim1) => 
+      BinaryChoice(dim1, BinaryChoice(dim2, l, l), r)
 
     // A<B<1,2>, 3> --> A<B<1,2>, B<3,3>>
-    case BinaryChoice(dim1, l@BinaryChoice(dim2, _, _), r) 
-      if !r.isInstanceOf[BinaryChoice] && ord.lt(dim2, dim1) => BinaryChoice(dim1, l, BinaryChoice(dim2, r, r))
+    case BinaryChoice(dim1, l @ BinaryChoice(dim2, _, _), r) if !r.isInstanceOf[BinaryChoice] && ord.lt(dim2, dim1) => 
+      BinaryChoice(dim1, l, BinaryChoice(dim2, r, r))
   }
 }
 
@@ -69,42 +66,42 @@ trait BruteforceSolver {
 
   type Solution = Map[
     Symbol, // Variable name
-    ASTNode // Choice calculus expression
+    Tree // Choice calculus expression
   ]
 
-  implicit object LocalSolutionOrdering extends Ordering[ASTNode] {
-    def compare(a: ASTNode, b: ASTNode) = 
+  implicit object LocalSolutionOrdering extends Ordering[Tree] {
+    def compare(a: Tree, b: Tree) =
       (numberOfLeafs(a) compare numberOfLeafs(b)) match {
         case 0 => numberOfDims(a) compare numberOfDims(b)
-        case n => n      
+        case n => n
       }
   }
 
   implicit object SolutionOrdering extends Ordering[Solution] {
-    def compare(a: Solution, b: Solution) = 
+    def compare(a: Solution, b: Solution) =
       (numberOfLeafs(a) compare numberOfLeafs(b)) match {
         case 0 => numberOfDims(a) compare numberOfDims(b)
-        case n => n      
+        case n => n
       }
   }
 
-  private def numberOfLeafs(sol: Solution): Int = 
+  private def numberOfLeafs(sol: Solution): Int =
     sol.map { case (_, c) => numberOfLeafs(c) }.sum
-    
-  private def numberOfLeafs(sol: ASTNode): Int = sol match {
-    case BinaryChoice(dim, lhs, rhs) => numberOfLeafs(lhs) + numberOfLeafs(rhs)    
+
+  private def numberOfLeafs(sol: Tree): Int = sol match {
+    case BinaryChoice(dim, lhs, rhs) => numberOfLeafs(lhs) + numberOfLeafs(rhs)
     case _ => 1
-  } 
-  
-  private def numberOfDims(sol: Solution): Int = 
-    sol.flatMap { 
-      case (_, c) => collectDims(c) 
+  }
+
+  private def numberOfDims(sol: Solution): Int =
+    sol.flatMap {
+      case (_, c) => collectDims(c)
     }.toSet.size
 
-  private def numberOfDims(sol: ASTNode): Int = 
+  private def numberOfDims(sol: Tree): Int =
     collectDims(sol).size
 
-  private[recovery] def collectDims(sol: ASTNode): Set[Symbol] = sol match {
+  private[recovery] def collectDims(sol: Tree): Set[Symbol] = sol match {
     case BinaryChoice(dim, lhs, rhs) => Set(dim) ++ collectDims(lhs) ++ collectDims(rhs)
     case _ => Set.empty
   }
@@ -135,14 +132,14 @@ trait BruteforceSolver {
   }
 
   // The actual solver
-  def localSolution(node: ASTNode): ASTNode = collectDims(node).toList.permutations.map { dims => 
-      CNF(dims).minimize(node) 
-    }.min
+  def localSolution(node: Tree): Tree = collectDims(node).toList.permutations.map { dims =>
+    CNF(dims).minimize(node)
+  }.min
 
-  private def restoreChoice(part: Partitioning[List[ASTNode]], col: Int, level: Int = 0): ASTNode = part match {
+  private def restoreChoice(part: Partitioning[List[Tree]], col: Int, level: Int = 0): Tree = part match {
     case Elem(row) => row(col)
     case Partition(lhs, rhs) => BinaryChoice(Symbol(s"D$level"),
-        restoreChoice(lhs, col, level + 1), restoreChoice(rhs, col, level + 1))
+      restoreChoice(lhs, col, level + 1), restoreChoice(rhs, col, level + 1))
   }
 
   def globalSolution(table: CloneInstanceTable): Solution =

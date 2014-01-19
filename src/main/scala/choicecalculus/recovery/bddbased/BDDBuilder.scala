@@ -8,10 +8,10 @@ import utility.memoization._
 /**
  * A Binary Decision Diagram Builder
  *
- * The constructor takes two arguments that are necessary to build a tree. They 
+ * The constructor takes two arguments that are necessary to build a tree. They
  * are chosen to be used convenient with case classes.
  *
- * It is recommended to instantiate <strong>only one builder</strong> per tree 
+ * It is recommended to instantiate <strong>only one builder</strong> per tree
  * since otherwise nodes are shared between multiple trees.
  *
  * The level of recursion, as provided to `buildNode` is necessary in order
@@ -49,7 +49,7 @@ import utility.memoization._
  *   trait Tree
  *   case class BinaryNode(idx: Int, lhs: Tree, rhs: Tree) extends Tree
  *   case class Leaf(value: Int) extends Tree
- *   
+ *
  *   // Note that both occurrences of `Leaf(1)` in the
  *   // following result refer to the exact same instance:
  *   BDDBuilder(Leaf, BinaryNode) build (List(1,1,0,1))
@@ -57,12 +57,11 @@ import utility.memoization._
  * }}}
  */
 class BDDBuilder[Value, Node <: AnyRef, Leaf <: Node](
-  buildLeaf: Value => Leaf,
-  buildNode: (Int, Node, Node) => Node
-) {
+    buildLeaf: Value => Leaf,
+    buildNode: (Int, Node, Node) => Node) {
 
   /**
-   * Bottom up constructs a reduced tree corresponding to the 
+   * Bottom up constructs a reduced tree corresponding to the
    * full binary tree for `values`.
    *
    * @param values has to contain at least one element and
@@ -70,7 +69,7 @@ class BDDBuilder[Value, Node <: AnyRef, Leaf <: Node](
    *
    * @return a reduced tree corresponding to the full binary tree
    *
-   * @example {{{ 
+   * @example {{{
    *   val bdd: BinaryDecisionDiagram = ...
    *
    *   // Note that both occurrences of `Leaf(1)` in the
@@ -83,21 +82,22 @@ class BDDBuilder[Value, Node <: AnyRef, Leaf <: Node](
 
     val size = values.size
 
-    (log(size) / log(2)) match { case log2 =>
-      require(size >= 1, "`leafs` has to contain at least one element")
-      require(ceil(log2) == floor(log2), "`leafs` has to be of size (2^x)")
+    (log(size) / log(2)) match {
+      case log2 =>
+        require(size >= 1, "`leafs` has to contain at least one element")
+        require(ceil(log2) == floor(log2), "`leafs` has to be of size (2^x)")
     }
 
     values match {
       case head :: Nil => hashedLeaf(head)
-      case _ => values.splitAt(size/2) match {
-        case (firstHalf, secondHalf) => 
-          hashedNode (lvl) (build(firstHalf, lvl+1)) (build(secondHalf, lvl+1))
+      case _ => values.splitAt(size / 2) match {
+        case (firstHalf, secondHalf) =>
+          hashedNode(lvl)(build(firstHalf, lvl + 1))(build(secondHalf, lvl + 1))
       }
     }
   }
 
-  private lazy val hashedLeaf: Value => Leaf = memoized { 
+  private lazy val hashedLeaf: Value => Leaf = memoized {
     case v => buildLeaf(v)
   }
 
@@ -107,7 +107,7 @@ class BDDBuilder[Value, Node <: AnyRef, Leaf <: Node](
    *
    * Is curried in order to allow memoization
    */
-  private lazy val hashedNode: Int => Node => Node => Node = memoized { 
+  private lazy val hashedNode: Int => Node => Node => Node = memoized {
     case lvl => memoized {
       case l => memoized {
         case r if l eq r => l
@@ -125,25 +125,24 @@ object BDDBuilder {
    * @see [[BDDBuilder]]
    */
   def apply[Value, Node <: AnyRef, Leaf <: Node](
-    buildLeaf: Value => Leaf,
-    buildNode: (Int, Node, Node) => Node
-  ) = new BDDBuilder(buildLeaf, buildNode)
+      buildLeaf: Value => Leaf,
+      buildNode: (Int, Node, Node) => Node) = new BDDBuilder(buildLeaf, buildNode)
 
   /**
    * Returns a [[BDDBuilder]] for full binary trees with optional leafs
    *
-   * Taking the same two builder functions as arguments as the constructor 
-   * of [[BDDBuilder]] this method returns a BDDBuilder optimized for trees 
+   * Taking the same two builder functions as arguments as the constructor
+   * of [[BDDBuilder]] this method returns a BDDBuilder optimized for trees
    * with optional leafs.
-   * 
+   *
    * The tree, as built by the builder, will be of type `Option[Node]`
    *
    * @example {{{
    *   trait Tree
    *   case class BinaryNode(idx: Int, lhs: Tree, rhs: Tree) extends Tree
    *   case class Leaf(value: Int) extends Tree
-   *   
-   *   // for every use of build, create a new instance of the builder   
+   *
+   *   // for every use of build, create a new instance of the builder
    *   def builder = BDDBuilder.option(Leaf, BinaryNode)
    *
    *   builder build (List(Some(1), Some(1), None, Some(0)))
@@ -151,7 +150,7 @@ object BDDBuilder {
    *
    *   builder build (List(Some(1), None, Some(0), Some(1)))
    *   // => Some(BinaryNode(Leaf(1), BinaryNode(Leaf(0), Leaf(1))))
-   *   
+   *
    *   builder build (List(None, None, None, None))
    *   // => None
    * }}}
@@ -159,13 +158,11 @@ object BDDBuilder {
    * @see [[BDDBuilder]]
    */
   def option[Value, Node <: AnyRef, Leaf <: Node](
-    buildLeaf: Value => Leaf,
-    buildNode: (Int, Node, Node) => Node
-  ) = new BDDBuilder(
+      buildLeaf: Value => Leaf,
+      buildNode: (Int, Node, Node) => Node) = new BDDBuilder(
     (v: Option[Value]) => v map buildLeaf,
     (lvl: Int, l: Option[Node], r: Option[Node]) => (l, r) match {
-      case (Some(lhs), Some(rhs)) => Some(buildNode(lvl, lhs,rhs))
+      case (Some(lhs), Some(rhs)) => Some(buildNode(lvl, lhs, rhs))
       case (lhs, rhs) => lhs orElse rhs
-    }
-  )
+    })
 }

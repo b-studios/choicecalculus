@@ -1,38 +1,68 @@
 package choicecalculus
 package utility.test
 
-import lang.ASTNode
-import lang.choicecalculus.{ Choice, Choices, Dimension, Include, PartialConfig, Select, Share, SharedId }
-import lang.javascript.{ AtomLit, BinaryOpExpr, Expression }
+import lang.trees._                             
+import lang.javascript.trees.{ AtomLit, BinaryOpExpr, Expression }
+
+import utility.messages.{ hasBeenReported, Level }
 
 trait Helpers {
-  
+
   /**
    * Constructor helpers
    */
-  def dim[T <: ASTNode](name: Symbol, tags: List[Symbol], body: T) = Dimension(name, tags, body)
-  def dim[T <: ASTNode](name: Symbol)(tags: Symbol*)(body: T) = Dimension(name, tags.toList, body)
-  def choices[T <: ASTNode](dim: Symbol, choices: List[Choice[T]]) = Choices[T](dim, choices)
-  def choices[T <: ASTNode](dim: Symbol)(choices: (Symbol, T)*) = Choices[T](dim, choices.map {
-    case (tag, body) => Choice(tag, body)
-  }.toList)
-  def choice[T <: ASTNode](tag: Symbol, body: T) = Choice(tag, body)
-  def select[T <: ASTNode](dim: Symbol, tag: Symbol, body: T) = Select(dim, tag, body)
-  //def select[T <: ASTNode](dim: Symbol, tag: Symbol)(body: T) = Select(dim, tag, body)
-  def share[S <: ASTNode, T <: ASTNode](name: Symbol, exp: S, body: T) = Share(name, exp, body)
-  def id[T <: ASTNode](name: Symbol) = SharedId(name)
-  def include[T <: ASTNode, P](filename: String, context: P) = Include(filename, context)
-  def partialConfig[T <: ASTNode](selects: (Symbol, Symbol)*)(body: T) = PartialConfig(body, selects.toList)
-  
-  
-  def lit(name: String) = AtomLit(name)
-  
-  
-  case class BinOpConstructor(lhs: Expression) {
-    def +(rhs: Expression) = BinaryOpExpr(lhs, "+", rhs)
-    def *(rhs: Expression) = BinaryOpExpr(lhs, "*", rhs)
+  def dim(name: Symbol, tags: List[Symbol], body: Tree) =
+    Dimension(name, tags, body)
+
+  def dim(name: Symbol)(tags: Symbol*)(body: Tree) =
+    Dimension(name, tags.toList, body)
+
+  def choice(dim: Symbol, alts: List[Alternative]) =
+    Choice(dim, alts)
+
+  def choice(dim: Symbol)(alts: (Symbol, Tree)*) =
+    Choice(dim, alts.map {
+      case (tag, body) => Alternative(tag, body)
+    }.toList)
+
+  def alternative(tag: Symbol, body: Tree) =
+    Alternative(tag, body)
+
+  def select(dim: Symbol, tag: Symbol, body: Tree) =
+    Select(dim, tag, body)
+
+  def share(name: Symbol, exp: Tree, body: Tree) =
+    Share(name, exp, body)
+
+  def id(name: Symbol) =
+    Identifier(name)
+
+  def include(filename: String, context: AnyRef) =
+    Include(filename, context)
+
+  def partialConfig(selects: (Symbol, Symbol)*)(body: Tree) =
+    PartialConfig(body, selects.toList)
+
+  def lit(name: String) =
+    AtomLit(name)
+
+  implicit class BinOpConstructor(lhs: Tree) {
+    def +(rhs: Tree) = BinaryOpExpr(lhs, "+", rhs)
+    def *(rhs: Tree) = BinaryOpExpr(lhs, "*", rhs)
   }
-  
-  implicit def exp2binOp(e: Expression): BinOpConstructor = BinOpConstructor(e)
-  implicit def intToLit(n: Int): AtomLit = AtomLit(n.toString)
+
+  def vacuousWarning = hasBeenReported { msg =>
+    msg.phase == 'dimensionchecker &&
+      msg.level == Level.Warn &&
+      (msg.message contains "vacuous")
+  }
+
+  def dependentWarning = hasBeenReported { msg =>
+    msg.phase == 'dimensionchecker &&
+      msg.level == Level.Warn &&
+      (msg.message contains "dependent")
+  }
+
+  implicit def intToLit(n: Int): Tree = AtomLit(n.toString)
+  implicit def stringToLit(s: String): Tree = AtomLit(s)
 }

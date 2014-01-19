@@ -2,8 +2,7 @@ package choicecalculus
 package recovery
 package bddbased
 
-import lang.ASTNode
-import lang.choicecalculus.{ Choices, Choice }
+import lang.trees.{ Alternative, Choice, Tree }
 
 import scala.math.{ ceil, pow, log }
 
@@ -16,13 +15,13 @@ import utility.combinatorics._
  * The recovery works as follows:
  * <ol>
  *   <li> generate all permutations of the table's rows [1]
- *   <li> for every permutation and every column of the permutation create a 
+ *   <li> for every permutation and every column of the permutation create a
  *        reduced OBDD [2]
  *   <li> return the smallest solution [3]
  * </ol>
  *
  * The solver relies on binary choices in order to correspond to BDDs.
- * 
+ *
  * @example {{{
  *   object solver extends BruteforceSolver
  *   solver.globalSolution(new CloneInstanceTable('x, 'y) {
@@ -58,12 +57,12 @@ trait BruteforceSolver {
    *
    * If `table.rows.size` >= 9 we need a termination heuristic. For instance,
    * stop if there haven't been improvements in the last 10.000 permutations.
-   * 
+   *
    * Adding the 4th nested binary dimension leads to this combinatorial explosion...
    *
    * Another possible <em>approximation</em> would be to fix (n-7) but at least one row.
    *
-   * @param table the clone instance table. Has to contain at least one row and one column 
+   * @param table the clone instance table. Has to contain at least one row and one column
    *
    * @return the minimal solution expressable in binary choices
    *
@@ -78,19 +77,19 @@ trait BruteforceSolver {
     val rows = table.rows.toList
     val indices = table.columns.indices.toList
 
-    def update(candidate: List[ASTNode]) {
+    def update(candidate: List[Tree]) {
       val sol: Solution = Solution((table.headers zip candidate).toMap)
-      smallestSolution = smallestSolution map(sol min _) orElse Some(sol)
+      smallestSolution = smallestSolution map (sol min _) orElse Some(sol)
     }
 
     // The `foreach` could be parallelized, synchronizing around `update`
-    rows permutations(nextPower(rows.size)) foreach { perm =>
+    rows permutations (nextPower(rows.size)) foreach { perm =>
 
-      val solutionCandidate: List[ASTNode] = indices
+      val solutionCandidate: List[Tree] = indices
         // project on variable
         .map { pi(perm, _) }
         // build tree per variable
-        .map { bddBuilder build(_) getOrElse (sys error "Could not generate tree") }
+        .map { bddBuilder build (_) getOrElse (sys error "Could not generate tree") }
 
       update(solutionCandidate)
     }
@@ -98,27 +97,26 @@ trait BruteforceSolver {
     smallestSolution getOrElse (sys error "Could not find a solution")
   }
 
-  private def leaf(value: ASTNode): ASTNode = value
+  private def leaf(value: Tree): Tree = value
 
   /**
    * we limit ourselves to binary choices for now
    */
-  private def binaryChoice(lvl: Int, lhs: ASTNode, rhs: ASTNode): ASTNode =
-    Choices(Symbol(s"D$lvl"), Choice('a, lhs) :: Choice('b, rhs) :: Nil)
-
+  private def binaryChoice(lvl: Int, lhs: Tree, rhs: Tree): Tree =
+    Choice(Symbol(s"D$lvl"), Alternative('a, lhs) :: Alternative('b, rhs) :: Nil)
 
   // reuse definition from Minimality
-  private def numberOfLeafs(sol: ASTNode): Int = sol match {
-    case Choices(_, chs) => chs.map(numberOfLeafs).sum
+  private def numberOfLeafs(sol: Tree): Int = sol match {
+    case Choice(_, alts) => alts.map(numberOfLeafs).sum
     case _ => 1
-  } 
+  }
 
-  private def bddBuilder = BDDBuilder.option[ASTNode, ASTNode, ASTNode](leaf, binaryChoice)
+  private def bddBuilder = BDDBuilder.option[Tree, Tree, Tree](leaf, binaryChoice)
 
   private def nextPower(n: Int) = pow(2, ceil(log(n) / log(2))).toInt
 
-  private def pi(rows: List[Option[List[ASTNode]]], idx: Int) = for {
+  private def pi(rows: List[Option[List[Tree]]], idx: Int) = for {
     optRow <- rows
-    projection = optRow map(r => r(idx))
+    projection = optRow map (r => r(idx))
   } yield projection
 }
