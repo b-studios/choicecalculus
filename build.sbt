@@ -12,9 +12,10 @@ resolvers in ThisBuild ++= Seq (
 )
 
 libraryDependencies in ThisBuild ++= Seq (
-    "com.googlecode.kiama" %% "kiama" % "1.5.2",
-    "org.scalatest" %% "scalatest" % "1.9" % "test",
-    "org.rogach" %% "scallop" % "0.9.4"
+    "com.googlecode.kiama" %% "kiama" % "1.5.1",
+    "org.rogach" %% "scallop" % "0.9.4",
+    "com.googlecode.kiama" %% "kiama" % "1.5.1" % "test" classifier ("test"),
+    "org.scalatest" %% "scalatest" % "1.9" % "test" exclude("org.scala-lang", "scala-reflect")
 )
 
 scalacOptions in (Compile,doc) := Seq("-groups", "-implicits")
