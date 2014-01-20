@@ -3,7 +3,11 @@ Choice Calculus
 This project is an implementation of the choice calculus with configuration as presented in [1]. The implementation assumes JavaScript as the base language adding a DSL layer of choice calculus constructs.
 
 ## Installation
-To install just clone the repository and build the project using sbt. Then create some file containing your source code, like:
+To install just clone the repository and build the project invoking `sbt compile`. 
+The latest builds are also available at the ["builds" branch](https://github.com/b-studios/choicecalculus/tree/builds). 
+(For some help on the usage of those jar-files see the notes on the branch's page)
+
+Then create some file containing your source code, like:
 
 ```
 // test.js.cc
