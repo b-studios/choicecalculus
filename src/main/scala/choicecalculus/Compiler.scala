@@ -25,7 +25,9 @@ trait Compiler extends Pipeline[CompilerConfig] with Configurable[CompilerConfig
     conf = new CompilerConfig(args)
 
     (conf.input(), conf.output()) match {
-      case (in, Nil) => processfiles(in)
+      case (in, Nil) => in.zip(processfiles(in)).foreach {
+        case (file, result) => println(s"---\n$file:\n---\n$result")
+      }
 
       case (in, out) if in.size != out.size => 
         raise("Please provide equal numbers for inputs and outputs")
