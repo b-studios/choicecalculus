@@ -32,7 +32,7 @@ trait PrettyPrinter extends javascript.PrettyPrinter {
       cc_prefix <> text(id.name)
 
     case Share(x, binding, body) =>
-      "share" <+> text(x.name) <+> "as" <+> toDoc(binding) <+> "within" <+> toDoc(body)
+      "share" <+> cc_prefix <> text(x.name) <+> "as" <+> toDoc(binding) <+> "within" <+> toDoc(body)
 
     case PartialConfig(body, configs) =>
       configs.foldLeft(toDoc(body)) {
