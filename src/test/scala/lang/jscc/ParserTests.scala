@@ -124,12 +124,10 @@ class ParserTests extends FlatSpec with test.Helpers {
 
   it should "parse choicecalculus terms in statement position" in new Context {
 
-    val `;` = EmptyStmt
-
     assertParseOk("""#x""", declaration, id('x))
     assertParseOk("""#y""", statement, id('y))
     assertParseOk("""{#x;#y;#z}""", statement,
-      BlockStmt(List(id('x), `;`, id('y), `;`, id('z))))
+      BlockStmt(List(id('x), id('y), id('z))))
 
     assertParseOk("""dim A(a,b) {
       var x = 42

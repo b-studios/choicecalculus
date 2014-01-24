@@ -45,7 +45,7 @@ class ParserTests extends FlatSpec with test.Helpers {
     assertParseOk("return;", statement, ReturnStmt(None))
     assertParseOk("return ;", statement, ReturnStmt(None))
     assertParseOk("{return\n;}", statement, 
-      BlockStmt(ReturnStmt(None) :: EmptyStmt :: Nil))
+      BlockStmt(ReturnStmt(None) :: Nil))
 
     assertParseOk("{return \t  42 +\n 41;}", statement, 
       BlockStmt(ReturnStmt(Some(BinaryOpExpr(lit("42"), "+", lit("41")))) :: Nil))

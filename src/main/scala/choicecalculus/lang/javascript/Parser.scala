@@ -120,7 +120,7 @@ trait Parser extends Lexer {
     strippedPhrase (multiple (declaration)) ^^ Program
 
   def _declaration: PackratParser[Tree] =
-    funcDecl | statement
+    ( funcDecl | statement ) <~ (sc.?)
 
   // Statements
   // ----------
@@ -134,7 +134,7 @@ trait Parser extends Lexer {
 
     | 'while ␣> ("(" ␣> expression <␣ ")") ␣ statement ^^ WhileStmt
 
-    | 'do ␣> (statement <␣ 'while) ␣ ("(" ␣> expression <␣ ")") <␣ sc ^^ DoWhileStmt
+    | 'do ␣> (statement <␣ 'while) ␣ ("(" ␣> expression <␣ ")") ^^ DoWhileStmt
 
     | 'for ␣> ("(" ␣>
                  ( bindings | expression ).? ␣

@@ -64,8 +64,8 @@ class ReaderTest extends FlatSpec with matchers.ShouldMatchers {
 
     (src3.trees.head: @unchecked) match {
       case Program(List(Dimension(_, _, BlockStmt(List(
-          Select(_, _, inc1: Include), EmptyStmt,
-          Select(_, _, inc2: Include), EmptyStmt
+          Select(_, _, inc1: Include),
+          Select(_, _, inc2: Include)
         ))))) => {
 
         inc1->tree should equal (test01tree)
@@ -91,8 +91,8 @@ class ReaderTest extends FlatSpec with matchers.ShouldMatchers {
 
     (src4.trees.head: @unchecked) match {
       case Program(List(Dimension(_, _, BlockStmt(List(
-          Select(_, _, inc1: Include), EmptyStmt,
-          Select(_, _, inc3: Include), EmptyStmt
+          Select(_, _, inc1: Include),
+          Select(_, _, inc3: Include)
         ))))) => {
 
         inc1->tree should equal (test01tree)
