@@ -19,6 +19,7 @@ case class DoWhileStmt(body: Tree, cond: Tree) extends Statement
 case class ForStmt(init: Option[Tree], cond: Option[Tree], incr: Option[Tree], body: Tree) extends Statement
 case class ForInStmt(init: Tree, collection: Tree, body: Tree) extends Statement
 case class SwitchStmt(head: Tree, cases: List[Tree]) extends Statement
+case class FunctionDecl(name: Tree, args: List[Tree], body: Tree) extends Statement
 
 case class MatchingCase(matcher: Tree, body: List[Tree]) extends Tree
 case class DefaultCase(body: List[Tree]) extends Tree
@@ -53,5 +54,4 @@ case class SequenceExpr(contents: List[Tree]) extends Expression
 
 case class PropertyBinding(name: Tree, value: Tree) extends Tree
 
-case class FunctionDecl(name: Tree, args: List[Tree], body: Tree) extends Expression
-case class FunctionExpr(args: List[Tree], body: Tree) extends Expression
+case class FunctionExpr(name: Option[Tree], args: List[Tree], body: Tree) extends Expression

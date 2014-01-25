@@ -12,7 +12,7 @@ class ParserTests extends FlatSpec with test.Helpers {
 
   import javascript.trees.{ BlockStmt, CallExpr, FunctionDecl, GroupExpr, Program,
                             NameAccessExpr, SequenceExpr, ReturnStmt, VarDeclStmt,
-                            VarBinding, EmptyStmt }
+                            VarBinding, EmptyStmt, FunctionExpr }
 
   import lang.trees.Include
 
@@ -31,7 +31,7 @@ class ParserTests extends FlatSpec with test.Helpers {
   it should "parse choice calculus expressions without parenthesis" in new Context {
 
     assertParseOk("3 + dim A(a) in (4 + 4)", expression,
-      lit("3") + dim('A)('a) { GroupExpr(lit("4") + lit("4")) })
+      lit("3") + dim('A)('a) { lit("4") + lit("4") })
 
     val expected = lit("3") + select('A, 'a, dim('A)('a) { choice('A) ('a -> (lit("4") + lit("5"))) })
 
@@ -76,9 +76,9 @@ class ParserTests extends FlatSpec with test.Helpers {
       })
 
     assertParseOk("(dim A(a) 4), dim B(b) 5", expression,
-      SequenceExpr(List(GroupExpr(
-        dim('A)('a) { lit("4") }),
-          dim('B)('b) { lit("5") })))
+      SequenceExpr(List(
+        dim('A)('a) { lit("4") },
+        dim('B)('b) { lit("5") })))
   }
 
   it should "ignore leading and trailing whitespacess when using strippedPhrase" in new Context {
@@ -95,7 +95,7 @@ class ParserTests extends FlatSpec with test.Helpers {
     locally {
       val expected = Program(List(
         dim('A)('a, 'b) {
-          FunctionDecl(lit("Foo"),List(),BlockStmt(List(
+          FunctionExpr(Some(lit("Foo")),List(),BlockStmt(List(
             ReturnStmt(Some(
               choice('A)(
                 'a -> lit("3"),
@@ -115,7 +115,7 @@ class ParserTests extends FlatSpec with test.Helpers {
 
     assertParseOk("#x + #x", expression, id('x) + id('x))
     assertParseOk("#y + #y", assignExpr, id('y) + id('y))
-    assertParseOk("(#z + #z)", primExpr, GroupExpr(id('z) + id('z)))
+    assertParseOk("(#z + #z)", primExpr, id('z) + id('z))
 
     assertParseOk("#x, #x", expression, SequenceExpr(id('x) :: id('x) :: Nil))
     assertParseOk("var x = #x", declaration,
@@ -172,13 +172,13 @@ class ParserTests extends FlatSpec with test.Helpers {
     val expected = dim('A)('a,'b) {
       dim('B)('a,'b) {
         dim('C)('a,'b) {
-          GroupExpr(choice('A)(
+          choice('A)(
             'a -> lit("1"),
             'b -> lit("2")
           ) + choice('B)(
             'a -> lit("3"),
             'b -> lit("4")
-          ))
+          )
         }
       }
     }

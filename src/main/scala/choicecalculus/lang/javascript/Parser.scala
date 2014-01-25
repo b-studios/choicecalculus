@@ -312,7 +312,7 @@ trait Parser extends Lexer {
   // 11.1 Primary Expressions
   def _primExpr: PackratParser[Tree] =
     ( literal
-    | "(" ␣> expression <␣ ")" ^^ GroupExpr
+    | "(" ␣> expression <␣ ")"
     )
 
   // Literals
@@ -358,9 +358,8 @@ trait Parser extends Lexer {
     ('function ␣> idLiteral) ␣ ("(" ␣> funcArgs <␣ ")") ␣ block ^^ FunctionDecl
 
   def _funcExpr: PackratParser[Tree] =
-    ( 'function ␣> ("(" ␣> funcArgs <␣ ")") ␣ block ^^ FunctionExpr
-    | funcDecl
-    )
+    'function ␣> idLiteral.? ␣ ("(" ␣> funcArgs <␣ ")") ␣ block ^^ FunctionExpr
+
 
   def _funcArgs: PackratParser[List[Tree]] =
     listOf(idLiteral, ",")

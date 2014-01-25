@@ -3,7 +3,7 @@ package choicecalculus.lang
 import trees.Tree
 import org.kiama.output
 
-trait PrettyPrinter extends output.ParenPrettyPrinter with output.PrettyPrinter {
+trait PrettyPrinter extends output.PrettyPrinter {
 
   def toDoc(e: Tree): Doc = sys error "Implement toDoc"
 

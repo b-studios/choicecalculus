@@ -58,10 +58,10 @@ class ParserTests extends FlatSpec with test.Helpers {
 
   it should "parse string literals with escape sequences" in new Context {
     assertParseOk("""("foo\"bar")""", expression, 
-      GroupExpr(lit("\"foo\\\"bar\"")))
+      lit("\"foo\\\"bar\""))
 
     assertParseOk("(\"foo\\u1111bar\")", expression,
-      GroupExpr(lit("\"foo\\u1111bar\"")))
+      lit("\"foo\\u1111bar\""))
   }
 
   it should "parse array literals with arbitrary elements omitted" in new Context {
