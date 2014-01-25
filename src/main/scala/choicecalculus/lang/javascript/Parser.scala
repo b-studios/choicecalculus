@@ -34,9 +34,7 @@ trait Lexer extends PositionedParserUtilities with ParserUtils {
 
   // "automatic semicolon insertion"
   lazy val sc: PackratParser[Any] =
-    ( spacesNoNl ~ (linebreak | guard("}") | eos ) //| EOS)
-    | ";"
-    )
+    spacesNoNl ~ (linebreak | guard("}") | eos | ";")
 
   /**
    * Identifiers
@@ -193,7 +191,7 @@ trait Parser extends Lexer {
     // to firstly consume all whitespaces and
     // then match `not sc`
 
-    | spaces ~> (not ("{" | 'function | sc) ~> expression) <~ sc
+    | spaces ~> (not ("{" | sc) ~> expression) <~ sc
 
     | block
     )

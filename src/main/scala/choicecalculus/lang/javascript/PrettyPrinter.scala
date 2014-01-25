@@ -18,8 +18,7 @@ trait PrettyPrinter extends lang.PrettyPrinter {
     case Nil => empty
     case stmt :: Nil => toDoc(stmt)
     case many => many.init.foldRight(toDoc(many.last)) {
-      case (e: Expression, rest) => toDoc(e) <> semi <> linebreak <> rest
-      case (s, rest) => toDoc(s) <> linebreak <> rest
+      case (s, rest) => toDoc(s) <> semi <> linebreak <> rest
     }
   }
 
@@ -72,10 +71,10 @@ trait PrettyPrinter extends lang.PrettyPrinter {
       "switch" <> parens(toDoc(head)) <+> braces(nest(line <> lsep(cases.map(toDoc), line) <> line))
 
     case MatchingCase(matcher, stmts) =>
-      "case" <+> toDoc(matcher) <> ":" <> nest(line <> lsep(stmts.map(toDoc), line))
+      "case" <+> toDoc(matcher) <> ":" <> nest(line <> stmtsep(stmts))
 
     case DefaultCase(stmts) =>
-      "default" <> ":" <> nest(line <> lsep(stmts.map(toDoc), line))
+      "default" <> ":" <> nest(line <> stmtsep(stmts))
 
     case BreakStmt(label) =>
       "break" <+> toDocOrEmpty(label)
@@ -96,7 +95,7 @@ trait PrettyPrinter extends lang.PrettyPrinter {
       "finally" <+> toDoc(body)
 
     case ReturnStmt(body) =>
-      "return" <+> toDocOrEmpty(body)
+      "return" <+> toDocOrEmpty(body) <> semi
 
     case WithStmt(binding, body) =>
       "with" <> parens(toDoc(binding)) <+> nestIfNoBlock(body)
