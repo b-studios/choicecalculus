@@ -126,7 +126,9 @@ trait Parser extends Lexer {
     "{" ␣> multiple (declaration) <␣ "}" ^^ BlockStmt
 
   def _statement: PackratParser[Tree] =
-    ( bindings <~ sc
+    ( funcDecl
+
+    | bindings // <~ sc
 
     | 'if ␣> ("(" ␣> expression <␣ ")") ␣ statement ␣ ('else ␣> statement).? ^^ IfStmt
 

@@ -95,7 +95,7 @@ class ParserTests extends FlatSpec with test.Helpers {
     locally {
       val expected = Program(List(
         dim('A)('a, 'b) {
-          FunctionExpr(Some(lit("Foo")),List(),BlockStmt(List(
+          FunctionDecl(lit("Foo"), List(), BlockStmt(List(
             ReturnStmt(Some(
               choice('A)(
                 'a -> lit("3"),

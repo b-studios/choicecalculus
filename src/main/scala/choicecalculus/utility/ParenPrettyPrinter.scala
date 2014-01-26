@@ -44,12 +44,8 @@ trait ParenPrettyPrinter { self : PrettyPrinter =>
     def toParenDoc(parent: Tree, children: List[Tree])(constr: List[Doc] => Doc): Doc = children match {
       case Nil => constr(Nil)
       case first :: Nil => constr(bracket(first, parent, NonAssoc) :: Nil)
-      case many => constr(many.map { bracket(_, parent, LeftAssoc) })
-      // case many => {
-      //   val firstDocs = many.init.map { bracket(_, parent, LeftAssoc) }
-      //   val lastDoc = bracket(many.last, parent, RightAssoc)
-      //   constr(firstDocs :+ lastDoc)
-      // }
+      case first :: rest => 
+        constr(bracket(first, parent, LeftAssoc) :: rest.map { bracket(_, parent, RightAssoc) }) 
     }
 
     /**
