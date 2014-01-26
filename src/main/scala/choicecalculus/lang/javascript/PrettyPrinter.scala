@@ -82,11 +82,28 @@ trait PrettyPrinter extends lang.PrettyPrinter with utility.ParenPrettyPrinter {
     case _ => toDoc(BlockStmt(e :: Nil))
   }
 
-  private def exprInStmtPos(e: Expression) = toDoc(e) match {
-    // TODO This is REALLY expensive, but I currently don't know a better way
-    // to inspect the document
-    case doc if pretty(doc) startsWith "function " => parens(doc)
-    case doc => doc
+  /**
+   * In a expression get the left most base
+   *
+   * @example {{{
+   *   function () {}.foo[bar] ? true : false
+   *   //=> here the function is the base
+   * }}}
+   */
+  private def getBase(e: Tree): Tree = e match {
+    case PostfixExpr(base, _)     => getBase(base)
+    case MemberExpr(base, _)      => getBase(base)
+    case BinaryOpExpr(base, _, _) => getBase(base)
+    case TernaryExpr(base, _, _)  => getBase(base)
+    case CallExpr(base, _)        => getBase(base)
+    case NameAccessExpr(base, _)  => getBase(base)
+    case SequenceExpr(seq)        => getBase(seq.head)
+    case _ => e
+  }
+
+  private def exprInStmtPos(e: Tree): Doc = getBase(e) match {
+    case _: FunctionExpr | _: ObjectExpr => parens(toDoc(e))
+    case _ => toDoc(e)
   }
 
   /**

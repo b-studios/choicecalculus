@@ -69,13 +69,22 @@ class PrettyPrinterTests extends FlatSpec with test.Helpers {
     ).foreach(assertParseAndPrint)
   }
 
-  it should "wrap top level function expressions in parens" in new Context {
+  it should "wrap top level function expressions and object literals in parens" in new Context {
 
     List(
       """(function () {}.call());
          |functionFoo()""",
          
-       """function Foo() {}""")
+       """function Foo() {}""",
+       "({}, bar, baz)",
+       """({
+         |  foo: bar
+         |})""",
+       """({
+          |  foo: bar
+          |}.foo)""",
+       "(function (a, b, c) {}.call()['foo'].bar)",
+       "console.log('hello world')")
       .map(_.stripMargin)
       .foreach(assertParseAndPrint)
   }
