@@ -93,6 +93,15 @@ trait Config { self: ScallopConf =>
     required = true)(phaseConverter)
 
   /**
+   * Allows inspecting the tree instead of the pretty printed result
+   *
+   * Useful alternative to the debug pretty printer (especially within the REPL)
+   */
+  val showTree = toggle("showtree",
+    descrYes = """Shows the tree instead of pretty printing the result""",
+    descrNo = """Pretty prints the result and does not show the tree (default)""")
+
+  /**
    * Options to control message reporting
    */
   object messages {

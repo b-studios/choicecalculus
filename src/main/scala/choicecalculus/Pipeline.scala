@@ -34,7 +34,11 @@ trait Pipeline[C <: Config] extends Parser with Reader with Namer
     } yield process(source.filename, tree)
 
     // Last Phase: Generator
-    runGenerator(results.head)
+    if (conf.showTree())  {
+      results.head.toString
+    } else {
+      runGenerator(results.head)
+    }
   }
 
   /**
