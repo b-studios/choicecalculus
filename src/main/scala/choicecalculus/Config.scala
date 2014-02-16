@@ -99,7 +99,8 @@ trait Config { self: ScallopConf =>
    */
   val showTree = toggle("showtree",
     descrYes = """Shows the tree instead of pretty printing the result""",
-    descrNo = """Pretty prints the result and does not show the tree (default)""")
+    descrNo = """Pretty prints the result and does not show the tree (default)""",
+    default = Some(false))
 
   /**
    * Options to control message reporting
