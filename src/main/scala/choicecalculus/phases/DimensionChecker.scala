@@ -158,15 +158,18 @@ trait DimensionChecker { self: Reader with Namer with Rewriter =>
 
     def merge(that: DependencyGraph, at: Tree): DependencyGraph = {
 
-      // we compare dims by name, not ast
-      val thisDims = this.dims.map { dep => (dep.dim.name, dep.dependsOn) }
-      val thatDims = that.dims.map { dep => (dep.dim.name, dep.dependsOn) }
+      // we first compare dims by name, not ast
+      val intersection = (this.dims.toList ++ that.dims.toList).groupBy { 
+        dep => (dep.dim.name, dep.dependsOn)
+      }
 
-      val intersection = thisDims intersect thatDims
-
-      // parallel definition of dimensions is not allowed
-      if (!intersection.isEmpty) {
-        errors.multipleDimensions(intersection, at)
+      intersection.foreach {
+        case (k, deps) if deps.size > 1 =>
+          // try to recover by checking whether all dimensions are actually the same:
+          if (!deps.forall { x => deps.forall { y => x eq y}}) {
+            errors.multipleDimensions(k, at)
+          }
+        case _ =>
       }
 
       DependencyGraph(this.dims ++ that.dims)
@@ -211,7 +214,7 @@ trait DimensionChecker { self: Reader with Namer with Rewriter =>
       def noBindingDimension(pos: Tree): Nothing =
         raise(s"Could not resolve binding dimension for choice", position = pos)
 
-      def multipleDimensions(conflicting: Set[(Symbol, Set[Dependency])], pos: Tree): Nothing =
+      def multipleDimensions(conflicting: (Symbol, Set[Dependency]), pos: Tree): Nothing =
         raise(s"Multiple dimension declarations at one level: $conflicting", position = pos)
     }
   }

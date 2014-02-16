@@ -103,6 +103,13 @@ class DimensionCheckerTest extends FlatSpec with matchers.ShouldMatchers {
     dimensionCheckerError { dimensionChecking(example4_2) }
   }
 
+  it should "4.2 allow atomic choices as exception to parallel dimension declaration" in new Context {
+    val example4_2_1 = share('x, 
+      dim('A)('a, 'b) { choice('A) ('a -> lit("1"), 'b -> lit("1")) },
+      id('x) + id('x))
+      dimensionChecking(example4_2_1)
+  }
+
   it should "4.3 not allow undeclared tag selection" in new Context {
     val example4_3 = select('D,'a, dim('D)('b, 'c) { choice('D) (
       'b -> lit("1"),
