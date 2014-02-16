@@ -278,8 +278,36 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
         )
       }))
 
+    // select A.a from (dim A<a,b> in share #v = A<a: 1, b: 2> in dim B<c,d> in #v)
+    val ticket7_3 = select('A, 'a, dim('A)('a, 'b) {
+        share('v, choice('A)('a -> lit("1"), 'b -> lit("2")), dim('B)('c, 'd) {
+          id('v)
+        })
+      })
+
+    // select B.c from select A.a from dim A<a,b> in dim B<c,d> in share #v = A<a: 1, b: 2> in share #w = B<c: #v, d: #v> in #w + #w
+    val ticket7_4_body = dim('A)('a, 'b) { dim('B)('c, 'd) { 
+        share('v, choice('A)('a -> lit("1"), 'b -> lit("2")), 
+          share('w, choice('B)('c -> id('v), 'd -> id('v)), id('w)))
+      }}
+
+    val ticket7_4_1 = select('A, 'a, select('B, 'd, ticket7_4_body))
+    val ticket7_4_2 = select('B, 'c, select('A, 'b, ticket7_4_body))
+
     evaluating(ticket7_1) should be { lit("42") }
     evaluating(ticket7_2) should be { lit("42") }
+    evaluating(ticket7_3) should be { dim('B)('c, 'd) { lit("1") } }
+    evaluating(ticket7_4_1) should be { lit("1") }
+    evaluating(ticket7_4_2) should be { lit("2") }
+  }
+
+  it should "not substitute shares with unselected free choices" in new Context {
+    // dim A<a, b> in share #v = A <a : 1, b : 2> in #v
+    val ex = dim('A)('a, 'b) {
+        share('v, choice('A)('a -> lit("1"), 'b -> lit("2")), id('v))
+      }
+
+    evaluating(ex) should be { ex }
   }
 
   "Examples from vamos 2013" should

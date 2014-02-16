@@ -4,7 +4,7 @@ package phases
 import lang.trees._
 
 import org.kiama.rewriting.Rewriter
-import org.kiama.attribution.Attribution.attr
+import org.kiama.attribution.UncachedAttribution.attr
 
 import utility.messages._
 
@@ -73,9 +73,6 @@ trait DimensionChecker { self: Reader with Namer with Rewriter =>
    * As opposed to the previous approaches, this representation is centered
    * around the dependent dimension rather then the other way around.
    *
-   * Since choices are now bound during the [[Namer]] phase free choices are not
-   * part of this representation.
-   *
    * <strong>Advantages</strong>:
    * <ul>
    *   <li> Dependencies can be determined directly (No queries necessary to
@@ -96,12 +93,12 @@ trait DimensionChecker { self: Reader with Namer with Rewriter =>
    *        more involved.
    * </ul>
    */
-  case class DependencyGraph(val dims: Set[DependentDimension]) {
+  case class DependencyGraph(val dims: Set[DependentDimension], val choices: Set[Sym] = Set.empty) {
 
-    def fullyConfigured = dims.isEmpty
+    def fullyConfigured = dims.isEmpty && choices.isEmpty
 
     def fromDimension(dim: Dimension): DependencyGraph =
-      DependencyGraph(dims + DependentDimension(dim))
+      DependencyGraph(dims + DependentDimension(dim), choices - (dim->symbol))
 
     def fromAlternative(choice: Choice, tag: Symbol): DependencyGraph =
       (choice->symbol).definition match {
@@ -122,7 +119,7 @@ trait DimensionChecker { self: Reader with Namer with Rewriter =>
           DependencyGraph(dims.map {
             case DependentDimension(d, deps) =>
               DependentDimension(d, deps + Dependency(dim, tag))
-          })
+          }, choices + (dim->symbol))
         }
         case _ => errors.noBindingDimension(choice)
       }
@@ -152,7 +149,7 @@ trait DimensionChecker { self: Reader with Namer with Rewriter =>
 
         DependencyGraph(selected.foldLeft(dims -- candidates) {
           case (remaining, sel) => remaining.flatMap { _.resolveDependency(sel) }
-        })
+        }, choices -- selected.map(_.dim->symbol))
       }
     }
 
@@ -166,13 +163,13 @@ trait DimensionChecker { self: Reader with Namer with Rewriter =>
       intersection.foreach {
         case (k, deps) if deps.size > 1 =>
           // try to recover by checking whether all dimensions are actually the same:
-          if (!deps.forall { x => deps.forall { y => x eq y}}) {
+          if (!deps.forall { x => deps.forall { y => x.dim->symbol eq y.dim->symbol }}) {
             errors.multipleDimensions(k, at)
           }
         case _ =>
       }
 
-      DependencyGraph(this.dims ++ that.dims)
+      DependencyGraph(this.dims ++ that.dims, this.choices ++ that.choices)
     }
 
     private def selectionCandidates(dimName: Symbol): Set[DependentDimension] =
@@ -220,7 +217,7 @@ trait DimensionChecker { self: Reader with Namer with Rewriter =>
   }
 
   object DependencyGraph {
-    def empty = new DependencyGraph(Set.empty)
+    def empty = new DependencyGraph(Set.empty, Set.empty)
   }
 
   case class DependentDimension(
