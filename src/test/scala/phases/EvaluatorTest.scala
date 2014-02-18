@@ -310,6 +310,16 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
     evaluating(ex) should be { ex }
   }
 
+  it should "select recursively nested choices (dominant choices)" in new Context {
+    // select A.a from dim A<a,b> in A<a:A<a:1,b:2>,b:3>
+    val ast = dim('A)('a,'b) {
+        choice('A)('a -> choice('A)('a -> lit("1"), 'b -> lit("2")), 'b -> lit("3"))
+      }
+
+    evaluating(select('A, 'a, ast)) should be { lit("1") }
+    evaluating(select('A, 'b, ast)) should be { lit("3") }
+  }
+
   "Examples from vamos 2013" should
     "3.0 select simple dimensions" in new Context {
 

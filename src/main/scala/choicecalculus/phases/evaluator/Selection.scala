@@ -56,7 +56,7 @@ trait Selection { self: Namer with Rewriter =>
    * `sometd` will try to continue on subtrees until it successfully matches a 
    * rule. Then it will stop processing this subtree.
    */
-  def choose(dim: Symbol, tag: Symbol) = sometd(rule("choose", {
+  def choose(dim: Symbol, tag: Symbol): Strategy = sometd(rule("choose", {
 
     // select expressions shadow other ones, with the same dimension
     case e @ Select(d, _, _) if d == dim => e
@@ -66,7 +66,7 @@ trait Selection { self: Namer with Rewriter =>
 
     // actual choosing of an alternative
     case Choice(d, alts) if d == dim => alts.collect {
-      case Alternative(t, body) if t == tag => body
+      case Alternative(t, body) if t == tag => rewrite(choose(dim, tag))(body)
     }.head
 
   }))
