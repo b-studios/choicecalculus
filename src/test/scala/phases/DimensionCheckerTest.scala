@@ -67,7 +67,7 @@ class DimensionCheckerTest extends FlatSpec with matchers.ShouldMatchers {
       share('x, choice('A)(
         'a -> lit("42"),
         'b -> lit("48")
-      ), dim ('A)('c,'d) { id('x) })
+      ), choice('A)('a -> dim ('A)('c,'d) { id('x) }, 'b -> lit("47")))
     }
 
     dimensionChecking(ticket7)
@@ -80,6 +80,14 @@ class DimensionCheckerTest extends FlatSpec with matchers.ShouldMatchers {
     }
 
     dimensionCheckerError { dimensionChecking(ast) }
+  }
+
+  it should "select the first of two nested, equally named dimensions (#8)" in new Context {
+    val ast = dim('A)('a,'b) { dim('A)('b,'c) { lit("42") } }
+
+    dimensionChecking(select('A, 'a, ast))
+    dimensionChecking(select('A, 'b, ast))
+    dimensionCheckerError { dimensionChecking(select('A, 'c, ast)) }
   }
 
   "Open questions from vamos 2013" should

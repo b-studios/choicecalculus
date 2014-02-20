@@ -97,8 +97,18 @@ trait DimensionChecker { self: Reader with Namer with Rewriter =>
 
     def fullyConfigured = dims.isEmpty && choices.isEmpty
 
-    def fromDimension(dim: Dimension): DependencyGraph =
-      DependencyGraph(dims + DependentDimension(dim), choices - (dim->symbol))
+    def fromDimension(dim: Dimension): DependencyGraph = selectionCandidates(dim.name) match {
+      case sameName if sameName.isEmpty => 
+        DependencyGraph(dims + DependentDimension(dim), choices - (dim->symbol))
+
+      case sameName =>
+        val updatedDims = (dims -- sameName) ++ (for {
+          t   <- dim.tags
+          DependentDimension(d, deps) <- sameName
+        } yield DependentDimension(d, deps + Dependency(dim, t)))
+
+        DependencyGraph(updatedDims + DependentDimension(dim), choices - (dim->symbol))
+      }      
 
     def fromAlternative(choice: Choice, tag: Symbol): DependencyGraph =
       (choice->symbol).definition match {
@@ -163,7 +173,8 @@ trait DimensionChecker { self: Reader with Namer with Rewriter =>
       intersection.foreach {
         case (k, deps) if deps.size > 1 =>
           // try to recover by checking whether all dimensions are actually the same:
-          if (!deps.forall { x => deps.forall { y => x.dim->symbol eq y.dim->symbol }}) {
+          //if (!deps.forall { x => deps.forall { y => x.dim->symbol eq y.dim->symbol }}) {
+          if (!deps.forall { x => deps.forall { y => x.dim.tags.toSet == y.dim.tags.toSet }}) {
             errors.multipleDimensions(k, at)
           }
         case _ =>
