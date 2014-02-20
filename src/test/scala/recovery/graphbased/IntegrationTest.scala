@@ -58,7 +58,7 @@ class IntegrationTest extends FlatSpec {
     })
   }
 
-  it should "generate variational equivalent expressions for all binary dimensions" in {
+  ignore should "generate variational equivalent expressions for all binary dimensions" in {
 
     val rows = createRows(for {
       x <- 1 to 2
@@ -73,7 +73,7 @@ class IntegrationTest extends FlatSpec {
     }
   }
 
-  it should "generate variational equivalent expressions including 5-ary dimensions" in {
+  ignore should "generate variational equivalent expressions including 5-ary dimensions" in {
 
     val rows = createRows(for {
       x <- 1 to 2
