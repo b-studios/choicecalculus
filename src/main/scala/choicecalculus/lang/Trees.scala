@@ -22,3 +22,5 @@ case class Identifier(name: Symbol) extends Tree
 case class Include(filename: String, context: AnyRef) extends Tree
 
 case class PartialConfig(body: Tree, selections: List[(Symbol, Symbol)]) extends Tree
+
+case class Choose(name: Symbol, tag: Symbol, body: Tree) extends Tree

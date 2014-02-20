@@ -62,6 +62,11 @@ trait Namer { self: Rewriter =>
     to
   }
 
+  lazy val copySymbolFrom: Tree => Tree => Tree  = { from => to =>
+    from->copySymbol(to)
+    to
+  }
+
   lazy val moveSymbolTo: Tree => Tree => Tree  = { to => from =>
     // println(s"move symbol called \n$from \n $to")
     symbolTable get(from) map { sym =>

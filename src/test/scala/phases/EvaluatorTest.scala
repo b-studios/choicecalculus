@@ -320,6 +320,18 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
     evaluating(select('A, 'b, ast)) should be { lit("3") }
   }
 
+  // select A.a from select B.a from 
+  //  dim A<a,b> in (dim B<a,b> in 3) + A<a: (dim B<c,d> in 4), b: 5>
+  it should "force selection to be performed inside out #9" in new Context {
+    val ast = dim('A)('a, 'b) {
+      (dim('B)('a, 'b) { lit("3") }) + choice('A)('a -> (dim('B)('a, 'b) { lit("4") }), 'b -> lit("5"))
+    }
+
+    evaluating(select('B, 'a, ast)) should be { dim('A)('a, 'b) { lit("3") + choice('A)('a -> (dim('B)('a, 'b) { lit("4") }), 'b -> lit("5")) }}
+    evaluating(select('A, 'b, select('B, 'a, ast))) should be { lit("3") + lit("5") }
+    evaluating(select('A, 'a, select('B, 'a, ast))) should be { lit("3") + (dim('B)('a, 'b) { lit("4") }) }
+  }
+
   "Examples from vamos 2013" should
     "3.0 select simple dimensions" in new Context {
 

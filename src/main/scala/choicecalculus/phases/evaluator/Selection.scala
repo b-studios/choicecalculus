@@ -14,8 +14,8 @@ trait Selection { self: Namer with Rewriter =>
     // This is ruled out by the dimension checker...
     case Select(_, _, c: Choice) => c
 
-    case Select(dim, tag, Dimension(name, tags, body)) if name == dim =>
-      rewrite(choose(dim, tag))(body)
+    case Select(dim, tag, Dimension(name, tags, body)) if name == dim => Choose(dim, tag, body)
+      //rewrite(choose(dim, tag))(body)
 
     case Select(dim, tag, id: Identifier) => PartialConfig(id, List((dim, tag)))
 
@@ -32,9 +32,10 @@ trait Selection { self: Namer with Rewriter =>
 
     // Hostlanguage constructs - wrap every child into selectexpressions and 
     // reconstruct node the instanceOf check is to prevent one select "jumping" 
-    // over another - similar to the rule
-    //     case SelectExpr(_, _, SelectExpr(_, _, _)) => SKIP
-    case s @ Select(dim, tag, t) if !t.isInstanceOf[Select] => rewrite(all(rule {
+    // over another (or over a `choose`) - similar to the rules
+    //     case Select(_, _, Select(_, _, _)) => SKIP
+    //     case Select(_, _, Choose(_, _, _)) => SKIP
+    case s @ Select(dim, tag, t) if !t.isInstanceOf[Choose] && !t.isInstanceOf[Select] => rewrite(all(rule {
       case n: Tree => Select(dim, tag, n)
       case l: Seq[_] => l.map {
         case node: Tree => Select(dim, tag, node)
@@ -46,28 +47,40 @@ trait Selection { self: Namer with Rewriter =>
       }
       case other => other
     }))(t)
-  })
 
-  /**
-   * In this relation we use function definition instead of syntactic 
-   * representation to omit introduction of yet another syntactic element (e.g. 
-   * "pushing down" `Chosen('A, 'a, body)`. Can easily be rewritten.
-   *
-   * `sometd` will try to continue on subtrees until it successfully matches a 
-   * rule. Then it will stop processing this subtree.
-   */
-  def choose(dim: Symbol, tag: Symbol): Strategy = sometd(rule("choose", {
-
-    // select expressions shadow other ones, with the same dimension
-    case e @ Select(d, _, _) if d == dim => e
-
-    // selection stops at dimensions with the same name
-    case e @ Dimension(d, _, _) if d == dim => e
+    // selection stops at dimensions with the same name since all choices
+    // in body are lexically bound by this dimension
+    case Choose(dim, tag, d @ Dimension(name, tags, body)) if dim == name => d
 
     // actual choosing of an alternative
-    case Choice(d, alts) if d == dim => alts.collect {
-      case Alternative(t, body) if t == tag => rewrite(choose(dim, tag))(body)
+    case Choose(dim, tag, Choice(d, alts)) if d == dim => alts.collect {
+      case Alternative(t, body) if t == tag => Choose(dim, tag, body)
     }.head
 
-  }))
+    case Choose(dim, tag, c @ Choice(d, alts)) if d != dim => Choice(d, alts.map {
+      case Alternative(t, body) => Alternative(t, Choose(dim, tag, body))
+    })->copySymbolFrom(c)
+
+    // `Choose` Propagation
+
+    case Choose(dim, tag, PartialConfig(body, configs)) => 
+      PartialConfig(Choose(dim, tag, body), configs)
+
+    case Choose(dim, tag, old @ Share(name, expr, body)) => 
+      Share(name, Choose(dim, tag, expr), Choose(dim, tag, body))->moveSymbolFrom(old)
+
+    // choose must not jump over other chooses or selects (see #9)
+    case c @ Choose(dim, tag, t) if !t.isInstanceOf[Choose] && !t.isInstanceOf[Select] => rewrite(all(rule {
+      case n: Tree => Choose(dim, tag, n)
+      case l: Seq[_] => l.map {
+        case node: Tree => Choose(dim, tag, node)
+        case other => other
+      }
+      case o: Option[_] => o.map { 
+        case node: Tree => Choose(dim, tag, node)
+        case other => other
+      }
+      case other => other
+    }))(t)
+  })
 }
