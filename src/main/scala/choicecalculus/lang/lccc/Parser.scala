@@ -42,11 +42,16 @@ trait Parser extends lang.javascript.Lexer {
   // We allow lcExpression in parameter position to enable variational names
   lazy val lambdaExpr: PackratParser[Tree] = 
     ( ("\\" ~> lcExpression <␣ ".") ␣ lambdaExpr ^^ Lambda
-    | binaryOpExpr
+    | addExpr
     )
 
-  lazy val binaryOpExpr: PackratParser[Tree] = 
-    ( binaryOpExpr ␣ ("+" | "-") ␣ callExpr ^^ BinaryOp
+  lazy val addExpr: PackratParser[Tree] = 
+    ( addExpr ␣ ("+" | "-") ␣ mulExpr ^^ BinaryOp
+    | mulExpr
+    )
+
+  lazy val mulExpr: PackratParser[Tree] = 
+    ( mulExpr ␣ ("*" | "/") ␣ callExpr ^^ BinaryOp
     | callExpr
     )
 

@@ -332,6 +332,101 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
     evaluating(select('A, 'a, select('B, 'a, ast))) should be { lit("3") + (dim('B)('a, 'b) { lit("4") }) }
   }
 
+  "Examples from the project report" should
+    "support reuse of variation points" in new Context {
+      val ast = dim('Par)('x, 'y, 'z) {
+          dim('Impl)('plus, 'times) {
+            share('v, choice('Par)('x -> lit("x"), 'y -> lit("y"), 'z -> lit("z")), 
+              choice('Impl)('plus -> (id('v) + id('v)), 'times -> (lit("2") * id('v))))
+          }
+        }
+
+      evaluating(select('Par, 'x, ast)) should be { 
+        dim('Impl)('plus, 'times) {
+          choice('Impl)('plus -> (lit("x") + lit("x")), 'times -> (lit("2") * lit("x")))
+        }
+      }
+  }
+
+  it should "support reuse of alternatives" in new Context {
+    val ast = dim('OS)('linux, 'mac, 'windows) {
+      share('v, lit("\n"), choice('OS)(
+        'linux -> id('v),
+        'mac -> id('v),
+        'windows -> lit("\r\n")
+      ))
+    }
+    evaluating(select('OS, 'mac, ast)) should be { lit("\n") }
+    evaluating(select('OS, 'windows, ast)) should be { lit("\r\n") }
+  }
+
+  it should "support reuse of common subexpressions" in new Context {
+    val ast = dim('Secure)('no, 'yes) {
+      share('read, lit("readInput"), choice('Secure)(
+        'no  -> id('read),
+        'yes -> (lit("secure") + id('read) + lit("secureEnd"))
+      ))
+    }
+    evaluating(ast) should be { 
+      dim('Secure)('no, 'yes) { choice('Secure)(
+          'no  -> lit("readInput"),
+          'yes -> (lit("secure") +  lit("readInput") + lit("secureEnd"))
+        )
+      }
+    }
+    evaluating(select('Secure, 'yes, ast)) should be { lit("secure") +  lit("readInput") + lit("secureEnd") }
+    evaluating(select('Secure, 'no, ast)) should be { lit("readInput") }
+  }
+
+  it should "support reuse of variational components" in new Context {
+    val ast = share('sort, dim('SortAlg)('merge, 'quick) {
+      choice('SortAlg)(
+        'quick -> lit("quickSort"),
+        'merge -> lit("mergeSort")
+      )
+    }, select('SortAlg, 'merge, id('sort)) + select('SortAlg, 'quick, id('sort)))
+
+    evaluating(ast) should be { lit("mergeSort") + lit("quickSort")}
+  }
+
+  it should "support reuse of atomic choices" in new Context {
+    val astV = share('v, dim('Par)('x,'y, 'z) { choice('Par)(
+      'x -> lit("x"),
+      'y -> lit("y"),
+      'z -> lit("z")
+    )}, id('v) + id('v))
+
+    val astW = share('w, dim('Par)('a,'b) { choice('Par)(
+        'a -> lit("a"),
+        'b -> lit("b")
+      )}, id('w) + id('w) + id('w))
+
+    evaluating(select('Par, 'y, astV)) should be { lit("y") + lit("y") }
+    evaluating(select('Par, 'a, astW)) should be { lit("a") + lit("a") + lit("a") }
+    
+    evaluating(select('Par, 'y, astV) * astW) should be { 
+      (lit("y") + lit("y")) * astW
+    }
+
+    evaluating(astV * select('Par, 'a, astW)) should be { 
+      astV * (lit("a") + lit("a") + lit("a"))
+    }
+
+    evaluating(select('Par, 'y, astV) * select('Par, 'a, astW)) should be { 
+      (lit("y") + lit("y")) * (lit("a") + lit("a") + lit("a"))
+    }
+  }
+
+  it should "override default selections" in new Context {
+    val ast = share('w, dim('Par)('a,'b) { choice('Par)(
+        'a -> lit("a"),
+        'b -> lit("b")
+      )}, id('w) + id('w) + select('Par, 'b, id('w)))
+
+    evaluating(select('Par, 'a, ast)) should be { lit("a") + lit("a") + lit("b") }
+  }
+
+
   "Examples from vamos 2013" should
     "3.0 select simple dimensions" in new Context {
 

@@ -61,13 +61,7 @@ trait Selection { self: Namer with Rewriter =>
       case Alternative(t, body) => Alternative(t, Choose(dim, tag, body))
     })->copySymbolFrom(c)
 
-    // `Choose` Propagation
-
-    case Choose(dim, tag, PartialConfig(body, configs)) => 
-      PartialConfig(Choose(dim, tag, body), configs)
-
-    case Choose(dim, tag, old @ Share(name, expr, body)) => 
-      Share(name, Choose(dim, tag, expr), Choose(dim, tag, body))->moveSymbolFrom(old)
+    case Choose(dim, tag, p @ PartialConfig(body, configs)) => p
 
     // choose must not jump over other chooses or selects (see #9)
     case c @ Choose(dim, tag, t) if !t.isInstanceOf[Choose] && !t.isInstanceOf[Select] => rewrite(all(rule {
