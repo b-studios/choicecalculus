@@ -83,7 +83,7 @@ class DimensionCheckerTest extends FlatSpec with matchers.ShouldMatchers {
   }
 
   it should "select the first of two nested, equally named dimensions (#8)" in new Context {
-    val ast = dim('A)('a,'b) { dim('A)('b,'c) { lit("42") } }
+    def ast = dim('A)('a,'b) { dim('A)('b,'c) { lit("42") } }
 
     dimensionChecking(select('A, 'a, ast))
     dimensionChecking(select('A, 'b, ast))
@@ -93,13 +93,13 @@ class DimensionCheckerTest extends FlatSpec with matchers.ShouldMatchers {
   "Open questions from vamos 2013" should
     "4.1 warn when selecting undeclared dimensions" in new Context {
 
-    val example4_1 = select('D, 't, lit("1") + lit("2"))
+    def example4_1 = select('D, 't, lit("1") + lit("2"))
     dimensionChecking(example4_1)
     vacuousWarning should be (true)
   }
 
   it should "4.2 not allow multiple, parallel dimension declarations" in new Context {
-    val example4_2 = select('D, 'a,
+    def example4_2 = select('D, 'a,
       dim('D)('a, 'b) { choice('D) (
         'a -> lit("1"),
         'b -> lit("2")
@@ -112,18 +112,18 @@ class DimensionCheckerTest extends FlatSpec with matchers.ShouldMatchers {
   }
 
   it should "4.2 allow atomic choices as exception to parallel dimension declaration" in new Context {
-    val example4_2_1 = share('x, 
+    def example4_2_1 = share('x, 
       dim('A)('a, 'b) { choice('A) ('a -> lit("1"), 'b -> lit("1")) },
       id('x) + id('x))
       dimensionChecking(example4_2_1)
   }
 
   it should "4.3 not allow undeclared tag selection" in new Context {
-    val example4_3 = select('D,'a, dim('D)('b, 'c) { choice('D) (
+    def example4_3 = select('D,'a, dim('D)('b, 'c) { choice('D) (
       'b -> lit("1"),
       'c -> lit("2")
     )})
-    val example4_3_2 = select('D,'a, dim('D)('b, 'd) { lit("3") + lit("4") })
+    def example4_3_2 = select('D,'a, dim('D)('b, 'd) { lit("3") + lit("4") })
 
     dimensionCheckerError { dimensionChecking(example4_3) }
     dimensionCheckerError { dimensionChecking(example4_3_2) }
@@ -140,7 +140,7 @@ class DimensionCheckerTest extends FlatSpec with matchers.ShouldMatchers {
     //     }
     //     case b => 3
     //   }
-    val example4_4 = select('B, 'c, dim('A)('a, 'b) {
+    def example4_4 = select('B, 'c, dim('A)('a, 'b) {
       choice('A) (
         'a -> dim('B)('c, 'd) { choice('B) (
           'c -> lit("1"),

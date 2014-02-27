@@ -95,7 +95,7 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
     }
 
     // share x = { var foo = 4 } in x
-    val share_stmt = share('x, VarDeclStmt(VarBinding(lit("foo"), lit("4")) :: Nil), id('x))
+    def share_stmt = share('x, VarDeclStmt(VarBinding(lit("foo"), lit("4")) :: Nil), id('x))
 
     substituting(share_stmt) should be {
       VarDeclStmt(VarBinding(lit("foo"), lit("4")) :: Nil)
@@ -122,7 +122,7 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
     //    case b => return 2 * x
     //  }
     // }
-    val dimA = dim('A)('a, 'b) {
+    def dimA = dim('A)('a, 'b) {
       choice('A) (
         'a -> ReturnStmt(Some(id('x))),
         'b -> ReturnStmt(Some(lit("2") * id('x)))
@@ -148,7 +148,7 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
 
     // select Config.advanced from
     //   include "included.cclang"
-    val stmt = select('Config, 'advanced, include("examples/include/included.js.cc", parsers.topLevel))
+    def stmt = select('Config, 'advanced, include("examples/include/included.js.cc", parsers.topLevel))
 
     evaluating(stmt) should be { Program(lit("14") :: Nil) }
   }
@@ -166,8 +166,8 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
   it should "reduce multiple nested shares correctly" in new Context {
 
     val share_exp  = share('x, lit("3") + lit("5"), share('y, id('x), id('x) * lit("5")))
-    val share_exp2 = share('x, lit("3"), share('y, id('x) * lit("5"), id('y)))
-    val share_exp3 = share('x, lit("3"), share('y, lit("5") * id('x), id('y)))
+    def share_exp2 = share('x, lit("3"), share('y, id('x) * lit("5"), id('y)))
+    def share_exp3 = share('x, lit("3"), share('y, lit("5") * id('x), id('y)))
 
     substituting(share_exp) should be {
       (lit("3") + lit("5")) * lit("5")
@@ -183,24 +183,26 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
 
   it should "perform selections on shared dimensions" in new Context {
 
-    val test_dim = dim('A)('a) { choice('A) ('a -> lit("1")) }
-    val exp = share('x, test_dim, select('A, 'a, id('x)))
+    def test_dim = dim('A)('a) { choice('A) ('a -> lit("1")) }
+    def exp = share('x, test_dim, select('A, 'a, id('x)))
+
+    val exp1 = exp
 
     selecting(exp) should be {
       share('x, test_dim, partialConfig('A -> 'a) (id('x)))
     }
-    evaluating(exp) should be { lit("1") }
+    evaluating(exp1) should be { lit("1") }
 
     mute {
-      dimensioning(exp).fullyConfigured should be (true)
+      dimensioning(exp1).fullyConfigured should be (true)
     }
   }
 
   it should "perform selections in shared dependend dimensions" in new Context {
 
-    val inner_dim = dim('A)('a) { choice('A) ('a -> lit("1")) }
-    val outer_dim = dim('B)('b) { choice('B) ('b -> inner_dim) }
-    val shared = share('x, outer_dim, select('A, 'a, select('B, 'b, id('x))))
+    def inner_dim = dim('A)('a) { choice('A) ('a -> lit("1")) }
+    def outer_dim = dim('B)('b) { choice('B) ('b -> inner_dim) }
+    def shared = share('x, outer_dim, select('A, 'a, select('B, 'b, id('x))))
 
     evaluating(shared) should be { lit("1") }
   }
@@ -210,15 +212,15 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
   //     select B.b from y
   it should "perform selections on renamed dimensions" in new Context {
 
-    val first_dim = dim('A)('a) {
+    def first_dim = dim('A)('a) {
       choice('A) ('a -> lit("1")) + choice('A) ('a -> lit("1"))
     }
 
-    val second_dim = dim('B)('b) {
+    def second_dim = dim('B)('b) {
       lit("4") * choice('B) ('b -> select('A, 'a, id('x)))
     }
 
-    val shared = share('x, first_dim, share('y, second_dim, select('B, 'b, id('y))))
+    def shared = share('x, first_dim, share('y, second_dim, select('B, 'b, id('y))))
 
     evaluating(shared) should be {
       lit("4") * (lit("1") + lit("1"))
@@ -237,7 +239,7 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
   //      }
   it should "perform inner selections first" in new Context {
 
-    val dimBody = dim('A)('a, 'b) {
+    def dimBody = dim('A)('a, 'b) {
       choice('A) (
         'a -> dim('A)('b, 'c) {
           choice('A) (
@@ -248,8 +250,8 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
         'b -> lit("42")
       )}
 
-    val selects1 = select('A,'b, select('A,'a, dimBody));
-    val selects2 = select('A,'a, select('A,'b, dimBody));
+    def selects1 = select('A,'b, select('A,'a, dimBody));
+    def selects2 = select('A,'a, select('A,'b, dimBody));
 
     evaluating(selects1) should be { lit("3") }
 
@@ -262,12 +264,12 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
 
   it should "correctly substitute shares with free choices (#7)" in new Context {
 
-    val ticket7_1 = select('A, 'a, dim('A)('a,'b) {
+    def ticket7_1 = select('A, 'a, dim('A)('a,'b) {
       share('v, choice('A)('a -> lit("42"), 'b -> lit("43")),
         id('v))
     })
 
-    val ticket7_2 = select('A, 'a, select('B, 'c, 
+    def ticket7_2 = select('A, 'a, select('B, 'c, 
       dim('A)('a,'b) {
         share('v, dim('B)('c, 'd) {
           choice('B)(
@@ -279,20 +281,20 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
       }))
 
     // select A.a from (dim A<a,b> in share #v = A<a: 1, b: 2> in dim B<c,d> in #v)
-    val ticket7_3 = select('A, 'a, dim('A)('a, 'b) {
+    def ticket7_3 = select('A, 'a, dim('A)('a, 'b) {
         share('v, choice('A)('a -> lit("1"), 'b -> lit("2")), dim('B)('c, 'd) {
           id('v)
         })
       })
 
     // select B.c from select A.a from dim A<a,b> in dim B<c,d> in share #v = A<a: 1, b: 2> in share #w = B<c: #v, d: #v> in #w + #w
-    val ticket7_4_body = dim('A)('a, 'b) { dim('B)('c, 'd) { 
+    def ticket7_4_body = dim('A)('a, 'b) { dim('B)('c, 'd) { 
         share('v, choice('A)('a -> lit("1"), 'b -> lit("2")), 
           share('w, choice('B)('c -> id('v), 'd -> id('v)), id('w)))
       }}
 
-    val ticket7_4_1 = select('A, 'a, select('B, 'd, ticket7_4_body))
-    val ticket7_4_2 = select('B, 'c, select('A, 'b, ticket7_4_body))
+    def ticket7_4_1 = select('A, 'a, select('B, 'd, ticket7_4_body))
+    def ticket7_4_2 = select('B, 'c, select('A, 'b, ticket7_4_body))
 
     evaluating(ticket7_1) should be { lit("42") }
     evaluating(ticket7_2) should be { lit("42") }
@@ -303,7 +305,7 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
 
   it should "not substitute shares with unselected free choices" in new Context {
     // dim A<a, b> in share #v = A <a : 1, b : 2> in #v
-    val ex = dim('A)('a, 'b) {
+    def ex = dim('A)('a, 'b) {
         share('v, choice('A)('a -> lit("1"), 'b -> lit("2")), id('v))
       }
 
@@ -312,7 +314,7 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
 
   it should "select recursively nested choices (dominant choices)" in new Context {
     // select A.a from dim A<a,b> in A<a:A<a:1,b:2>,b:3>
-    val ast = dim('A)('a,'b) {
+    def ast = dim('A)('a,'b) {
         choice('A)('a -> choice('A)('a -> lit("1"), 'b -> lit("2")), 'b -> lit("3"))
       }
 
@@ -323,7 +325,7 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
   // select A.a from select B.a from 
   //  dim A<a,b> in (dim B<a,b> in 3) + A<a: (dim B<c,d> in 4), b: 5>
   it should "force selection to be performed inside out #9" in new Context {
-    val ast = dim('A)('a, 'b) {
+    def ast = dim('A)('a, 'b) {
       (dim('B)('a, 'b) { lit("3") }) + choice('A)('a -> (dim('B)('a, 'b) { lit("4") }), 'b -> lit("5"))
     }
 
@@ -334,7 +336,7 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
 
   "Examples from the project report" should
     "support reuse of variation points" in new Context {
-      val ast = dim('Par)('x, 'y, 'z) {
+      def ast = dim('Par)('x, 'y, 'z) {
           dim('Impl)('plus, 'times) {
             share('v, choice('Par)('x -> lit("x"), 'y -> lit("y"), 'z -> lit("z")), 
               choice('Impl)('plus -> (id('v) + id('v)), 'times -> (lit("2") * id('v))))
@@ -349,7 +351,7 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
   }
 
   it should "support reuse of alternatives" in new Context {
-    val ast = dim('OS)('linux, 'mac, 'windows) {
+    def ast = dim('OS)('linux, 'mac, 'windows) {
       share('v, lit("\n"), choice('OS)(
         'linux -> id('v),
         'mac -> id('v),
@@ -361,7 +363,7 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
   }
 
   it should "support reuse of common subexpressions" in new Context {
-    val ast = dim('Secure)('no, 'yes) {
+    def ast = dim('Secure)('no, 'yes) {
       share('read, lit("readInput"), choice('Secure)(
         'no  -> id('read),
         'yes -> (lit("secure") + id('read) + lit("secureEnd"))
@@ -379,7 +381,7 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
   }
 
   it should "support reuse of variational components" in new Context {
-    val ast = share('sort, dim('SortAlg)('merge, 'quick) {
+    def ast = share('sort, dim('SortAlg)('merge, 'quick) {
       choice('SortAlg)(
         'quick -> lit("quickSort"),
         'merge -> lit("mergeSort")
@@ -390,13 +392,13 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
   }
 
   it should "support reuse of atomic choices" in new Context {
-    val astV = share('v, dim('Par)('x,'y, 'z) { choice('Par)(
+    def astV = share('v, dim('Par)('x,'y, 'z) { choice('Par)(
       'x -> lit("x"),
       'y -> lit("y"),
       'z -> lit("z")
     )}, id('v) + id('v))
 
-    val astW = share('w, dim('Par)('a,'b) { choice('Par)(
+    def astW = share('w, dim('Par)('a,'b) { choice('Par)(
         'a -> lit("a"),
         'b -> lit("b")
       )}, id('w) + id('w) + id('w))
@@ -418,7 +420,7 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
   }
 
   it should "override default selections" in new Context {
-    val ast = share('w, dim('Par)('a,'b) { choice('Par)(
+    def ast = share('w, dim('Par)('a,'b) { choice('Par)(
         'a -> lit("a"),
         'b -> lit("b")
       )}, id('w) + id('w) + select('Par, 'b, id('w)))
@@ -432,7 +434,7 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
 
     // select D.a from
     //   dim D<a,b> in D<1,2>
-    val example3_0 = select('D, 'a,
+    def example3_0 = select('D, 'a,
       dim('D)('a, 'b) { choice('D) (
         'a -> lit("1"),
         'b -> lit("2")
@@ -448,19 +450,19 @@ class EvaluatorTest extends FlatSpec with matchers.ShouldMatchers {
     //     X<select A.b from v, select A.c from v>
     //
     // with e being something like: dim A<a,b,c> in A<1,2,3>
-    val example3_1_e = dim('A)('a, 'b, 'c) { choice('A) (
+    def example3_1_e = dim('A)('a, 'b, 'c) { choice('A) (
       'a -> lit("1"),
       'b -> lit("2"),
       'c -> lit("3")
     )}
 
-    val example3_1 = share('v, example3_1_e, dim('X)('y, 'z) { choice('X) (
+    def example3_1 = share('v, example3_1_e, dim('X)('y, 'z) { choice('X) (
       'y -> select('A, 'b, id('v)),
       'z -> select('A, 'c, id('v))
     )})
 
-    val example3_1_sel1 = select('X, 'y, example3_1);
-    val example3_1_sel2 = select('X, 'z, example3_1);
+    def example3_1_sel1 = select('X, 'y, example3_1);
+    def example3_1_sel2 = select('X, 'z, example3_1);
 
     evaluating(example3_1_sel1) should be { lit("2") }
     evaluating(example3_1_sel2) should be { lit("3") }
