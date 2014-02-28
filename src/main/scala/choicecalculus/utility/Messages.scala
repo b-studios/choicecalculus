@@ -9,6 +9,9 @@ import org.kiama.util.{ Emitter, Positioned }
 
 import scala.language.implicitConversions
 
+import scala.util.DynamicVariable
+import java.lang.ThreadLocal
+
 /**
  * The messaging backend.
  *
@@ -104,11 +107,18 @@ object messages {
   val NoPhase = Symbol("NOPHASE")
   val NoFilename = ""
 
-  private var isMuted = false
-  private var currentFilename = NoFilename
-  private var currentPhase = NoPhase
+  private var isMuted = new DynamicVariable(false)
+  private var currentFilename = new DynamicVariable(NoFilename)
+  private var currentPhase = new DynamicVariable(NoPhase)
 
-  private val messages = new ListBuffer[Message]()
+  /**
+   * We have to use ThreadLocal as opposed to InheritedThreadLocal (used by the
+   * implementation of DynamicVariable) since messages should not be shared /
+   * inherited by threads.
+   */
+  private val messages = new ThreadLocal[ListBuffer[Message]] {
+    override def initialValue = new ListBuffer[Message]()
+  }
 
 
   /**
@@ -116,15 +126,7 @@ object messages {
    *
    * @group Scoped
    */
-  def mute[T](block: => T): T = {
-    val isMutedBefore = isMuted
-    isMuted = true
-    try { 
-      block
-    } finally {
-      isMuted = isMutedBefore
-    }
-  }
+  def mute[T](block: => T): T = isMuted.withValue(true) { block }
 
   /**
    * Creates a scope for messages with the given parameters
@@ -147,22 +149,13 @@ object messages {
    * }}}
    */
   def messageScope[T](
-      filename: String = currentFilename, 
-      phase: Symbol = currentPhase)(block: => T): T = {
-
-    val filenameBefore = currentFilename
-    val phaseBefore = currentPhase
-
-    currentFilename = filename
-    currentPhase = phase
-    
-    try {
-      block
-    } finally {
-      currentPhase = phaseBefore
-      currentFilename = filenameBefore
+      filename: String = currentFilename.value, 
+      phase: Symbol = currentPhase.value)(block: => T): T = 
+    currentFilename.withValue(filename) { 
+      currentPhase.withValue(phase) {
+        block
+      }
     }
-  }
 
   /**
    * Executes the given block and returns it's
@@ -191,12 +184,12 @@ object messages {
   def message(
       msg: String,
       level: Level = Info,
-      phase: Symbol = currentPhase,
-      filename: String = currentFilename,
+      phase: Symbol = currentPhase.value,
+      filename: String = currentFilename.value,
       position: Position = NoPosition) {
 
-    if (!isMuted) {
-      messages += Message(level, phase, filename, position, msg)
+    if (!isMuted.value) {
+      messages.get += Message(level, phase, filename, position, msg)
     }
   }
 
@@ -205,8 +198,8 @@ object messages {
    */
   def debug(
       msg: String,
-      phase: Symbol = currentPhase,
-      filename: String = currentFilename,
+      phase: Symbol = currentPhase.value,
+      filename: String = currentFilename.value,
       position: Position = NoPosition) {
     message(msg, Debug, phase, filename, position)
   }
@@ -216,8 +209,8 @@ object messages {
    */
   def info(
       msg: String,
-      phase: Symbol = currentPhase,
-      filename: String = currentFilename,
+      phase: Symbol = currentPhase.value,
+      filename: String = currentFilename.value,
       position: Position = NoPosition) { 
     message(msg, Info, phase, filename, position)
   }
@@ -227,8 +220,8 @@ object messages {
    */
   def warn(
       msg: String,
-      phase: Symbol = currentPhase,
-      filename: String = currentFilename,
+      phase: Symbol = currentPhase.value,
+      filename: String = currentFilename.value,
       position: Position = NoPosition) { 
     message(msg, Warn, phase, filename, position)
   }
@@ -238,8 +231,8 @@ object messages {
    */
   def error(
       msg: String,
-      phase: Symbol = currentPhase,
-      filename: String = currentFilename,
+      phase: Symbol = currentPhase.value,
+      filename: String = currentFilename.value,
       position: Position = NoPosition) { 
     message(msg, Error, phase, filename, position)
   }
@@ -249,8 +242,8 @@ object messages {
    */
   def raise(
       msg: String,
-      phase: Symbol = currentPhase,
-      filename: String = currentFilename,
+      phase: Symbol = currentPhase.value,
+      filename: String = currentFilename.value,
       position: Position = NoPosition): Nothing = {
     throw FatalPhaseError(phase, filename, position, msg)
   }
@@ -259,7 +252,7 @@ object messages {
   /**
    * @group message reporting
    */
-  def report(implicit emitter: Emitter) { report(messages, emitter) }
+  def report(implicit emitter: Emitter) { report(messages.get, emitter) }
 
   /**
    * Reports all messages that pass the provided filter
@@ -271,13 +264,13 @@ object messages {
    * }}}
    */
   def report(filter: Message => Boolean)(implicit emitter: Emitter) {
-    report(messages.filter(filter), emitter)
+    report(messages.get.filter(filter), emitter)
   }
 
   /** 
    * @group message reporting
    */
-  def resetMessages() { messages.clear }
+  def resetMessages() { messages.get.clear }
 
   /**
    * <strong>For debugging purpose only</strong>
@@ -288,7 +281,7 @@ object messages {
    * @group debugging
    */
   def hasBeenReported(filter: Message => Boolean): Boolean = 
-    messages.exists(filter)
+    messages.get.exists(filter)
 
   private def report(msgs: Seq[Message], emitter: Emitter) {
     for (msg <- sortMessages(msgs))
